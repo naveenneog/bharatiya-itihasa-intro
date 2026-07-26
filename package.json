@@ -1,0 +1,19 @@
+{
+  "name": "itihasa-intro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "One Line, Five Thousand Years — the drawn title sequence for Bhāratīya Itihāsa (Indian History).",
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.mjs 4321",
+    "art": "node scripts/shot.mjs http://localhost:4321/preview.html qa/art.png 1600 1700 2500",
+    "frames": "node scripts/frames.mjs 14 qa/frame",
+    "qa": "node scripts/qa.mjs",
+    "render": "node scripts/render.mjs --fps 60",
+    "render:draft": "node scripts/render.mjs --fps 24 --scale 0.5 --out dist/draft.mp4",
+    "fonts": "node scripts/fetch-fonts.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1"
+  }
+}

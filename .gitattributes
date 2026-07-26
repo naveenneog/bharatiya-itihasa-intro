@@ -1,0 +1,16 @@
+# Vendored third-party files are byte-for-byte copies of upstream releases.
+# Never let git rewrite their line endings — it changes their hashes.
+vendor/** -text
+
+*.woff2 binary
+*.mp4    binary
+*.webm   binary
+*.wav    binary
+
+# Keep our own sources LF in the repo, however they sit on disk.
+*.js   text eol=lf
+*.mjs  text eol=lf
+*.html text eol=lf
+*.css  text eol=lf
+*.json text eol=lf
+*.md   text eol=lf

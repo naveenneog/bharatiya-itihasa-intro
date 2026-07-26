@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>zoom</title>
+<style>
+ html,body{margin:0;background:radial-gradient(70% 70% at 50% 42%,#1c140c,#0a0806);}
+ svg{display:block;width:100vw;height:100vh}
+ .ink{fill:none;stroke:#e8b64a;stroke-linecap:round;stroke-linejoin:round}
+ .ghost{fill:none;stroke:#b7a684;stroke-opacity:.28;stroke-linecap:round;stroke-linejoin:round}
+</style></head><body>
+<script type="module">
+import * as art from './src/art.js';
+import { drawnMark } from './src/sketch.js';
+const NS='http://www.w3.org/2000/svg';
+const W={hero:4.2,frame:3,detail:2.5,accent:2.1};
+const q=new URLSearchParams(location.search);
+const which=q.get('a')||'lionCapital';
+const sketchy=q.get('s')==='1';
+const strokes = which==='indiaCoast' ? [{d:art.indiaCoast().d,role:'hero',order:0}]
+  : which==='chakra' ? art.chakra(500,500,340) : art[which]();
+const svg=document.createElementNS(NS,'svg'); svg.setAttribute('viewBox','0 0 1000 1000');
+for(const st of strokes){
+  const marks = sketchy ? drawnMark(st.d,{seed:Math.round((st.order+1)*997),amp:2.1,ghosts:2})
+                        : [{d:st.d,role:'ink'}];
+  for(const m of marks){
+    const p=document.createElementNS(NS,'path');
+    p.setAttribute('d',m.d); p.setAttribute('class',m.role==='ink'?'ink':'ghost');
+    p.setAttribute('stroke-width',(W[st.role]||2.4)*(m.role==='ink'?1:.85));
+    svg.appendChild(p);
+  }
+}
+document.body.appendChild(svg);
+</script></body></html>

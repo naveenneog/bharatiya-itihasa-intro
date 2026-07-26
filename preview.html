@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Itihāsa Intro — art contact sheet</title>
+<style>
+  :root{ --bg:#0d0b09; --gold:#e8b64a; --dim:#b7a684; }
+  html,body{margin:0;background:var(--bg);color:var(--dim);
+    font:13px/1.4 "Segoe UI",system-ui,sans-serif}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:2px}
+  figure{margin:0;position:relative;background:radial-gradient(70% 70% at 50% 40%,#1c140c,#0b0907)}
+  figcaption{position:absolute;left:10px;top:8px;font-size:10px;letter-spacing:.24em;
+    text-transform:uppercase;color:var(--gold);opacity:.75}
+  svg{display:block;width:100%;height:auto}
+  .ink{fill:none;stroke:var(--gold);stroke-linecap:round;stroke-linejoin:round}
+  .ghost{fill:none;stroke:#b7a684;stroke-opacity:.22;stroke-linecap:round;stroke-linejoin:round}
+</style>
+</head>
+<body>
+<div class="grid" id="grid"></div>
+<script type="module">
+import { indusSeal, lionCapital, vimana, chariotWheel, mughalDome, indiaCoast, chakra, flourish } from './src/art.js';
+import { drawnMark } from './src/sketch.js';
+
+const NS='http://www.w3.org/2000/svg';
+const W = { hero:3.4, frame:2.4, detail:2.0, accent:1.7 };
+
+function panel(title, strokes, sketchy){
+  const fig=document.createElementNS('http://www.w3.org/1999/xhtml','figure');
+  const cap=document.createElementNS('http://www.w3.org/1999/xhtml','figcaption');
+  cap.textContent=title; fig.appendChild(cap);
+  const svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('viewBox','0 0 1000 1000');
+  for(const st of strokes){
+    if(sketchy){
+      for(const m of drawnMark(st.d,{seed:Math.round((st.order+1)*997), amp:1.9, ghosts:2})){
+        const p=document.createElementNS(NS,'path');
+        p.setAttribute('d',m.d);
+        p.setAttribute('class', m.role==='ink'?'ink':'ghost');
+        p.setAttribute('stroke-width', m.role==='ink' ? (W[st.role]||2) : (W[st.role]||2)*0.8);
+        svg.appendChild(p);
+      }
+    } else {
+      const p=document.createElementNS(NS,'path');
+      p.setAttribute('d',st.d); p.setAttribute('class','ink');
+      p.setAttribute('stroke-width', W[st.role]||2);
+      svg.appendChild(p);
+    }
+  }
+  fig.appendChild(svg);
+  document.getElementById('grid').appendChild(fig);
+}
+
+const coast = indiaCoast();
+const sets = [
+  ['I · Indus seal', indusSeal()],
+  ['II · Lion capital', lionCapital()],
+  ['III · Vimana', vimana()],
+  ['IV · Chariot wheel', chariotWheel()],
+  ['V · Dome', mughalDome()],
+  ['VI · Coast', [{d:coast.d, role:'hero', order:0}]],
+  ['Chakra', chakra(500,500,340)],
+  ['Flourish', flourish(500,500,380)],
+];
+sets.forEach(([t,st])=>panel(t,st,false));
+sets.forEach(([t,st])=>panel(t+' · drawn',st,true));
+document.body.dataset.ready='1';
+</script>
+</body>
+</html>
