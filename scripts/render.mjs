@@ -19,7 +19,7 @@ const has = (k) => argv.includes('--' + k);
 
 const FPS = Number(arg('fps', 60));
 const SCALE = Number(arg('scale', 1));
-const URL = arg('url', 'http://localhost:4321/index.html');
+const URL = arg('url', 'http://localhost:4321/index.html?export=1');
 const OUT = path.resolve(arg('out', 'dist/itihasa-intro.mp4'));
 const TMP = path.resolve('dist/.frames');
 
@@ -47,6 +47,18 @@ page.on('pageerror', (e) => problems.push('PAGEERROR ' + e.message));
 
 await page.goto(URL, { waitUntil: 'load' });
 await page.waitForFunction(() => window.__intro?.duration > 0, null, { timeout: 30000 });
+
+// Guard: viewer chrome must never end up in a master. Fail loudly rather than
+// spending half an hour rendering 1752 frames with buttons burnt into them.
+const chrome = await page.evaluate(() => ['#controls', '#hint'].filter((s) => {
+  const el = document.querySelector(s);
+  return el && getComputedStyle(el).display !== 'none';
+}));
+if (chrome.length) {
+  await browser.close();
+  throw new Error(`viewer chrome visible in export mode: ${chrome.join(', ')} — is ?export=1 on the URL?`);
+}
+
 const duration = await page.evaluate(() => window.__intro.duration);
 const total = Math.ceil(duration * FPS);
 console.log(`rendering ${total} frames @ ${FPS}fps  (${duration.toFixed(2)}s, ${1920 * SCALE}x${1080 * SCALE})`);

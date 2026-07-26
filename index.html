@@ -83,7 +83,18 @@
   #controls button[aria-pressed="true"]{color:var(--ink);border-color:rgba(232,182,74,.55)}
   #hint{position:absolute;left:0;right:0;bottom:54px;text-align:center;font-size:11px;
     letter-spacing:.34em;text-transform:uppercase;color:rgba(183,166,132,.5);opacity:0}
+
+  /* Export mode (?export=1). The buttons and the standing caption are viewer chrome,
+     not part of the title sequence — they must never be baked into a rendered master. */
+  html.export #controls,
+  html.export #hint{display:none!important}
 </style>
+<script>
+  /* Set on <html>, which already exists here, so the chrome is hidden before first paint. */
+  if (new URLSearchParams(location.search).has('export')) {
+    document.documentElement.classList.add('export');
+  }
+</script>
 </head>
 <body>
 <div id="frame">
