@@ -48,6 +48,7 @@ Output: 1920×1080, H.264 crf 17 + AAC 48 kHz stereo (`.mp4`), VP9 + Opus (`.web
 
 ```bash
 npm run qa         # real-time playthrough: fps, DOM weight, errors, reduced-motion
+npm run xb         # cross-engine: Chromium + WebKit + Firefox, errors and frame spill
 npm run frames     # contact sheet of 14 timeline positions → qa/frame-NN.png
 npm run art        # contact sheet of every drawing → qa/art.png
 ```
@@ -55,6 +56,13 @@ npm run art        # contact sheet of every drawing → qa/art.png
 `npm run qa` exits non-zero on failure. Measured on an idle machine: **median 59.9 fps,
 5% low 59.5, 1% low 59.5**, worst single second 59 fps, 1741 frames sampled over the
 29.19 s runtime, 1120 SVG paths, 0 console/page/network errors, reduced motion verified.
+
+`npm run xb` loads the sequence in every Playwright engine present on the machine, seeks to
+six timeline positions, screenshots each, and asserts that nothing which is actually painted
+spills outside the 1920×1080 frame. Engines that are not installed are skipped, not failed.
+Chromium and WebKit both report `29.19s · 1120 paths · 22 cues · 0 errors · 0 spills`, and
+the screenshots are visually indistinguishable — including the gradient-clipped Devanagari
+wordmark, which was the thing most likely to break.
 
 ---
 
@@ -69,7 +77,7 @@ npm run art        # contact sheet of every drawing → qa/art.png
 | `src/stage.js` | Builds a drawing into SVG: ghost / halo / ink layers, hero separation, stroke-width table |
 | `src/audio.js` | Cue-list synth (`drone / pluck / scratch / riser / strike`). Plays live, and renders the identical score offline to WAV |
 | `src/intro.js` | The master GSAP timeline — era data, per-scene fit, nib rides, morph hand-offs, the finale, the cue list |
-| `scripts/` | `serve` · `frames` · `shot` · `qa` · `render` · `fetch-fonts` · `browser` (Playwright launcher) |
+| `scripts/` | `serve` · `frames` · `shot` · `qa` · `xb` · `render` · `fetch-fonts` · `browser` (Playwright launcher) |
 
 ### Decisions worth knowing
 
@@ -144,8 +152,9 @@ Jammu & Kashmir and Ladakh. It should not be used as a reference for any boundar
 
 ## Known limits
 
-- **Tested in Chromium only.** `mix-blend-mode: soft-light` and the gradient-clipped
-  Devanagari wordmark are the two things most likely to differ in Safari or Firefox.
+- **Verified in Chromium and WebKit** (`npm run xb`) — identical output in both, so Safari
+  should be sound. **Firefox is untested**; no Firefox build was available on the machine
+  this was authored on. `npm run xb` will cover it as soon as one is installed.
 - **Audio needs a user gesture** in the browser, as all browsers require. The video export
   is unaffected — it renders the score offline.
 - The sequence is authored for 16:9. It scales to fit any window but is not re-composed for
