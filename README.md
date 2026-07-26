@@ -42,6 +42,11 @@ screenshots each frame, so the export is frame-exact and deterministic regardles
 fast the machine is. The score is rendered separately through an `OfflineAudioContext` to a
 WAV, and ffmpeg muxes the two. Requires `ffmpeg` on `PATH`.
 
+The renderer loads the page with `?export=1`, which hides the Sound / Replay buttons and the
+standing caption — they are viewer chrome, not part of the sequence. The class is set on
+`<html>` from an inline script so it applies before first paint, and `render.mjs` asserts the
+chrome is hidden before capturing anything rather than discovering it half an hour later.
+
 Output: 1920×1080, H.264 crf 17 + AAC 48 kHz stereo (`.mp4`), VP9 + Opus (`.webm`).
 
 ## QA
