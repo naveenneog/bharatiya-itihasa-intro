@@ -2,6 +2,9 @@
 
 A drawn title sequence for **Bhāratīya Itihāsa** (भारतीय इतिहास) — the Indian History project.
 
+> Looking for the **AI art directions**? Jump to [v2](#v2--the-ai-art-directions), or run
+> `npm start` and open <http://localhost:4321/gallery.html> to review every version side by side.
+
 Thirty seconds. One nib of gold ink that never lifts. The line it leaves becomes an Indus
 seal, then the Sarnath lion capital, then a Chola vimāna, then the stone chariot wheel at
 Hampi, then a Mughal dome — each drawing morphing into the next without the pen ever
@@ -144,7 +147,88 @@ Jammu & Kashmir and Ladakh. It should not be used as a reference for any boundar
 
 ---
 
-## Credits and licences
+## v2 — the AI art directions
+
+v1 (above) is the fully procedural, offline sequence. **v2 is a parallel exploration** that
+replaces the drawn line with generated imagery, kept in `versions/` so every option stays
+reviewable side by side. Nothing in v1 was changed or deleted to make it.
+
+```bash
+npm start                              # then open http://localhost:4321/gallery.html
+```
+
+`gallery.html` indexes **every** version, beat and revision that exists on disk — v1
+included, so the directions are judged against what they'd replace rather than in isolation.
+Each has a **Play the sequence** button.
+
+| Version | Direction | The idea |
+| --- | --- | --- |
+| `v2a-living-miniature` | Living Miniature | Mughal/Pahari/Rajput miniature painting brought to life. Flat jewelled pigment, gold leaf, ornate rule borders. Warm, storybook, unmistakably Indian. |
+| `v2b-carved-stone` | Carved in Stone | Macro cinematography of real temple stone. Raking gold light crawling across sandstone and granite, dust in the beam. Monumental and reverent. |
+| `v2c-ink-and-light` | Ink and Light | The v1 idea made physical — real ink blooming in water, gold leaf, palm leaf. Abstract, luxurious, still about the act of writing history down. |
+| `v2d-faces` | The Faces of Itihāsa | History as people, not monuments. Chiaroscuro portraits of the hands that actually made these things. The one direction with real emotion in it. |
+
+### Pipeline
+
+```bash
+node tools/gen-stills.mjs [v2a v2c ...]        # gpt-image-2 → versions/<id>/stills/
+node tools/gen-clips.mjs  [v2c] [--missing]    # sora-2      → versions/<id>/clips/
+node tools/build-version.mjs [v2c]             # → versions/<id>/build/index.html
+node tools/build-gallery.mjs                   # → gallery.html
+```
+
+Auth is an AAD bearer token from `az account get-access-token` — **no API keys and no `.env`
+anywhere in this repo.** Run `az login` first.
+
+**Nothing is ever overwritten.** Every run writes a new revision (`-r1`, `-r2`, …) and the
+exact prompt is saved beside each file as `.txt`, so any frame can be traced back to what
+produced it and no earlier version is lost. `--missing` resumes a partial run instead of
+regenerating work that already succeeded.
+
+### Decisions worth knowing
+
+- **Clips are image-to-video, not text-to-video.** Each beat's approved still is cropped to
+  the video size and passed as Sora's `input_reference`, so the footage inherits the exact
+  palette and composition that was signed off. Text-to-video alone drifts off-look between
+  beats and the four clips stop looking like one film.
+- **Every still is composed with a dark, empty left third**, and the type is set in HTML over
+  it — same Marcellus / Tiro Devanagari / Cormorant vocabulary as v1. So the directions differ
+  in *art only*, which is what makes them a fair A/B. Prompts also forbid lettering outright:
+  image models garble Devanagari.
+- **`v2d-faces` is the exception — it is text-to-video.** Sora's moderation refuses reference
+  images containing people (`people-in-user-uploads`), so that direction has to carry its look
+  in the prompt. It holds up, but its framing is looser than the other three; that is a policy
+  limit, not a tuning choice.
+- **The era block is absolutely positioned at a fixed optical centre.** In normal flow each
+  successive label stepped further down the frame as its predecessors stacked above it.
+- **Dates are set in Cormorant, not Marcellus.** Marcellus has no lining figures, so `1010 CE`
+  renders as `IOIO CE`.
+
+### Limits found by probing the live service
+
+The published docs did not match the deployment, so these were established against it directly
+and are recorded at the top of `tools/azure.mjs`:
+
+- Video API is `POST /openai/v1/videos?api-version=preview` — only `preview` and `v1` are
+  accepted. A `{"detail":"Not Found"}` body means the api-version is right and the path is
+  wrong; `{"error":{"code":"404"}}` means the route is wrong.
+- `sora-2` renders **1280×720 or 720×1280 only**, for **4, 8 or 12 seconds**. The request
+  schema advertises 1792×1024, but the model rejects it — and `sora-2b` resolves to the same
+  model. 720p is therefore the ceiling; the assembly upscales.
+- An `input_reference` must match the requested output size *exactly*, or the request fails
+  with `Inpaint image must match the requested width and height`.
+- Sora returns HTTP 429 `Too many running tasks` above ~2 concurrent jobs. That is a
+  concurrency cap rather than a rate limit, so it wants patience, not smaller batches.
+
+### Open
+
+The four directions are a hedge, not an answer — **pick one and it gets the full v1 treatment**
+(deterministic frame-exact render, score, QA gate, cross-engine check). Longer 8–12 s takes and
+extra revisions per beat are one command each.
+
+---
+
+
 
 - **GSAP 3.15.0** — core, DrawSVGPlugin, MorphSVGPlugin, MotionPathPlugin, CustomEase.
   Vendored in `vendor/gsap/`. Free under GSAP's standard no-charge licence.
@@ -154,6 +238,9 @@ Jammu & Kashmir and Ladakh. It should not be used as a reference for any boundar
   - *Tiro Devanagari Hindi* — Tiro Typeworks
 - Palette inherited from the Bhāratīya Itihāsa app: ink `#f3e7d0`, gold `#e8b64a`,
   saffron `#e07b2a` on `#0d0b09`.
+- **v2 imagery** is generated with Azure OpenAI `gpt-image-2` (stills) and `sora-2` (motion)
+  on the project's own Azure AI resource. Prompts are committed alongside every output.
+  v1 uses no AI at all.
 
 ## Known limits
 

@@ -2,4 +2,10 @@ node_modules/
 dist/
 qa/
 .tmp/
+tmp/
 *.log
+
+# Sora reference frames are a deterministic ffmpeg crop of the still beside them —
+# regenerable, so they stay out. The stills and clips themselves are committed:
+# generative output cannot be reproduced, and every version is meant to be kept.
+versions/**/clips/*-ref.png
