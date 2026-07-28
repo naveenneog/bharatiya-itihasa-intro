@@ -34,6 +34,13 @@ export const VARIANTS = {
     beats: ['00-itihasa', '05-gupta'],
     scrim: MOBILE_SCRIM,
   },
+  /* A kingdom sequence's full-length build: the mobile treatment with the corrected
+     procession. A separate entry rather than a change to `mobile`, because v5 was
+     approved with the old score and has to keep it. */
+  kingdom: {
+    out: 'build-mobile', ts: 1.6, tw: '37%', score: 'procession2', beats: null,
+    scrim: MOBILE_SCRIM,
+  },
   /* The same idea one level down: a kingdom sequence has its own stinger, cut to the
      two beats that set up the episode in front of it. Sized against YouTube's own
      measurement rather than taste — Analytics calls the first 30 seconds the intro, so
@@ -41,7 +48,7 @@ export const VARIANTS = {
      number that decides whether the video gets recommended is taken. The full 45s
      sequence remains its own piece; it is not what an episode opens with. */
   stinger: {
-    out: 'build-stinger', ts: 1.6, tw: '37%', score: 'procession',
+    out: 'build-stinger', ts: 1.6, tw: '37%', score: 'procession2',
     beats: ['01-dinara', '03-bhramati'],
     scrim: MOBILE_SCRIM,
   },

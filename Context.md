@@ -30,11 +30,35 @@ reads from it.** Do not write there.
 | v4 | v3 + synthesised score | `dist/v4-empires-scored.mp4` | approved |
 | v5 | mobile type (1.6×) + reworked score | `dist/v5-empires-mobile.mp4` | current best full sequence |
 | v6 | 15 s per-episode stinger (2 beats: `00-itihasa` + `05-gupta`) | `dist/v6-episode-titles.mp4` | used by episode cuts C/D/E |
+| **v7** | **Ink and Light — the Gupta Age.** One kingdom, 10 beats, **45.0 s**, −13.9 LUFS | `dist/v7-gupta-ink.mp4` | the per-kingdom sequence the user asked for |
+| v7s | the same sequence cut to 2 beats, **15.8 s**, −14.1 LUFS | `dist/v7-gupta-stinger.mp4` | what an episode opens with |
+| ep01 | the Aryabhata episode as an actual film, cut E, ~5:42 | `dist/ep01-aryabhata-youtube.mp4` | first publishable master |
 
 `dist/` is **gitignored** — masters are regenerable from the committed stills, clips and tools.
 Stills and clips **are** committed (generative output is not reproducible).
 
-Commits: `73f85f6` v2 · `a8d92bc` v3 · `e856cdd` v4 · `7e7d6bf` v5 · `4a6d48a` episode integration.
+Commits: `73f85f6` v2 · `a8d92bc` v3 · `e856cdd` v4 · `7e7d6bf` v5 · `4a6d48a` episode integration ·
+`dcb2185` YouTube review + skill · `096f2bc` Gupta sequence + episode renderer.
+
+---
+
+## v7 — the Gupta Age, 10 beats
+
+Ten aspects of one kingdom, accelerating **6.0 → 3.4 s**, every beat numbered (I–X).
+
+`01-dinara` gold coin · `02-shunya` place value · `03-bhramati` the Earth turns ·
+`04-vritta` π ≈ 3.1416 · `05-stambha` the iron pillar · `06-ajanta` · `07-nalanda` ·
+`08-kavya` Kālidāsa · `09-chaturanga` · `10-hunas` the setting.
+
+**Two candidates were generated per beat.** The winner is recorded in
+`versions/v7-gupta-ink/picks.json` **with the reason it won**, and `tools/picks.mjs` makes the
+pipeline use the *chosen* revision rather than the newest.
+
+**Fact-check corrections already applied to the on-screen copy — do not undo:**
+Ajanta is **Vākāṭaka under Hariṣeṇa c. 460–480**, not Gupta. The empire did **not** fall to the
+Hunas — **Skandagupta defeated them** (Junagadh inscription c. 456); the collapse was
+multi-causal. The written *zero symbol* is not epigraphically attested until post-Gupta, so beat
+II claims **place value**, not the zero.
 
 ---
 
@@ -140,6 +164,30 @@ Full brief with URLs was produced by a research sub-agent; re-run if needed.
    the opening line. Flagged, not yet resolved.
 10. **A number token highlighted for 2.1 s** (`62,832`, `3.1416`) looks like a frozen caption even
     though the timing is correct. Fix intended: sweep the highlight across the token. **Not done.**
+11. **Every master shipped 4–6 dB too quiet.** v4 −19.8, v5 −18.3, v6 −17.8 LUFS against a −14
+    reference. YouTube **attenuates loud uploads but never lifts quiet ones**, so all of them
+    played under everything around them in a feed. `tools/loudness.mjs` does the two-pass
+    `loudnorm` (measure, then correct with the numbers pinned and `linear=true`), and
+    `assertLoudness()` makes the render **fail** rather than ship off target.
+12. **`buildProcession` crashed on any all-numbered sequence.** It assumed unnumbered opening
+    beats existed and dereferenced `opening[opening.length - 1]`. Every single-kingdom sequence is
+    numbered the whole way through, so the Gupta build died on its first run. The first beat now
+    becomes the opening when there is no other.
+13. **The framed cut had no motion at all.** `.framed #art img{animation:none!important}` was
+    correct in isolation — travelling `object-position` does nothing once a picture is contained,
+    because there is no slack to travel through — but it left 28 panels as stills for 5.4 minutes.
+    Replaced with a 3% breathe on the panel and a counter-drift on the blurred surround,
+    alternating per panel.
+14. **Contain-fitting left a third of the frame black**, which reads as unfinished rather than as
+    restraint. A blurred, darkened blow-up of the same picture now fills the surround — no pixel
+    of the art is cropped to get there — and the captions grew into the freed width, **29px →
+    44px**, which is what burnt-in text needs to survive a phone.
+15. **The map pin vanished under the artwork** when the picture moved into its own column: the pin
+    was positioned against the frame while the picture occupied only the right 62%, and the sharp
+    image sat above it in the stack. Pin and label now live in a `.pinbox` that matches the
+    picture's rectangle and sits above it.
+16. **A thumbnail with a broken image path renders as a black rectangle with beautiful type on it**
+    and looks entirely deliberate. `publish.mjs` asserts `naturalWidth > 0` before screenshotting.
 
 ---
 
@@ -149,8 +197,10 @@ Full brief with URLs was produced by a research sub-agent; re-run if needed.
   complete; Firefox is absent. `scripts/browser.mjs` auto-discovers and passes `executablePath`.
 - **PowerShell has no heredoc.** Write commit messages to a temp file and `git commit -F`.
   Each call is a fresh process — no env/cwd persistence.
-- **ffmpeg here has no glob** (`-pattern_type glob` fails) and **no fontconfig** (`drawtext` fails).
-  Stage sequentially-named copies for `tile`; avoid `drawtext`.
+- **ffmpeg here has no glob** (`-pattern_type glob` fails) — stage sequentially-named copies for
+  `tile`. It *does* have `libass`, `fontconfig`, `sidechaincompress`, `zoompan` and `loudnorm`,
+  but **the repo's fonts are `.woff2`, which libass cannot read** — so burn-in via `ass`/`drawtext`
+  is not available without converting them. Render type through the page instead.
 - Preview server: `node scripts/serve.mjs 4321`. The episode player **requires HTTP** (it fetches
   `episode.json`); `file://` will not work.
 - Azure auth is `az account get-access-token --resource https://cognitiveservices.azure.com`.
@@ -172,13 +222,73 @@ Full brief with URLs was produced by a research sub-agent; re-run if needed.
 **Recommendation: cut E.** It is cut D's retention structure — hook, 15 s titles, story by ~27 s —
 with the cropping removed.
 
+---
+
+## Rendering an episode to a file (new)
+
+`tools/render-episode.mjs` is the only path from the episode page to a publishable MP4.
+
+    node tools/render-episode.mjs --cut cut-e-framed --intro dist/v7-gupta-stinger.mp4 --fps 25
+    node tools/render-episode.mjs --cut cut-e-framed --limit 40 --scale 0.5 --fps 10   # draft
+
+How it works, and why:
+
+- The episode page gained **`window.__ep.seek(t)`** plus `?export=1`. `seek` finds the panel at
+  `t`, rebuilds it only when it changes, and scrubs the CSS move with a **negative
+  `animation-delay` against a paused animation**. The picture is therefore a pure function of
+  time — deterministic, no dropped frames — and it *is* the player's own markup, keyframes and
+  word timings, so a master cannot drift from what the viewer sees in the browser.
+- Frames are captured as **JPEG q94** (PNG is ~3× slower and the delivery is lossy anyway).
+  At 1920×1080/25 fps a 5.4 min episode is ~8 160 frames and **~30 min**.
+- The titles are **spliced at the cut's own boundary** (sum of the `open` panels' durations), so
+  the structure is: cold open → titles → the rest.
+- Narration is `ffmpeg concat` of the per-panel files. Panel durations were *measured from those
+  files*, so picture and voice line up without any offset being written down.
+- **Loudness is asserted, not hoped for** — the render throws if the master misses −14 LUFS ±1.
+
+Structure that ships: **12 s cold open → 15.8 s Gupta stinger → story resumes at ~27.8 s**, which
+is inside the 30 s window YouTube measures.
+
+---
+
+## The underscore (new)
+
+`tools/underscore.mjs`. The episode used to be 61 s of score followed by **5.4 minutes of silence**
+— the single largest retention leak in the cut. The bed:
+
+- plays **in the gaps between lines** (panel boundaries are the only reliable silence),
+- spaces phrases by an irrational walk so nothing rhymes with anything,
+- is **quiet by construction** (drone ~0.05, flute ~0.05) *and* sidechain-ducked by the voice,
+- pulses only on panels whose `mood` is tense, one low `baya` every ~3.9 s,
+- resolves on a swell, a flute note and a struck bell rather than being cut off.
+
+Voices come from `src/audio.js` — the same synth as the title score, so the episode sounds like
+the sequence that opened it.
+
+---
+
+## Publishing kit (new)
+
+`node tools/publish.mjs --cut cut-e-framed --intro dist/v7-gupta-stinger.mp4`
+→ `dist/publish-aryabhata/`
+
+Reads `episodes/<slug>/publish.json` (title, hook, tags, chapter map keyed by panel id, thumbnail
+spec) and writes:
+
+- `<slug>.en.srt` — cut from the **same word timings the screen uses**, ≤2 lines, ~42 chars,
+  never spanning a panel. 61 cues, correctly gapped across the spliced titles.
+- `chapters.txt` — **YouTube's three rules enforced**: first mark `0:00`, ≥3 marks, none under
+  10 s. It throws rather than emitting a list YouTube will silently ignore.
+- `description.txt` — hook in the **first two lines**, because that is all that shows.
+- `<slug>-thumb.jpg` — 1280×720 composed in a page with the project's own fonts, and it
+  **asserts the art loaded** (a black rectangle with good type on it looks deliberate).
+
 ## Still to do
 
-1. Remaster audio to **−14 LUFS** for a YouTube master; render an MP4 (consider 1440p for VP9).
-2. Generate **SRT** captions from the word timings, **chapter** timestamps, and a 1280×720 thumbnail.
-3. Fix the 2.1 s number-token caption dwell (sweep the highlight across the token).
-4. The narration reads `499` two different ways between `cover` and `p08` — source-audio issue,
+1. Fix the 2.1 s number-token caption dwell (sweep the highlight across the token).
+2. The narration reads `499` two different ways between `cover` and `p08` — source-audio issue,
    flagged, unresolved.
+3. Consider a 1440p delivery so YouTube gives the video a VP9 encode.
 
 ---
 
@@ -188,6 +298,19 @@ with the cropping removed.
 each a full Ink and Light sequence attached to its own section. Pick **one deep sector per era and
 kingdom**. Section 11 of the `ink-and-light` skill has the method: 8–14 beats *inside* one era,
 same visual language, own direction id, same series wordmark.
+
+**Gupta is done** (`v7-gupta-ink`, 10 beats, 45 s) and is the worked example to copy.
+Remaining: **Maurya, Chola, Vijayanagara, Mughal, Maratha, the Republic** — and for each, a
+2-beat `stinger` variant for its episodes to open with.
+
+The recipe, now proven end to end:
+
+1. Author the direction in `tools/directions.mjs` — 10 beats, `INK_LIGHT` + `RIGHT` constants,
+   durations accelerating, every line fact-checked **before** rendering.
+2. `node tools/gen-stills.mjs <id>` **twice** → two candidates per beat.
+3. Contact-sheet r1 vs r2, choose, write `versions/<id>/picks.json` with the reason.
+4. `node tools/gen-clips.mjs <id> --seconds 8` (~12 min at concurrency 2).
+5. `build-version` + `render-master` for both `mobile` and `stinger` variants.
 
 ---
 

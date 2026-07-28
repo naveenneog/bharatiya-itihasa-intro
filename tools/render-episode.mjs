@@ -23,7 +23,8 @@
      node tools/render-episode.mjs --cut cut-e-framed --intro dist/v7-gupta-ink.mp4
      node tools/render-episode.mjs --cut cut-e-framed --limit 40 --scale 0.5   # draft
 */
-import { mkdir, rm, writeFile, readdir } from 'node:fs/promises';
+import { mkdir, rm, writeFile, readdir, readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
@@ -47,6 +48,11 @@ const INTRO = arg('intro', 'dist/v7-gupta-ink.mp4');
 const LANG = arg('lang', 'en');
 const OUT = path.resolve(arg('out', `dist/episode-${SLUG}-${CUT}.mp4`));
 
+/* Re-splicing with a different title sequence should not cost another half hour of
+   frame capture. --reuse keeps the body encode from the previous run and redoes only
+   the splice and the loudness pass. */
+const REUSE = has('reuse');
+
 const EP = path.join('episodes', SLUG);
 const TMP = path.resolve('dist', `.ep-${CUT}`);
 const W = Math.round(1920 * SCALE);
@@ -63,16 +69,32 @@ async function seconds(file) {
   return Number(stdout.trim());
 }
 
-await rm(TMP, { recursive: true, force: true });
-await mkdir(TMP, { recursive: true });
+const BODY = path.join(TMP, 'body.mp4');
+const TLFILE = path.join(TMP, 'timeline.json');
+const canReuse = REUSE && existsSync(BODY) && existsSync(TLFILE);
+
+if (!canReuse) {
+  await rm(TMP, { recursive: true, force: true });
+  await mkdir(TMP, { recursive: true });
+}
 await mkdir(path.dirname(OUT), { recursive: true });
 
-const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
-const stop = () => { try { server.kill(); } catch { /* gone */ } };
+const server = canReuse ? null : spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
+const stop = () => { try { server?.kill(); } catch { /* gone */ } };
 process.on('exit', stop);
-await new Promise((r) => setTimeout(r, 700));
+if (server) await new Promise((r) => setTimeout(r, 700));
+
+let tl;
+let fullDuration;
+let duration;
+let problems = [];
 
 try {
+  if (canReuse) {
+    ({ tl, fullDuration } = JSON.parse(await readFile(TLFILE, 'utf8')));
+    duration = await seconds(BODY);
+    console.log(`reusing the body encode from the last run (${duration.toFixed(1)}s) — splice and loudness only`);
+  } else {
   // ── the page ────────────────────────────────────────────────────────────
   const url = `http://localhost:${PORT}/${EP.replace(/\\/g, '/')}/${CUT}/index.html?export=1`;
   const browser = await launch();
@@ -81,7 +103,6 @@ try {
     deviceScaleFactor: 1,
     reducedMotion: 'no-preference',
   });
-  const problems = [];
   page.on('console', (m) => m.type() === 'error' && problems.push(m.text()));
   page.on('pageerror', (e) => problems.push(`PAGEERROR ${e.message}`));
 
@@ -97,21 +118,13 @@ try {
   }));
   if (chrome.length) throw new Error(`viewer chrome visible in export mode: ${chrome.join(', ')}`);
 
-  const tl = await page.evaluate(() => window.__ep.timeline());
-  const fullDuration = await page.evaluate(() => window.__ep.duration);
-  const duration = LIMIT > 0 ? Math.min(LIMIT, fullDuration) : fullDuration;
-
-  /* Where the titles go: after the panels the cut names as its cold open. Taken from
-     the cut spec the page was generated from, so the two cannot disagree. */
-  const { CUTS } = await import('./episode-page.mjs');
-  const cutSpec = CUTS.find((c) => c.id === CUT);
-  if (!cutSpec) throw new Error(`unknown cut ${CUT} — known: ${CUTS.map((c) => c.id).join(', ')}`);
-  const openN = (cutSpec.open || []).length;
-  const openSecs = tl.slice(0, openN).reduce((a, p) => a + p.dur, 0);
+  tl = await page.evaluate(() => window.__ep.timeline());
+  fullDuration = await page.evaluate(() => window.__ep.duration);
+  duration = LIMIT > 0 ? Math.min(LIMIT, fullDuration) : fullDuration;
+  await writeFile(TLFILE, JSON.stringify({ tl, fullDuration }));
 
   console.log(`${CUT}: ${tl.length} panels, ${(fullDuration / 60).toFixed(1)} min`
     + `${LIMIT ? ` (rendering first ${duration}s)` : ''}`);
-  console.log(`  titles splice at ${openSecs.toFixed(1)}s (${openN} panel${openN === 1 ? '' : 's'} of cold open)`);
 
   // ── the underscore, through the same synth as the title score ────────────
   const { cues, phrases, pulsed } = buildUnderscore(tl, fullDuration + 1);
@@ -190,14 +203,26 @@ try {
   console.log(`  mixed voice + bed (${(await seconds(mixed)).toFixed(1)}s)`);
 
   // ── body ────────────────────────────────────────────────────────────────
-  const body = path.join(TMP, 'body.mp4');
   await ff([
     '-framerate', String(FPS), '-i', path.join(frames, 'f%06d.jpg'),
     '-i', mixed,
     '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
-    '-c:a', 'aac', '-b:a', '256k', '-shortest', body,
+    '-c:a', 'aac', '-b:a', '256k', '-shortest', BODY,
   ], 'body encode');
-  console.log(`  body encoded (${(await seconds(body)).toFixed(1)}s)`);
+  console.log(`  body encoded (${(await seconds(BODY)).toFixed(1)}s)`);
+  if (!has('keep')) await rm(frames, { recursive: true, force: true });
+  }
+
+  /* Where the titles go: after the panels the cut names as its cold open. Taken from
+     the cut spec the page was generated from, so the two cannot disagree. */
+  const { CUTS } = await import('./episode-page.mjs');
+  const cutSpec = CUTS.find((c) => c.id === CUT);
+  if (!cutSpec) throw new Error(`unknown cut ${CUT} — known: ${CUTS.map((c) => c.id).join(', ')}`);
+  const openN = (cutSpec.open || []).length;
+  const openSecs = tl.slice(0, openN).reduce((a, p) => a + p.dur, 0);
+  console.log(`  titles splice at ${openSecs.toFixed(1)}s (${openN} panel${openN === 1 ? '' : 's'} of cold open)`);
+
+  const body = BODY;
 
   // ── splice the titles in ────────────────────────────────────────────────
   const parts = [];
@@ -243,9 +268,8 @@ try {
     '-of', 'default=noprint_wrappers=1', OUT]);
   console.log(`\ndone -> ${OUT}\n${stdout.trim()}`);
   await assertLoudness(OUT);
-  console.log(problems.length ? `\nPAGE WARNINGS:\n${problems.slice(0, 12).join('\n')}` : '\npage clean — no errors');
-
-  if (!has('keep')) await rm(path.join(TMP, 'f'), { recursive: true, force: true });
+  console.log(problems.length ? `\nPAGE WARNINGS:\n${problems.slice(0, 12).join('\n')}`
+    : (canReuse ? '' : '\npage clean — no errors'));
 } finally {
   stop();
 }

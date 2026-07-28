@@ -144,7 +144,11 @@ function emitBol(cue, bol, t, v) {
   }
 }
 
-export function buildProcession(sched, total) {
+export function buildProcession(sched, total, opt = {}) {
+  /* Defaults reproduce what v5 shipped with, bit for bit. The corrections below came
+     out of an actual listen and are opt-in through the `procession2` key, because
+     retuning a score a version has already been approved with is not a fix. */
+  const { refined = false, finalLift = 0 } = opt;
   const cues = [];
   const cue = (t, voice, opts = {}) => cues.push({ t: +Math.max(0, t).toFixed(3), voice, ...opts });
 
@@ -169,7 +173,11 @@ export function buildProcession(sched, total) {
   const span = end - t0;
   const M0 = 0.62;                       // matra at the entry — the spacing that worked
   const M1 = 0.34;                       // matra at the finish
-  const matraAt = (t) => M0 + (M1 - M0) * Math.min(1, Math.max(0, (t - t0) / span));
+  /* Linear tightening spends its acceleration early and coasts through the last third,
+     which is exactly where a blind listen said the piece plateaus. A convex curve holds
+     the opening laya longer and does most of the tightening near the finish. */
+  const ease = (u) => (refined ? Math.pow(u, 1.4) : u);
+  const matraAt = (t) => M0 + (M1 - M0) * ease(Math.min(1, Math.max(0, (t - t0) / span)));
   const dugunAt = empires[Math.min(n - 1, Math.round(n * 0.5))].start;
 
   // ── the bed ─────────────────────────────────────────────────────────────
@@ -189,41 +197,72 @@ export function buildProcession(sched, total) {
     { freq: note(2, 4), dur: 3.4, gain: 0.1, meend: 2 });
 
   // ── the theka ───────────────────────────────────────────────────────────
-  const tihaiLen = 9;
+  /* A tihai is one phrase played three times, arranged so the *final* stroke lands on
+     sam. The old form ended on the third repetition's own last stroke — `tin`, an
+     unaccented treble tap — which is why the piece stopped rather than resolved. The
+     closing stroke is now the sam itself, struck hardest, under the bell. */
+  const PHRASE = ['dha', 'na', 'tin'];
+  const tihaiLen = refined ? PHRASE.length * 3 + 1 : 9;
   const tihaiFrom = end - (tihaiLen - 1) * M1 - 0.02;
   let t = t0;
   let i = 0;
+  let bol = 0;
+  let step = 2;
   while (t < tihaiFrom) {
     const m = matraAt(t);
-    // half density until the dugun, full after: one deliberate doubling, on an empire
-    const step = t < dugunAt ? 2 : 1;
+    /* Half density until the dugun, full after — one deliberate doubling. Two things
+       were wrong with it. It was taken the instant an empire began, landing mid-cycle,
+       which reads as a slip rather than a gear change. And at half density the loop
+       emitted every *other* bol of the theka — dha ge na tin na ke dhin na became
+       dha na na dhin, a different pattern rather than the same one at half speed. The
+       phrase index now advances per struck bol, so Keherwa stays Keherwa and the dugun
+       genuinely doubles its tempo, at the top of a cycle. */
+    if (refined) {
+      if (step === 2 && t >= dugunAt && bol % THEKA.length === 0) step = 1;
+    } else {
+      step = t < dugunAt ? 2 : 1;
+    }
     if (i % step === 0) {
       const u = (t - t0) / span;
-      emitBol(cue, THEKA[i % THEKA.length], t, 0.72 + 0.5 * u);
+      /* The linear velocity ramp plateaus through the last third — the piece stops
+         growing before it ends. An extra push over the closing third makes the finish
+         arrive instead of merely stopping. */
+      const lift = finalLift && u > 0.62 ? finalLift * ((u - 0.62) / 0.38) : 0;
+      emitBol(cue, THEKA[(refined ? bol : i) % THEKA.length], t, 0.72 + 0.5 * u + lift);
+      bol++;
     }
     t += m;
     i++;
   }
 
-  /* The tihai: the same three-stroke phrase three times over, its final stroke landing
-     on `end` with the bell. This is how the form actually ends, and it means the finish
-     is arrived at rather than faded out of. */
   for (let k = 0; k < tihaiLen; k++) {
     const at = end - (tihaiLen - 1 - k) * M1;
-    const head = k % 3 === 0;
-    emitBol(cue, head ? 'dha' : (k % 3 === 1 ? 'na' : 'tin'), at, head ? 1.35 : 1.0);
+    if (refined) {
+      const sam = k === tihaiLen - 1;
+      emitBol(cue, sam ? 'dha' : PHRASE[k % PHRASE.length], at,
+        sam ? 1.75 : (k % PHRASE.length === 0 ? 1.3 : 0.98));
+    } else {
+      const head = k % 3 === 0;
+      emitBol(cue, head ? 'dha' : (k % 3 === 1 ? 'na' : 'tin'), at, head ? 1.35 : 1.0);
+    }
   }
 
   // ── melody over the procession ──────────────────────────────────────────
+  /* A two-beat stinger leaves exactly one empire, and e/(n-1) is then 0/0. The gain
+     reaches Web Audio as NaN and that voice silently drops out of the mix. buildScore
+     already guards this; buildProcession did not. */
+  const u = (e) => e / Math.max(1, n - 1);
   empires.forEach((s, e) => {
     cue(s.labelIn - 0.1, 'pluck',
-      { step: e, gain: 0.16 + 0.09 * (e / (n - 1)), dur: Math.min(4, s.dur + 0.6) });
-    // the flute answers every second empire, so the two lines trade rather than stack
-    if (e % 2 === 1) {
+      { step: e, gain: 0.16 + 0.09 * u(e), dur: Math.min(4, s.dur + 0.6) });
+    /* The flute answers every second empire, so the two lines trade rather than stack —
+       except over the closing stretch, where answering every beat is what stops the
+       melody looping in place while the drum is still climbing. */
+    if (e % 2 === 1 || (finalLift && e >= n - 3)) {
       cue(s.labelIn + s.dur * 0.34, 'bansuri', {
         freq: note(2 + Math.floor(e / 2), 4),
         dur: Math.min(3.6, s.dur + 1.1),
-        gain: 0.09 + 0.05 * (e / (n - 1)),
+        gain: 0.09 + 0.05 * u(e),
         meend: e % 4 === 1 ? 2 : 0,
       });
     }
@@ -240,6 +279,11 @@ export function buildProcession(sched, total) {
 }
 
 /* Scores are keyed so an older version keeps the score it shipped with. Changing
-   the procession must not retune v4. */
-export const SCORES = { standard: buildScore, procession: buildProcession };
+   the procession must not retune v4 — or v5, which is why the corrections that came
+   out of an actual listen live under a new key rather than in the old one. */
+export const SCORES = {
+  standard: buildScore,
+  procession: buildProcession,
+  procession2: (s, t) => buildProcession(s, t, { refined: true, finalLift: 0.3 }),
+};
 

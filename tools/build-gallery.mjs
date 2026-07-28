@@ -6,6 +6,7 @@
 */
 import { readdir, stat, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { CUTS } from './episode-page.mjs';
 
 const ROOT = 'versions';
 
@@ -55,7 +56,9 @@ for (const id of (await ls(ROOT)).sort()) {
     beats.get(key).push(f);
   }
   versions.push({
-    id, meta, beats, clips, builds, dir,
+    id, meta, beats, clips, builds,
+    // URLs, not paths — path.join gives backslashes on Windows and they leak into href
+    dir: dir.replace(/\\/g, '/'),
     play: hasPlayer ? `${dir.replace(/\\/g, '/')}/build/index.html` : null,
   });
 }
@@ -108,6 +111,17 @@ try {
   });
 } catch { /* not rendered */ }
 
+/* The per-kingdom sequences render their masters to dist/ under their own name, so
+   attach whatever exists rather than naming each one here — a new kingdom should cost
+   a direction, not an edit to the gallery. */
+for (const v of versions) {
+  const base = v.id.replace(/-ink$/, '');
+  for (const f of [`dist/${v.id}.mp4`, `dist/${base}-stinger.mp4`]) {
+    if (v.builds.some((b) => b.endsWith(path.basename(f)))) continue;
+    try { await stat(f); v.builds.push(`../${f}`); } catch { /* not rendered */ }
+  }
+}
+
 /* Episodes are a different kind of artifact from the intro versions — a full story
    with the title sequence integrated — so they get their own band at the top rather
    than a card in the version list. */
@@ -122,22 +136,38 @@ for (const slug of (await ls('episodes')).sort()) {
   if (cuts.length) episodes.push({ slug, ep, cuts });
 }
 
-const CUT_COPY = {
-  'cut-a-titles': ['A · Titles first',
-    'The full 61-second sequence, an episode card, then the story. Most cinematic, and a minute of titles before content on every episode.'],
-  'cut-b-cold-open': ['B · Cold open, then titles',
-    'The hero and the map play first — about 23 seconds establishing who this is and what he claimed — then the titles fire and the story resumes. Standard episodic television: the titles arrive once you already care.'],
-  'cut-c-stinger': ['C · Series stinger',
-    "A 15-second cut built from the opening beat and this episode's own era, then straight into the story. The titles change per episode, so they stay meaningful and never outstay."],
-};
+/* The cut names and pitches used to be restated here, which meant the gallery described
+   three cuts while the episode shipped five. They come from the cut list itself now. */
+const CUT_COPY = Object.fromEntries(CUTS.map((c) => [c.id, [c.name, c.pitch]]));
+
+/* The finished film, if it has been rendered, plus whatever the publishing kit wrote. */
+const films = [];
+for (const e of episodes) {
+  for (const f of await ls('dist')) {
+    if (f.startsWith(`ep01-${e.slug}`) && f.endsWith('.mp4')) films.push({ slug: e.slug, file: `dist/${f}` });
+  }
+}
+const kit = [];
+for (const e of episodes) {
+  const d = `dist/publish-${e.slug}`;
+  for (const f of (await ls(d)).sort()) kit.push(`${d}/${f}`);
+}
 
 const episodeBand = episodes.length ? `
 <section class="eps">
-  <h2 class="epsh">Sample integration — the title sequence in a real episode</h2>
-  ${episodes.map((e) => `
+  <h2 class="epsh">The episode — the title sequence inside a real story</h2>
+  ${episodes.map((e) => {
+    const film = films.find((f) => f.slug === e.slug);
+    return `
   <p class="epitch"><b>${esc(e.ep.title)}</b> — ${e.ep.panels.length} panels, ${(e.ep.runtime / 60).toFixed(1)} min of
   narration in English and Hindi, with the caption tracking the voice word by word.
-  Three cuts, differing only in where the titles sit.</p>
+  ${e.cuts.length} cuts, differing only in where the titles sit and how the art is framed.</p>
+  ${film ? `<div class="row builds"><figure class="wide">
+    <video src="${esc(film.file)}" controls preload="metadata"></video>
+    <figcaption>${esc(path.basename(film.file))} — the finished film: cold open, titles, story,
+    scored throughout and delivered at −14 LUFS</figcaption></figure></div>` : ''}
+  ${kit.length ? `<p class="epitch">Publishing kit: ${kit.map((f) =>
+    `<a class="kit" href="${esc(f)}" target="_blank">${esc(path.basename(f))}</a>`).join(' · ')}</p>` : ''}
   <div class="cuts">${e.cuts.map((c) => {
     const [name, why] = CUT_COPY[c] || [c, ''];
     return `<div class="cut">
@@ -145,7 +175,8 @@ const episodeBand = episodes.length ? `
       <p>${esc(why)}</p>
       <a class="play" href="episodes/${esc(e.slug)}/${esc(c)}/index.html" target="_blank">▶ Play this cut</a>
     </div>`;
-  }).join('')}</div>`).join('')}
+  }).join('')}</div>`;
+  }).join('')}
 </section>` : '';
 
 const card = (v) => `
