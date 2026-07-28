@@ -14,11 +14,11 @@
 
      node tools/publish.mjs --cut cut-e-framed --intro dist/v7-gupta-stinger.mp4
 */
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { execFile, spawn } from 'node:child_process';
+import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
+import { existsSync, statSync } from 'node:fs';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { launch } from '../scripts/browser.mjs';
 import { CUTS } from './episode-page.mjs';
 
 const execFileP = promisify(execFile);
@@ -29,7 +29,6 @@ const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : arg
 const SLUG = arg('slug', 'aryabhata');
 const CUT = arg('cut', 'cut-e-framed');
 const INTRO = arg('intro', 'dist/v7-gupta-stinger.mp4');
-const PORT = Number(arg('port', 4409));
 const EP = path.join('episodes', SLUG);
 const OUT = path.join('dist', `publish-${SLUG}`);
 
@@ -174,70 +173,36 @@ await writeFile(path.join(OUT, 'description.txt'), description);
 await writeFile(path.join(OUT, 'tags.txt'), meta.tags.join(', '));
 
 // ── thumbnail ────────────────────────────────────────────────────────────
-/* Composed in a page rather than in a filter graph, for the same reason the master is:
-   the type is the project's type, loaded from the project's fonts, at the size the
-   designer chose. 1280x720 is the delivery size and it is checked, not assumed. */
-const thumbHtml = `<!doctype html><meta charset="utf-8">
-<style>
-  @font-face{font-family:"Marcellus";src:url("/vendor/fonts/marcellus-latin-1.woff2") format("woff2");font-display:block}
-  @font-face{font-family:"Cormorant Garamond";src:url("/vendor/fonts/cormorant-latin-1.woff2") format("woff2");font-display:block}
-  *{margin:0;padding:0;box-sizing:border-box}
-  html,body{width:1280px;height:720px;overflow:hidden;background:#0d0b09}
-  #t{position:relative;width:1280px;height:720px;overflow:hidden}
-  img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:${meta.thumb.pos || '62% 42%'}}
-  #scrim{position:absolute;inset:0;background:
-    linear-gradient(90deg,rgba(6,5,4,.97) 0%,rgba(6,5,4,.92) 34%,rgba(6,5,4,.5) 56%,rgba(6,5,4,.06) 84%),
-    radial-gradient(ellipse at 26% 50%,rgba(6,5,4,.55),rgba(6,5,4,0) 68%)}
-  /* A thumbnail is judged at about 320px wide in a feed, where mid-tones collapse.
-     A warm rim behind the subject keeps it separated from the black at that size. */
-  #glow{position:absolute;right:-6%;top:-10%;width:70%;height:120%;
-    background:radial-gradient(ellipse at 46% 50%,rgba(232,182,74,.22),rgba(232,182,74,0) 62%);
-    mix-blend-mode:screen}
-  #vig{position:absolute;inset:0;box-shadow:inset 0 0 220px 60px rgba(0,0,0,.72)}
-  #copy{position:absolute;left:64px;top:50%;transform:translateY(-50%);width:660px}
-  .kick{font-family:"Marcellus",serif;font-size:30px;letter-spacing:.42em;color:#e8b64a;margin-bottom:22px}
-  .rule{width:96px;height:1px;background:linear-gradient(90deg,#e8b64a,rgba(232,182,74,0));margin-bottom:26px}
-  h1{font-family:"Marcellus",serif;font-weight:400;font-size:118px;line-height:.94;color:#f6ecd8;
-     letter-spacing:.005em;text-shadow:0 6px 40px rgba(0,0,0,.85)}
-  h1 em{font-style:normal;color:#e8b64a}
-  .foot{margin-top:34px;font-family:"Marcellus",serif;font-size:21px;letter-spacing:.3em;color:rgba(183,166,132,.82)}
-</style>
-<div id="t">
-  <img src="${meta.thumb.art}">
-  <div id="glow"></div>
-  <div id="scrim"></div>
-  <div id="copy">
-    <div class="kick">${meta.thumb.kicker}</div>
-    <div class="rule"></div>
-    <h1>${meta.thumb.line1}<br><em>${meta.thumb.line2}</em></h1>
-    <div class="foot">${meta.thumb.foot}</div>
-  </div>
-  <div id="vig"></div>
-</div>`;
-await writeFile(path.join(EP, '.thumb.html'), thumbHtml);
+/* The thumbnail is *not* composed here. tools/thumbnail.mjs builds the candidates, checks
+   them for overflow and safe area, and renders them at feed size so the choice is made at
+   the size the thumbnail is actually judged at. This step only collects the one that was
+   picked.
 
-const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
-try {
-  await new Promise((r) => setTimeout(r, 700));
-  const browser = await launch();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
-  await page.goto(`http://localhost:${PORT}/${EP.replace(/\\/g, '/')}/.thumb.html`, { waitUntil: 'load' });
-  /* A thumbnail whose art silently failed to load is a black rectangle with nice type
-     on it, and it looks deliberate enough to ship. Assert instead. */
-  const artOk = await page.evaluate(() => {
-    const im = document.querySelector('#t img');
-    return !!im && im.complete && im.naturalWidth > 0;
-  });
-  if (!artOk) throw new Error(`thumbnail art did not load: ${meta.thumb.art} (relative to ${EP})`);
-  await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(350);
-  const png = path.join(OUT, `${SLUG}-thumb.png`);
-  await page.locator('#t').screenshot({ path: png });
-  await browser.close();
-  await execFileP('ffmpeg', ['-y', '-loglevel', 'error', '-i', png, '-q:v', '2',
-    path.join(OUT, `${SLUG}-thumb.jpg`)]);
-} finally {
-  try { server.kill(); } catch { /* gone */ }
+   It used to be composed here as well, with its own copy of the CSS — two renderers for
+   one artefact, which is a guarantee that the published thumbnail and the one that was
+   approved will drift apart. */
+const cand = meta.thumb?.candidate;
+if (!cand) {
+  throw new Error('publish.json has no thumb.candidate — run:\n'
+    + '  node tools/gen-thumb-art.mjs\n  node tools/thumbnail.mjs\n'
+    + '  node tools/thumbnail.mjs --pick <candidate-id>');
+}
+const thumbSrc = path.join('dist', `thumbs-${SLUG}`, `${cand}.png`);
+if (!existsSync(thumbSrc)) {
+  throw new Error(`picked thumbnail "${cand}" has not been rendered — run: node tools/thumbnail.mjs`);
+}
+await copyFile(thumbSrc, path.join(OUT, `${SLUG}-thumb.png`));
+await execFileP('ffmpeg', ['-y', '-loglevel', 'error', '-i', thumbSrc, '-q:v', '2',
+  path.join(OUT, `${SLUG}-thumb.jpg`)]);
+await execFileP('ffmpeg', ['-y', '-loglevel', 'error', '-i', thumbSrc, '-vf', 'scale=320:180',
+  path.join(OUT, `${SLUG}-thumb-feed.png`)]);
+
+/* YouTube rejects a custom thumbnail over 2 MB. jpeg q2 of a mostly-black frame is
+   nowhere near it, but the failure happens at upload time rather than here, so it is
+   worth the one stat call. */
+const thumbBytes = statSync(path.join(OUT, `${SLUG}-thumb.jpg`)).size;
+if (thumbBytes > 2 * 1024 * 1024) {
+  throw new Error(`thumbnail is ${(thumbBytes / 1024 / 1024).toFixed(1)} MB — YouTube's limit is 2 MB`);
 }
 
 // ── report ───────────────────────────────────────────────────────────────
@@ -247,5 +212,5 @@ console.log(`  runtime      ${clock(runtime)}  (body ${clock(acc)} + titles ${in
 console.log(`  captions     ${cues.length} cues, last ends ${clock(last.b)} -> ${SLUG}.en.srt`);
 console.log(`  chapters     ${kept.length} kept${dropped ? `, ${dropped} dropped for the 10s rule` : ''} -> chapters.txt`);
 console.log(`  description  ${description.split('\n').length} lines -> description.txt`);
-console.log(`  thumbnail    1280x720 -> ${SLUG}-thumb.jpg`);
+console.log(`  thumbnail    ${cand} -> ${SLUG}-thumb.jpg (${(thumbBytes / 1024).toFixed(0)} KB)`);
 console.log(`\n${chapters}`);
