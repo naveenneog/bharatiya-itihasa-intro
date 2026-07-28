@@ -54,12 +54,45 @@ async function art(rel, { alpha = false } = {}) {
   return `../img/${name}`;
 }
 
+/* The source stores narration as audio/<lang>/<key>.mp3; this repo keeps it flat, so the
+   path is folded to <lang>_<key>.mp3. Both the copy and the override lookup derive the
+   name here, because when they each had their own rule they disagreed and the override
+   silently never matched. */
+const flatName = (rel) => rel.replace(/^.*\/audio\//, '').replace(/\//g, '_');
+
 async function audio(rel) {
   if (!rel) return null;
   const from = srcAsset(rel);
-  const name = rel.replace(/^.*\/audio\//, '').replace(/\//g, '_');
+  const name = flatName(rel);
   const to = path.join(OUT, 'audio', name);
   await copyFile(from, to);
+  return `../audio/${name}`;
+}
+
+/* Lines re-synthesised locally by tools/speak.mjs, because the source project reads a
+   bare year as a quantity — "499 CE" as four hundred ninety-nine. The fix belongs in
+   IndianHistory/tools/voice.py and will be ported there; until then the override wins,
+   and the source project is still only ever read from.
+
+   Keyed by the flattened audio name, so a line whose narration is later regenerated
+   upstream is matched by name rather than by position. */
+const fixes = await readFile(path.join(OUT, 'voice-fix', 'index.json'), 'utf8')
+  .then(JSON.parse).catch(() => ({}));
+let overridden = 0;
+
+/** The override for a source audio path, if one exists. */
+function fixFor(rel) {
+  if (!rel) return null;
+  const key = flatName(rel).replace(/\.[^.]+$/, '');
+  return fixes[key] ? { key, ...fixes[key] } : null;
+}
+
+async function audioFixed(rel) {
+  const fix = fixFor(rel);
+  if (!fix) return audio(rel);
+  const name = flatName(rel);
+  await copyFile(path.join(OUT, 'voice-fix', fix.mp3), path.join(OUT, 'audio', name));
+  overridden++;
   return `../audio/${name}`;
 }
 
@@ -121,7 +154,7 @@ for (const p of story.panels) {
   const line = p.lines?.[0];
   if (!line) continue;
   const [imgPath, aEn, aHi] = await Promise.all([
-    art(p.art), audio(line.audio?.en), audio(line.audio?.hi),
+    art(p.art), audioFixed(line.audio?.en), audio(line.audio?.hi),
   ]);
   const dur = aEn ? await seconds(aEn) : 0;
 
@@ -150,7 +183,13 @@ for (const p of story.panels) {
   }
 
   const rawWords = (line.words?.en || []).map((w) => [w.w, w.t, w.d]);
-  const { words, fixed } = repairWords(rawWords, dur);
+  /* A re-synthesised line carries its own boundaries, already folded back onto the
+     written tokens — the source timings belong to audio that is no longer being played
+     and would drift the caption by seconds. */
+  const fix = fixFor(line.audio?.en);
+  const { words, fixed } = fix
+    ? { words: fix.words, fixed: 0 }
+    : repairWords(rawWords, dur);
   repaired += fixed;
   if (fixed) console.log(`  repaired ${fixed} fused token(s) in ${p.id}`);
 
@@ -197,4 +236,5 @@ for (const cut of CUTS) {
 
 console.log(`\n${panels.length} panels, ${(total / 60).toFixed(1)} min of narration -> ${OUT}/`);
 if (repaired) console.log(`${repaired} fused caption token(s) repaired`);
+if (overridden) console.log(`${overridden} line(s) using the locally re-synthesised voice (years spoken as years)`);
 console.log(`${CUTS.length} cuts to compare`);

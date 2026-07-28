@@ -12,9 +12,13 @@
     "xb": "node scripts/crossbrowser.mjs",
     "render": "node scripts/render.mjs --fps 60",
     "render:draft": "node scripts/render.mjs --fps 24 --scale 0.5 --out dist/draft.mp4",
-    "fonts": "node scripts/fetch-fonts.mjs"
+    "fonts": "node scripts/fetch-fonts.mjs",
+    "test:years": "node tools/years.test.mjs"
   },
   "devDependencies": {
     "playwright": "^1.49.1"
+  },
+  "dependencies": {
+    "microsoft-cognitiveservices-speech-sdk": "^1.51.0"
   }
 }
