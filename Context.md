@@ -32,13 +32,41 @@ reads from it.** Do not write there.
 | v6 | 15 s per-episode stinger (2 beats: `00-itihasa` + `05-gupta`) | `dist/v6-episode-titles.mp4` | used by episode cuts C/D/E |
 | **v7** | **Ink and Light — the Gupta Age.** One kingdom, 10 beats, **45.0 s**, −13.9 LUFS | `dist/v7-gupta-ink.mp4` | the per-kingdom sequence the user asked for |
 | v7s | the same sequence cut to 2 beats, **15.8 s**, −14.1 LUFS | `dist/v7-gupta-stinger.mp4` | what an episode opens with |
-| ep01 | the Aryabhata episode as an actual film, cut E, ~5:42 | `dist/ep01-aryabhata-youtube.mp4` | first publishable master |
+| ep01 | the Aryabhata episode as an actual film, cut E, **5:39**, −14.2 LUFS, −1.4 dBTP | `dist/ep01-aryabhata-youtube.mp4` | **shippable**; years fixed, thumbnail picked |
 
 `dist/` is **gitignored** — masters are regenerable from the committed stills, clips and tools.
-Stills and clips **are** committed (generative output is not reproducible).
+Stills, clips and thumbnail plates **are** committed (generative output is not reproducible).
 
 Commits: `73f85f6` v2 · `a8d92bc` v3 · `e856cdd` v4 · `7e7d6bf` v5 · `4a6d48a` episode integration ·
-`dcb2185` YouTube review + skill · `096f2bc` Gupta sequence + episode renderer.
+`dcb2185` YouTube review + skill · `096f2bc` Gupta sequence + episode renderer ·
+`f469a86` procession fixed by listening · `9d85c46` delivery + loudness headroom ·
+`377f439` years spoken as years · `30e36fc` re-render with corrected narration ·
+`58f65b3` thumbnail.
+
+### The full build, from nothing to uploadable
+
+```
+node tools/gen-stills.mjs v7-gupta            # twice — two candidates per beat
+#   contact-sheet r1 vs r2, write versions/v7-gupta-ink/picks.json with reasons
+node tools/gen-clips.mjs v7-gupta --seconds 8              # ~12 min
+node tools/build-version.mjs  v7-gupta --variant kingdom
+node tools/render-master.mjs  v7-gupta --variant kingdom --score --out dist/v7-gupta-ink.mp4
+node tools/build-version.mjs  v7-gupta --variant stinger
+node tools/render-master.mjs  v7-gupta --variant stinger --score --out dist/v7-gupta-stinger.mp4
+
+node tools/speak.mjs --all --dry              # audit narration for year bugs
+node tools/speak.mjs --all                    # re-synthesise the affected lines
+node tools/build-episode.mjs                  # picks up the overrides
+node tools/render-episode.mjs --cut cut-e-framed --intro dist/v7-gupta-stinger.mp4 --fps 25
+#   ~38 min at 1080p25 for 5.4 min. Add --limit 40 --scale 0.5 --fps 10 for a draft,
+#   or --reuse to re-splice a different intro without re-capturing frames.
+
+node tools/gen-thumb-art.mjs                  # thumbnail plates
+node tools/thumbnail.mjs                      # candidates + feed-size sheet
+node tools/thumbnail.mjs --pick LOUD-hold-cop
+node tools/publish.mjs --cut cut-e-framed --intro dist/v7-gupta-stinger.mp4
+node tools/build-gallery.mjs
+```
 
 ---
 
@@ -189,7 +217,16 @@ Full brief with URLs was produced by a research sub-agent; re-run if needed.
     image sat above it in the stack. Pin and label now live in a `.pinbox` that matches the
     picture's rectangle and sits above it.
 16. **A thumbnail with a broken image path renders as a black rectangle with beautiful type on it**
-    and looks entirely deliberate. `publish.mjs` asserts `naturalWidth > 0` before screenshotting.
+    and looks entirely deliberate. Asserted `naturalWidth > 0` before screenshotting. (The check
+    moved into `thumbnail.mjs` when `publish.mjs` stopped composing.)
+17. **A fixed chip font size silently overflowed its column.** "499 CE" and "1,000 YEARS BEFORE
+    COPERNICUS" cannot share one size inside a column 58% of the frame wide. Overflowing type is
+    not visibly broken in a 1280 px screenshot — it just sits closer to the face than intended —
+    and at 320 px it reads as clutter. The size is solved against the column now, and every
+    candidate is measured for overflow and safe area before it is written.
+18. **Two renderers for one thumbnail.** `publish.mjs` had its own copy of the composing CSS
+    alongside `thumbnail.mjs`, which guarantees the published thumbnail and the approved one drift
+    apart. `publish.mjs` collects the picked candidate now and fails if it is missing.
 
 ---
 
@@ -226,7 +263,7 @@ with the cropping removed.
 
 ---
 
-## Rendering an episode to a file (new)
+## Rendering an episode to a file
 
 `tools/render-episode.mjs` is the only path from the episode page to a publishable MP4.
 
@@ -253,7 +290,7 @@ is inside the 30 s window YouTube measures.
 
 ---
 
-## The underscore (new)
+## The underscore — music under the whole episode
 
 `tools/underscore.mjs`. The episode used to be 61 s of score followed by **5.4 minutes of silence**
 — the single largest retention leak in the cut. The bed:
@@ -269,7 +306,7 @@ the sequence that opened it.
 
 ---
 
-## Publishing kit (new)
+## Publishing kit
 
 `node tools/publish.mjs --cut cut-e-framed --intro dist/v7-gupta-stinger.mp4`
 → `dist/publish-aryabhata/`
@@ -282,8 +319,82 @@ spec) and writes:
 - `chapters.txt` — **YouTube's three rules enforced**: first mark `0:00`, ≥3 marks, none under
   10 s. It throws rather than emitting a list YouTube will silently ignore.
 - `description.txt` — hook in the **first two lines**, because that is all that shows.
-- `<slug>-thumb.jpg` — 1280×720 composed in a page with the project's own fonts, and it
-  **asserts the art loaded** (a black rectangle with good type on it looks deliberate).
+- `<slug>-thumb.jpg` / `-thumb.png` / `-thumb-feed.png` — **collected, not composed.** See below.
+
+`publish.mjs` used to compose the thumbnail itself, with its own copy of the CSS. Two
+renderers for one artefact guarantees the published thumbnail and the approved one drift
+apart, so it now copies the picked candidate and **fails loudly** if it has not been
+rendered. It also checks YouTube's **2 MB** limit, because that failure otherwise happens
+at upload time.
+
+---
+
+## The thumbnail
+
+Three tools, in order. Nothing here is composed by hand.
+
+    node tools/gen-thumb-art.mjs                     # the plates (Azure gpt-image-2, ~100 s)
+    node tools/thumbnail.mjs                         # 17 candidates + two contact sheets
+    node tools/thumbnail.mjs --pick LOUD-hold-cop    # promote one into publish.json
+    node tools/publish.mjs --cut cut-e-framed --intro dist/v7-gupta-stinger.mp4
+
+**Current pick: `LOUD-hold-cop`** — "1,000 YEARS BEFORE COPERNICUS" over Aryabhata holding
+the glowing Earth, `INDIA · 499 CE` in a gold chip. Approved by the user: *"1000 YEARS
+BEFORE COPERNICUS absolutely makes sense. Keep that."*
+
+### Generate the figure, do not cut it out
+
+The episode art is bright painted comic work on daylight backgrounds. Cutting a figure out
+of it and dropping it on a black ink-and-gold plate reads as exactly what it is — two
+pictures, pasted — and a thumbnail is judged in under a second, so that join is the first
+thing the eye finds. The alpha cutouts in `episodes/aryabhata/img/*char*.png` were tried
+and rejected for this reason.
+
+`tools/gen-thumb-art.mjs` generates the figure **inside** the language instead. `INK_STYLE`
+and `INK_LIGHT` are copied verbatim from the `GUPTA` direction, so a plate is lit by the
+same lamp as the sequence it sits beside. The figure is described **once** in a shared
+`FIGURE` constant — describe it per concept and two plates come back with two different men.
+
+Four concepts, deliberately different bets rather than variations, because which one
+survives at 320 px is not something to reason about:
+
+| id | what it is |
+|---|---|
+| `gaze` | looking up at the armillary sphere — awe, clear subject |
+| `defiant` | straight down the lens — the strongest thumbnail shape |
+| `hold` | holding the turning Earth — the claim made literal **← chosen** |
+| `eye` | macro on the eye, sphere reflected in the iris — pure curiosity |
+
+### Judge it at the size it is seen
+
+`tools/thumbnail.mjs` renders every candidate at **1280×720 and 320×180**, and writes two
+contact sheets: `sheet-full.png` for craft, `sheet-feed.png` for the decision. A layout that
+only works large does not work. Three rules are enforced, not trusted:
+
+- **Cap height is a share of frame height**, not a point size — `0.152` for the loud set,
+  `0.086` for the quiet one. It survives the downscale or it does not.
+- **Type is measured** against its column and against the safe area; the render throws
+  rather than shipping type that has crept over the picture.
+- **The corners are not yours** — YouTube lays a duration badge over the bottom right and a
+  progress bar across the bottom on replay. `?guides=1` draws those zones for checking.
+
+The first pass was brand-correct and, at 320 px, **quiet**: the kicker and footer were
+texture rather than information. The `LOUD-` set drops everything that is not the claim,
+runs it at a fifth of frame height, and puts the date in a **solid gold chip** — at feed
+size the letters inside it stop resolving, but the gold block still reads as a badge.
+
+### The headline must not repeat the title
+
+The video title is *"The Man Who Said the Earth Turns"*. A thumbnail that also says THE
+EARTH TURNS spends its one line on something the title already covers — and the Earth
+turning is not a surprise to a modern viewer. The surprise is **who said it and when**, so
+the comparison is the headline and the title carries the claim.
+
+**The claim survives checking:** Āryabhaṭīya 499 CE, *De revolutionibus* 1543 — a gap of
+1,044 years. Aryabhata argued **axial rotation**, not heliocentrism, so "BEFORE COPERNICUS"
+alone could be read as an overclaim; it is paired with `INDIA · 499 CE` and sits under a
+title that states the actual claim. An earlier variant (`BEST-hold`) keeps the comparison in
+the chip under a THE EARTH TURNS headline if that ever needs to be more conservative.
 
 ---
 
@@ -318,16 +429,168 @@ token count matches. This **also retired the fused-token defect on `cover`** tha
 Needs `microsoft-cognitiveservices-speech-sdk` (word boundaries need the WebSocket
 protocol; the REST TTS endpoint does not return them) and `az login`.
 
+---
+
+## Pace: the voice model moved under us
+
+`en-IN-Arjun:DragonHDLatestNeural` is a **`Latest` alias, and Azure moves it.** At the
+identical `-6%` rate it now speaks measurably faster than when this story was generated:
+
+| line | as generated | re-synthesised at −6% | drift |
+|---|---|---|---|
+| `cover` | 12.05 s | 11.16 s | −7.4% |
+| `p08` | 12.94 s | 12.43 s | −3.9% |
+
+The cover's *speech* ran **11.99 s** originally and **9.95 s** on the first re-synthesis —
+the year change accounts for well under a second of that. The user heard it immediately:
+*"the older video the transition of the text and voice was good, this one is little
+hurried."*
+
+A short line does not only sound hurried on its own. It **drags the whole episode
+forward**, moves the title splice (12.0 s → 10.0 s) and shifts every chapter after it.
+
+**Fix: match the slot, not the rate.** `speak.mjs` synthesises, measures against the file
+it replaces, and re-synthesises at a corrected rate until it fits within 2.5%. Speed is
+`1 + rate/100`, so the correction is `speed × got/target`; the loop exists because the
+response is not linear.
+
+```
+cover  try 1  -6%     11.16s  -7.4%
+       try 4  -21.7%  12.17s  +1.0%   fit
+```
+
+Result: **runtime 325.7 s against the approved 326.3 s** — 0.6 s across the whole episode.
+The pacing the user approved is preserved; only the words inside each slot changed.
+Confirmed by ear: *"the delivery sounds natural… the pace is measured and unhurried."*
+
+**Every attempt is kept** as `-t1.mp3`, `-t2.mp3`…, and `index.json` records which one won,
+its rate, its duration and its drift.
+
+> The year reading was re-verified on the final take **by forced choice**, because the
+> audio model transcribed the same file as "five hundred ninety-nine" once and "four
+> ninety-nine" another time. Forced choice returned **`FOUR_NINETY_NINE`**. Do not trust a
+> free-form transcript for a detail that matters — make the model pick from fixed options.
+
+---
+
+## The underscore level, measured
+
+The music was always there. It was **not audible enough to do its job**: a very low bed
+paired with an aggressive 7:1 duck at a low threshold.
+
+`render-episode.mjs` now prints the balance on every run and keeps the ducked bed as its
+own stem. Measured, with the gentler 4:1 duck:
+
+| bed lift | separation | verdict |
+|---|---|---|
+| 1.9 | 6.7 dB | fights the narration |
+| 0.75 | 14.9 dB | slightly forward |
+| **0.6** | **~17 dB** | **shipped** |
+| 0.5 | 18.4 dB | just under |
+
+Target band **16–20 dB**. Above ~26 dB the bed reads as silence on a phone; below ~10 dB it
+competes with the words. `buildUnderscore(panels, total, lift)` takes the level as a
+parameter — the *shape* of the cue list was right, only its level was wrong.
+
+> I first wrote "the old mix measured ~28 dB down" in a code comment **without measuring
+> it**. It was ~12 dB. Corrected, and the renderer prints the real number now. Never assert
+> an audio figure that has not been measured.
+
+---
+
+## Retention analysis — `tools/retention.mjs`
+
+    node tools/retention.mjs
+
+Measures the built episode, the cut, the master and the publishing kit against YouTube's
+own published rules, and prints a comparable score so two versions can be ranked without
+re-arguing the case.
+
+**ep01 scores 83/100 — solid. 14 pass · 2 warn · 0 fail.**
+
+```
+intro      ████████████████··  27/30   titles over at 28.0s, inside the 30s window
+hooks      ███████████████···  17/20   20/28 panels carry a hook; longest dry stretch 19s
+pacing     ████████████······  10/15   flat: +1% across the episode
+audio      ██████████████████  15/15   -14.2 LUFS, -1.4 dBTP, no dead silence
+packaging  ██████████████████  10/10   thumbnail and title carry different hooks
+rehook     ███████···········   4/10   3 panels hold one image over 15s
+```
+
+Weights are ordered by how much each factor moves watch time, not by how much work it took:
+intro 30, hook spacing 20, pacing 15, audio 15, packaging 10, re-hook 10. **It is a design
+score, not a prediction** — it says whether the known retention killers are gone, not what
+the click-through rate will be.
+
+**The two open warnings are the next work:**
+
+1. **Pacing is flat.** Panel length varies 23% but trends **+1%** across the episode. The
+   title sequence deliberately accelerates 6.0 → 3.4 s; the body abandons that rhythm.
+2. **Three panels hold one image over 15 s** — `p12` 16.2 s, `p16` 15.5 s, `p19` 15.1 s.
+   One panel is one picture, so a long panel is a long still.
+
+> An earlier version of this tool reported "the payoff sits 80% through". That was **a
+> measurement artefact**: it looked for the claim only after 60 s, and the claim is
+> actually delivered at **0:00** in the cold open. Replaced with **hook spacing** — the
+> honest question for a narrated piece is how long the viewer goes with nothing new.
+
 ## Still to do
 
-1. Fix the 2.1 s number-token caption dwell (sweep the highlight across the token).
-2. Consider a 1440p delivery so YouTube gives the video a VP9 encode.
-3. Port the year fix into `voice.py` once that project is free, then delete the override.
-4. Re-check whether `repairWords()` still earns its place once years are fixed upstream.
+1. **Give the body the intro's rhythm** — pacing is the lowest-scoring fixable bar.
+2. **Break the three 15 s+ panels** into two visual moves each.
+3. Fix the 2.1 s number-token caption dwell (sweep the highlight across the token).
+4. Consider a 1440p delivery so YouTube gives the video a VP9 encode.
+5. Port the year fix into `voice.py` once that project is free, then delete the override.
+6. Re-check whether `repairWords()` still earns its place once years are fixed upstream.
 
 ---
 
 ## Queued (user's explicit next task)
+
+### The episode factory — the big one
+
+Asked for verbatim: *"pick each story from Indian tales and generate content including
+youtube upload folder which contains video, episode and Intro thumbnail… rate your
+generation design for Youtube Viral factor, Accurate wordings… generation of Intro in the
+style we agreed and relevant to the video encompassing and highlighting the factors of each
+video in the narration… and a LOUD thumbnail options… document your process and create
+reusable assets, skills and code to continue this flow for all the Stories Indian History
+is creating… create 2 versions… free to use GPT-image-2… Lets complete Gupta series."*
+
+Read as a contract:
+
+1. **One command per story.** It walks the whole flow end to end and is reusable for every
+   IndianHistory story, not hand-tuned for Aryabhata.
+2. **A per-story intro**, in the Ink and Light language, whose beats are drawn from *that
+   story's* own hooks — not the shared Gupta sequence replayed. The narration should
+   highlight what makes that particular episode worth watching.
+3. **LOUD thumbnail options** — plural. The `LOUD-` treatment in `tools/thumbnail.mjs` is
+   the baseline; concepts come from `tools/gen-thumb-art.mjs`.
+4. **A YouTube upload folder** per story: the video, the episode, the intro, the thumbnail,
+   plus SRT, chapters, description and tags. One folder you can upload from.
+5. **Two versions** of each, kept side by side for comparison.
+6. **A scorecard** per version: the `retention.mjs` viral score **plus a wording-accuracy
+   pass** (the Gupta fact-check found two outright errors; assume every story has some).
+7. **Documented, with a skill**, so the flow survives context loss — alongside
+   `ink-and-light`.
+8. **Gupta series first.**
+
+Building blocks that already exist and should be composed rather than rewritten:
+`directions.mjs` · `gen-stills.mjs` · `gen-clips.mjs` · `picks.mjs` · `build-version.mjs` ·
+`render-master.mjs` · `speak.mjs` + `years.mjs` · `build-episode.mjs` · `render-episode.mjs`
+· `underscore.mjs` · `loudness.mjs` · `gen-thumb-art.mjs` · `thumbnail.mjs` · `publish.mjs`
+· `retention.mjs`.
+
+Missing pieces to build: a story picker over `IndianHistory/app/data/*.player.json`; a
+per-story intro author (beats derived from the story's own hooks); the upload-folder
+contract; the accuracy pass; and the orchestrator that runs all of it twice.
+
+**Costing note.** ep01 took ~38 min of frame capture alone at 1080p25. A full story is
+roughly: stills 5 min → clips 12 min → masters 8 min → episode render 38 min → kit 2 min
+≈ **65 min per version**, ~2 h for two. Budget accordingly and run stories sequentially,
+because Sora and the frame capture both saturate the machine.
+
+### One intro per storyline
 
 **One intro per storyline, not one shared intro** — a Gupta opening, a Chola opening, and so on,
 each a full Ink and Light sequence attached to its own section. Pick **one deep sector per era and
@@ -351,8 +614,15 @@ The recipe, now proven end to end:
 
 ## Standing user preferences observed
 
+- **Never delete generated assets. Keep every version. Clean up only after explicit approval.**
+  Stated directly: *"Keep in memory to keep all versions, don't cleanup the assets. Only after
+  approval, you do that."* Frames are the one exception the user has not objected to — they are a
+  deterministic function of the page and the schedule, and there are thousands of them; everything
+  else (stems, takes, plates, candidates, masters) stays.
 - Keep **every version intact** for later review; never overwrite generative output.
 - Wants to **see and approve** options rather than be given one answer.
 - Uses Overdrive for work that is meant to be seen — decide and commit, no hedging, verify by
   actually using the thing.
 - Do not disturb the Indian Tales repos.
+- **IndianHistory is read-only from here**, and it is often mid-run generating other stories —
+  fixes that belong upstream get built here as overrides plus a port-back note.

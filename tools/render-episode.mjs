@@ -30,7 +30,7 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import { launch } from '../scripts/browser.mjs';
 import { buildUnderscore } from './underscore.mjs';
-import { normaliseTo, assertLoudness } from './loudness.mjs';
+import { normaliseTo, assertLoudness, measure } from './loudness.mjs';
 
 const execFileP = promisify(execFile);
 
@@ -46,6 +46,7 @@ const PORT = Number(arg('port', 4407));
 const LIMIT = Number(arg('limit', 0));          // seconds of body, for drafts
 const INTRO = arg('intro', 'dist/v7-gupta-ink.mp4');
 const LANG = arg('lang', 'en');
+const LIFT = Number(arg('lift', '0.6'));   // bed gain multiplier; tuned by measurement
 const OUT = path.resolve(arg('out', `dist/episode-${SLUG}-${CUT}.mp4`));
 
 /* Re-splicing with a different title sequence should not cost another half hour of
@@ -127,8 +128,8 @@ try {
     + `${LIMIT ? ` (rendering first ${duration}s)` : ''}`);
 
   // ── the underscore, through the same synth as the title score ────────────
-  const { cues, phrases, pulsed } = buildUnderscore(tl, fullDuration + 1);
-  console.log(`  underscore: ${cues.length} cues, ${phrases.length} flute phrases, ${pulsed} pulsed panel(s)`);
+  const { cues, phrases, pulsed } = buildUnderscore(tl, fullDuration + 1, LIFT);
+  console.log(`  underscore: ${cues.length} cues, ${phrases.length} flute phrases, ${pulsed} pulsed panel(s), lift ${LIFT}`);
   const bedWav = path.join(TMP, 'bed.wav');
   const b64 = await page.evaluate(async ({ c, d }) => {
     const { renderWav } = await import('/src/audio.js');
@@ -184,23 +185,47 @@ try {
   console.log(`  narration: ${list.length} files, ${(await seconds(vo)).toFixed(1)}s`);
 
   // ── mix: bed under voice, ducked by the voice itself ────────────────────
-  /* The bed is written quiet, but "quiet" is not the same as "never in the way".
-     sidechaincompress keys the bed off the narration so it steps back the instant a
-     line starts and returns in the gaps — the standard broadcast underscore. A slow
-     release keeps it from pumping between words. */
+  /* The bed is written quiet, but "quiet" is not the same as "audible enough to do its
+     job", and neither is settled by opinion. Both the bed level and the duck are tuned
+     against a measurement printed below: the bed's integrated loudness against the
+     narration's, which is the standard way a broadcast underscore is judged.
+
+     Target separation is ~16-20 dB. Above ~26 dB the bed reads as silence on a phone and
+     buys none of the retention it was added for; below ~10 dB it competes with the words.
+     The duck is 4:1 at a moderate threshold so the bed *steps back* under a line rather
+     than vanishing, with a slow release so it does not pump between words. */
   const mixed = path.join(TMP, 'mix.wav');
+  const duckedBed = path.join(TMP, 'bed-ducked.wav');
+  const MIXG = '[0:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,'
+    + 'highpass=f=70,acompressor=threshold=0.09:ratio=3:attack=8:release=180,volume=1.0[vo];'
+    + '[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[bed];'
+    + '[vo]asplit=2[voa][vok];'
+    + '[bed][vok]sidechaincompress=threshold=0.06:ratio=4:attack=22:release=700:makeup=1[duck]';
   await ff([
     '-i', vo, '-i', bedWav,
-    '-filter_complex',
-    '[0:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,'
-      + 'highpass=f=70,acompressor=threshold=0.09:ratio=3:attack=8:release=180,volume=1.0[vo];'
-      + '[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[bed];'
-      + '[vo]asplit=2[voa][vok];'
-      + '[bed][vok]sidechaincompress=threshold=0.035:ratio=7:attack=18:release=600:makeup=1[duck];'
-      + '[voa][duck]amix=inputs=2:duration=first:weights=1 0.9:normalize=0[mx]',
+    '-filter_complex', `${MIXG};[voa][duck]amix=inputs=2:duration=first:weights=1 1:normalize=0[mx]`,
     '-map', '[mx]', mixed,
   ], 'mix');
+
+  /* Keep the ducked bed as its own stem. It is what makes the balance checkable — and
+     stems are never deleted here, so a mix decision can always be re-examined without
+     re-rendering forty minutes of frames. The voice branch of the shared graph has to be
+     sunk explicitly or ffmpeg refuses to bind a graph with an unconnected output. */
+  await ff(['-i', vo, '-i', bedWav,
+    '-filter_complex', `${MIXG};[voa]anullsink`, '-map', '[duck]', duckedBed],
+  'bed stem');
+
+  const lufs = async (f) => {
+    const m = await measure(f).catch(() => null);
+    return m ? Number(m.input_i) : NaN;
+  };
+  const [lVo, lBed, lMix] = await Promise.all([lufs(vo), lufs(duckedBed), lufs(mixed)]);
+  const sep = lVo - lBed;
   console.log(`  mixed voice + bed (${(await seconds(mixed)).toFixed(1)}s)`);
+  console.log(`    voice ${lVo.toFixed(1)} LUFS · bed ${lBed.toFixed(1)} LUFS · separation ${sep.toFixed(1)} dB`);
+  if (sep > 26) console.log('    NOTE: bed is more than 26 dB down — it will read as silence on a phone');
+  if (sep < 10) console.log('    NOTE: bed is within 10 dB of the voice — it will fight the narration');
+
 
   // ── body ────────────────────────────────────────────────────────────────
   await ff([
@@ -210,7 +235,10 @@ try {
     '-c:a', 'aac', '-b:a', '256k', '-shortest', BODY,
   ], 'body encode');
   console.log(`  body encoded (${(await seconds(BODY)).toFixed(1)}s)`);
-  if (!has('keep')) await rm(frames, { recursive: true, force: true });
+  /* Frames are the one thing worth discarding — they are a deterministic function of the
+     page and the schedule, thousands of files, and hundreds of megabytes. Everything that
+     is expensive or not reproducible (stems, bed, narration concat) stays. */
+  if (!has('keep-frames')) await rm(frames, { recursive: true, force: true });
   }
 
   /* Where the titles go: after the panels the cut names as its cold open. Taken from

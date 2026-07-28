@@ -36,11 +36,18 @@ const PULSED = new Set(['tension', 'action', 'triumph', 'conflict', 'danger', 'u
  * @param {{id:string,start:number,dur:number,mood?:string|null}[]} panels
  *        the narration schedule, in order, in seconds
  * @param {number} total  seconds of bed to write
+ * @param {number} lift   overall gain multiplier for the bed
+ *
+ * `lift` exists because the first mix paired these gains with an aggressive duck and the
+ * bed measured ~28 dB under the narration — present in the file, inaudible on a phone.
+ * The shape of the cue list was right; only its level was wrong, so the level is a
+ * parameter rather than six edited constants.
  */
-export function buildUnderscore(panels, total) {
+export function buildUnderscore(panels, total, lift = 0.6) {
   const cues = [];
   const cue = (t, voice, opts = {}) => {
     if (t < 0 || t >= total) return;
+    if (opts.gain != null) opts = { ...opts, gain: +(opts.gain * lift).toFixed(4) };
     cues.push({ t: +t.toFixed(3), voice, ...opts });
   };
 
