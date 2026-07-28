@@ -22,8 +22,8 @@ export const CUTS = [
     name: 'A · Titles first',
     pitch: 'The full 61-second sequence, an episode card, then the story. The most cinematic '
       + 'opening and the most expensive: a minute of titles before any content, every episode.',
-    intro: { src: '../../../dist/v5-empires-mobile.mp4', before: 0 },
-    card: true,
+    intro: { src: '../../../dist/v5-empires-mobile.mp4' },
+    open: [], card: true, frame: 'bleed',
   },
   {
     id: 'cut-b-cold-open',
@@ -31,8 +31,8 @@ export const CUTS = [
     pitch: 'The hero and the map play first — about forty seconds that state who this is and '
       + 'what he claimed — then the titles fire and the story resumes. Standard episodic '
       + 'television: the titles arrive once you already care.',
-    intro: { src: '../../../dist/v5-empires-mobile.mp4', before: 2 },
-    card: true,
+    intro: { src: '../../../dist/v5-empires-mobile.mp4' },
+    open: ['intro_hero', 'intro_map'], card: true, frame: 'bleed',
   },
   {
     id: 'cut-c-stinger',
@@ -40,8 +40,35 @@ export const CUTS = [
     pitch: 'A fifteen-second cut of the sequence — the opening beat, then this episode\'s own '
       + 'era — and straight into the story. The titles change per episode, so they stay '
       + 'meaningful, and they never outstay their welcome.',
-    intro: { src: '../../../dist/v6-episode-titles.mp4', before: 0 },
-    card: false,
+    intro: { src: '../../../dist/v6-episode-titles.mp4' },
+    open: [], card: false, frame: 'bleed',
+  },
+  /* Built against YouTube's own numbers rather than taste. YouTube Analytics defines the
+     "intro" as the first 30 seconds and calls retention there "above typical" only above
+     50%; its stated advice when that number is low is to change the first 30 seconds. So
+     the hook lands first, the titles are the 15s cut and are *over* by ~27s, and the story
+     resumes inside the window YouTube is measuring. */
+  {
+    id: 'cut-d-youtube',
+    name: 'D · YouTube cut',
+    pitch: 'The claim first — "499 CE, a young Aryabhata dares to say: the Earth turns" — then '
+      + 'the 15-second titles, then the story, with the titles finished by about 27 seconds. '
+      + 'Built around YouTube measuring retention at the 30-second mark.',
+    intro: { src: '../../../dist/v6-episode-titles.mp4' },
+    open: ['cover'], card: false, frame: 'bleed',
+  },
+  /* The art is composed square. Cover-cropping it to 16:9 throws away 44% of every panel,
+     which is where the tops of heads and the objects on the desk live. This cut never crops:
+     the whole panel sits in frame with the caption beside it, in the title sequence's own
+     layout. Costs screen area, loses nothing. */
+  {
+    id: 'cut-e-framed',
+    name: 'E · Framed, nothing cropped',
+    pitch: 'Same structure as D, but the art is never cropped — the whole square panel is in '
+      + 'frame with the caption in a column beside it, exactly the layout the title sequence '
+      + 'uses. Nothing is beheaded, and the episode and the titles become one visual system.',
+    intro: { src: '../../../dist/v6-episode-titles.mp4' },
+    open: ['cover'], card: false, frame: 'framed',
   },
 ];
 
@@ -77,9 +104,29 @@ export const episodePage = (ep, cut) => `<!doctype html>
   /* the scene wrapper owns the cross-fade; the images inside it are always opaque */
   #art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
     transform-origin:center}
-  /* a slow push, so a still panel is never actually still */
-  @keyframes ken{from{transform:scale(1.02) translate(0,0)}to{transform:scale(1.13) translate(-1.2%,-1%)}}
-  #art .scene.on img.ken{animation:ken linear forwards}
+  /* The panels are composed square. Cover-cropping one into 16:9 discards 44% of its
+     height — which is exactly where heads and desks are. So instead of holding a fixed
+     centre crop, the shot travels the full height of the image over the panel's own
+     length: nothing in the frame is permanently unseen, and a still gains a move.
+     object-position is animatable, which does this without touching layout. */
+  @keyframes panDown{from{object-position:50% 4%;transform:scale(1.015)}
+                     to{object-position:50% 96%;transform:scale(1.075)}}
+  @keyframes panUp{from{object-position:50% 96%;transform:scale(1.075)}
+                   to{object-position:50% 4%;transform:scale(1.015)}}
+  #art .scene.on img.pan-down{animation:panDown linear forwards}
+  #art .scene.on img.pan-up{animation:panUp linear forwards}
+
+  /* framed: never crop. The whole panel sits right of centre and the caption takes the
+     column beside it — the title sequence's own layout, applied to the story. */
+  .framed #art .scene{left:38%}
+  .framed #art img{object-fit:contain;object-position:50% 50%;animation:none!important}
+  .framed #art .scene::before{content:"";position:absolute;left:-14%;top:0;bottom:0;width:22%;
+    z-index:2;pointer-events:none;
+    background:linear-gradient(90deg,rgba(13,11,9,1) 0%,rgba(13,11,9,.72) 46%,rgba(13,11,9,0) 100%)}
+  .framed #capwrap{right:auto;width:38%;bottom:auto;top:0;height:100%;padding:0 3.2% 0 5%;
+    display:grid;align-content:center;background:none}
+  .framed #cap{text-align:left;max-width:none;font-size:clamp(13px,1.62vw,29px)}
+  .framed #speaker{text-align:left;margin-left:0}
 
   /* the four panels that are not plain pictures */
   #art .scene{position:absolute;inset:0;opacity:0;transition:opacity .9s ease}
@@ -210,9 +257,17 @@ export const episodePage = (ep, cut) => `<!doctype html>
 </div>
 
 <script type="module">
-const CUT = ${JSON.stringify({ intro: cut.intro, card: cut.card })};
+const CUT = ${JSON.stringify({ intro: cut.intro, card: cut.card, open: cut.open, frame: cut.frame })};
 const ep = await (await fetch('../episode.json')).json();
 const P = ep.panels;
+if (CUT.frame === 'framed') document.querySelector('#stage').classList.add('framed');
+
+/* The cut names which panels play before the titles; everything else follows in the
+   source order. Expressing it as ids rather than a count means a cut can open on any
+   panel — the YouTube cut opens on the claim, which is the third panel in the data. */
+const openIdx = (CUT.open || []).map((id) => P.findIndex((p) => p.id === id)).filter((n) => n >= 0);
+const restIdx = P.map((_, n) => n).filter((n) => !openIdx.includes(n));
+const ORDER = [...openIdx, ...restIdx];
 
 const $ = (s) => document.querySelector(s);
 const art = $('#art'), film = $('#film'), vid = $('#vid'), card = $('#card');
@@ -229,7 +284,8 @@ let introDone = false;
    never waits on the network. Two ahead is enough and keeps memory flat. */
 const cache = new Map();
 function warm(n) {
-  for (const p of P.slice(n, n + 2)) {
+  for (const k of ORDER.slice(n, n + 2)) {
+    const p = P[k];
     if (!p || cache.has(p.id)) continue;
     const im = new Image(); if (p.art) im.src = p.art;
     const a = new Audio(); a.preload = 'auto';
@@ -266,16 +322,18 @@ function tick(p) {
       if (s.classList.contains('said') !== said) s.classList.toggle('said', said);
     }
   }
-  const done = P.slice(0, i).reduce((a, q) => a + q.dur, 0) + audio.currentTime;
+  const done = ORDER.slice(0, i).reduce((a, k) => a + P[k].dur, 0) + audio.currentTime;
   bar.style.width = (100 * done / ep.runtime).toFixed(2) + '%';
   raf = requestAnimationFrame(() => tick(p));
 }
 
 /* Build the picture for a panel. Most are one image with a slow push; four are not,
    and each of those gets what its data actually describes rather than a fallback. */
-function buildScene(p, secs) {
+function buildScene(p, secs, pos) {
   const el = document.createElement('div');
   el.className = 'scene ' + p.kind;
+  // alternate the travel direction so twenty-eight panels never feel mechanical
+  const pan = pos % 2 === 0 ? 'pan-down' : 'pan-up';
   const img = (src, cls) => {
     const m = document.createElement('img');
     m.src = src; m.className = cls; m.style.animationDuration = secs + 's';
@@ -283,7 +341,7 @@ function buildScene(p, secs) {
   };
 
   if (p.kind === 'map' && p.map) {
-    el.appendChild(img(p.map, 'ken'));
+    el.appendChild(img(p.map, pan));
     const pin = document.createElement('i');
     pin.className = 'pin';
     pin.style.left = (p.pin.x * 100) + '%';
@@ -333,19 +391,19 @@ function buildScene(p, secs) {
     return el;
   }
 
-  if (p.art) el.appendChild(img(p.art, 'ken'));
+  if (p.art) el.appendChild(img(p.art, pan));
   return el;
 }
 
 function show(n) {
   cancelAnimationFrame(raf);
   if (audio) { audio.pause(); audio = null; }
-  if (n >= P.length) return finish();
+  if (n >= ORDER.length) return finish();
   i = n;
-  const p = P[n];
-  where.textContent = \`\${n + 1} / \${P.length}\`;
+  const p = P[ORDER[n]];
+  where.textContent = \`\${n + 1} / \${ORDER.length}\`;
 
-  const scene = buildScene(p, Math.max(4, p.dur + 1.2));
+  const scene = buildScene(p, Math.max(4, p.dur + 1.2), n);
   art.appendChild(scene);
   requestAnimationFrame(() => scene.classList.add('on'));
   setTimeout(() => { [...art.children].slice(0, -1).forEach((el) => el.remove()); }, 1000);
@@ -393,7 +451,7 @@ async function showCard() {
 /* The cut is expressed as "how many panels play before the titles". Everything else
    about the three versions is identical, which is the point of comparing them. */
 async function run() {
-  const before = CUT.intro.before;
+  const before = openIdx.length;
   if (before > 0) {
     await new Promise((resolve) => {
       let stop = false;

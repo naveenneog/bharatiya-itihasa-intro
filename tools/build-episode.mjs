@@ -72,8 +72,51 @@ async function seconds(file) {
   } catch { return 0; }
 }
 
+/* How long a token takes to *say*, which is not how long it is to write. "499" is three
+   characters and three words of speech. Digits are weighted accordingly so a repaired
+   span is divided by spoken length rather than by character count. */
+const spokenWeight = (tok) => {
+  const t = String(tok).replace(/[^\p{L}\p{N}]/gu, '');
+  const digits = (t.match(/\d/g) || []).length;
+  return Math.max(1, (t.length - digits) + digits * 3.5);
+};
+
+/* Repair the source alignment instead of trusting it.
+
+   It is per-word on 27 of the 28 panels. On the cover — the first thing any viewer sees —
+   the opening four words come back fused into a single token timed 297 ms at t=4421, so the
+   line is spoken for four and a half seconds with nothing lit and then the whole phrase
+   flashes and disappears. A fused token really spans from where the previous word ended to
+   where the next one starts, so it is given that span and split across its words by spoken
+   length. Returns how many tokens it had to repair, so the build reports it rather than
+   silently papering over bad data. */
+function repairWords(words, durSec) {
+  if (!words.length) return { words: [], fixed: 0 };
+  const out = [];
+  let fixed = 0;
+  for (let k = 0; k < words.length; k++) {
+    const [w, t, d] = words[k];
+    const parts = String(w).trim().split(/\s+/).filter(Boolean);
+    if (parts.length <= 1) { out.push([w, t, d]); continue; }
+    const prevEnd = out.length ? out[out.length - 1][1] + out[out.length - 1][2] : 0;
+    const nextStart = k + 1 < words.length ? words[k + 1][1] : Math.round(durSec * 1000);
+    const start = Math.min(t, prevEnd);
+    const span = Math.max(1, Math.max(t + d, nextStart) - start);
+    const total = parts.reduce((a, p) => a + spokenWeight(p), 0);
+    let acc = start;
+    for (const p of parts) {
+      const share = Math.round(span * (spokenWeight(p) / total));
+      out.push([p, acc, share]);
+      acc += share;
+    }
+    fixed++;
+  }
+  return { words: out, fixed };
+}
+
 const panels = [];
 let n = 0;
+let repaired = 0;
 for (const p of story.panels) {
   const line = p.lines?.[0];
   if (!line) continue;
@@ -106,6 +149,11 @@ for (const p of story.panels) {
     }
   }
 
+  const rawWords = (line.words?.en || []).map((w) => [w.w, w.t, w.d]);
+  const { words, fixed } = repairWords(rawWords, dur);
+  repaired += fixed;
+  if (fixed) console.log(`  repaired ${fixed} fused token(s) in ${p.id}`);
+
   panels.push({
     id: p.id,
     kind: p.type || 'panel',
@@ -116,7 +164,7 @@ for (const p of story.panels) {
     text: { en: line.text?.en || '', hi: line.text?.hi || '' },
     audio: { en: aEn, hi: aHi },
     // only English carries word timings in the source; Hindi captions run whole-line
-    words: (line.words?.en || []).map((w) => [w.w, w.t, w.d]),
+    words,
     dur,
     ...extra,
   });
@@ -148,4 +196,5 @@ for (const cut of CUTS) {
 }
 
 console.log(`\n${panels.length} panels, ${(total / 60).toFixed(1)} min of narration -> ${OUT}/`);
+if (repaired) console.log(`${repaired} fused caption token(s) repaired`);
 console.log(`${CUTS.length} cuts to compare`);
