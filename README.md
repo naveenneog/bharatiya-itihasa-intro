@@ -302,6 +302,63 @@ Two bugs worth recording, both caught by **extracting frames back out of the enc
 
 ---
 
+## v4 — the empires, scored
+
+The same picture as v3 with a score muxed in. **v3 stays silent and untouched**; v4 is a
+separate deliverable file, so both can be shown.
+
+```powershell
+node tools/render-score.mjs  v3-empires                                       # audio only + loudness report
+node tools/render-master.mjs v3-empires --score --out dist/v4-empires-scored.mp4
+```
+
+The player at `versions/v3-empires-ink/build/index.html` gains a **Sound** button. Audio is off
+until clicked, because every browser requires a gesture first.
+
+### The score
+
+No samples and no audio files — it is synthesised by the **same Web Audio engine v1 uses**
+(`src/audio.js`), so the two pieces sound like the same title sequence. `tools/score.mjs` writes
+it as a **cue list** rather than playback calls, which is what lets the identical score be both
+scheduled live in the browser and rendered offline through an `OfflineAudioContext` for the mux.
+
+Cues are derived from the same `schedule()` the picture uses, so changing a beat length moves
+the music with it. Nothing in the score restates a timing.
+
+| section | what happens |
+| --- | --- |
+| opening | drone and ink only — **no pulse**, so the procession has something to arrive into |
+| empires | a tabla pulse enters on Indus and tightens through three gears, **1.40 s → 0.57 s** between strokes |
+| | one plucked note per empire, climbing nearly two octaves |
+| lockup | the pulse stops dead, a riser, a struck bell, and a return to Sa |
+
+The three gear changes are deliberate: the beats already shorten on their own, so a fixed
+stroke count would drift gradually. Stepping the count up three times instead turns that drift
+into audible changes of *laya* — vilambit, madhya, drut — which is how a tabla piece actually
+moves.
+
+### Judging audio you cannot hear
+
+This was written without being able to listen to it, so every claim about it is **measured**.
+`tools/render-score.mjs` renders the score alone — seconds, not the minutes a picture composite
+takes — and prints an EBU R128 profile. Two real faults were caught that way:
+
+- **The first pass was dynamically flat**: LRA 2.9 LU, sitting at −18.5 LUFS for forty
+  unbroken seconds. The build is now made by *starting quiet* rather than ending loud, because
+  the synth chain compresses above −16 dBFS and pushing the finish only squashes it. LRA is
+  now 7.0 LU, running −28.9 LUFS at the open to −16.6 at the drut section.
+- **The lockup never reached level.** v1's drone has a fixed 3.4 s fade-in, which cannot arrive
+  inside a 5.2 s cue, so the bell landed over nothing. `drone` now takes `attack`/`release`;
+  v1's defaults are unchanged.
+
+Raising the gains then pushed the mix to **0.0 dBFS — clipping**. Rather than tune gains until
+it happened to fit, a true-peak limiter (`MASTER_AF`, exported from `score.mjs`) is applied to
+both the audio-only report and the muxed master, so the deliverable cannot clip however the cue
+gains are later edited. Final master: **−19.8 LUFS integrated, −2.3 dBTP, LRA 7.0**, and the
+struck bell is the loudest sustained moment in the piece.
+
+---
+
 
 
 - **GSAP 3.15.0** — core, DrawSVGPlugin, MorphSVGPlugin, MotionPathPlugin, CustomEase.

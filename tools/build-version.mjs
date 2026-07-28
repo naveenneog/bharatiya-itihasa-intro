@@ -12,6 +12,7 @@ import { mkdir, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { DIRECTIONS } from './directions.mjs';
 import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
+import { buildScore } from './score.mjs';
 
 const ROOT = 'versions';
 const filter = process.argv.slice(2).filter((a) => !a.startsWith('--'));
@@ -168,11 +169,14 @@ ${beats.map((b, i) => `    <div class="era" data-i="${i}">
   <div id="vig"></div>
   <div id="grain"></div>
   <div id="chrome">
+    <button id="sound" aria-pressed="false">Sound</button>
     <button id="replay">Replay</button>
   </div>
 </div>
 <script type="module">
+import { LiveSting, renderWav } from '../../../src/audio.js';
 const SCHED = ${JSON.stringify(schedule(beats))};
+const CUES = ${JSON.stringify(buildScore(schedule(beats), totalSeconds(schedule(beats))))};
 const XF = ${XF};
 const frame = document.getElementById('frame');
 const vids  = [...document.querySelectorAll('#film video')];
@@ -211,7 +215,9 @@ function run() {
   at(end + 0.15, () => wm.classList.add('on'));
 }
 
-window.__seq = { SCHED, run, duration: SCHED[SCHED.length - 1].start + SCHED[SCHED.length - 1].dur + ${TAIL} };
+const DURATION = SCHED[SCHED.length - 1].start + SCHED[SCHED.length - 1].dur + ${TAIL};
+const sting = new LiveSting(CUES);
+window.__seq = { SCHED, CUES, run, duration: DURATION, renderWav };
 
 /* Layer mode: hold one static pose for the offline renderer instead of playing.
    ?layer=scrim|rules|vig|grain  static plates
@@ -227,7 +233,13 @@ if (layer) {
   await document.fonts.ready;
   requestAnimationFrame(() => requestAnimationFrame(() => { window.__layerReady = true; }));
 } else {
-  document.getElementById('replay').addEventListener('click', run);
+  // browsers require a gesture before audio, so the score is opt-in and off by default
+  const soundBtn = document.getElementById('sound');
+  soundBtn.addEventListener('click', () => {
+    if (sting.armed) { sting.disable(); soundBtn.setAttribute('aria-pressed', 'false'); return; }
+    if (sting.enable()) { soundBtn.setAttribute('aria-pressed', 'true'); sting.start(0); run(); }
+  });
+  document.getElementById('replay').addEventListener('click', () => { run(); if (sting.armed) sting.start(0); });
   // wait for enough data on every clip, otherwise the first beat plays black
   await Promise.all(vids.map((v) => v.readyState >= 3
     ? Promise.resolve()

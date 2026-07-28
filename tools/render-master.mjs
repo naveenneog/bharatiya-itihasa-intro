@@ -13,7 +13,7 @@
    the same module the player imports, so the two cannot drift.
 
      node tools/render-master.mjs v3-empires
-     node tools/render-master.mjs v3-empires --fps 30 --out dist/empires.mp4
+     node tools/render-master.mjs v3-empires --score --out dist/v4-empires-scored.mp4
 */
 import { mkdir, rm, readdir, writeFile } from 'node:fs/promises';
 import { spawn, execFile } from 'node:child_process';
@@ -22,6 +22,7 @@ import path from 'node:path';
 import { launch } from '../scripts/browser.mjs';
 import { DIRECTIONS } from './directions.mjs';
 import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
+import { MASTER_AF } from './score.mjs';
 
 const execFileP = promisify(execFile);
 const ROOT = 'versions';
@@ -33,6 +34,7 @@ const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[
 const FPS = Number(flag('fps', '30'));
 const PORT = Number(flag('port', '4399'));
 const OUT = flag('out', null);
+const SCORE = argv.includes('--score');
 
 const flagIdx = new Set();
 argv.forEach((a, i) => { if (a.startsWith('--')) { flagIdx.add(i); flagIdx.add(i + 1); } });
@@ -100,6 +102,20 @@ async function renderPlates(sched, plateDir) {
     const out = path.join(plateDir, `type-${String(i).padStart(2, '0')}.png`);
     await capture(page, `${base}&layer=type&beat=${i}`, out);
     plates.type.push(out);
+  }
+
+  /* The score is synthesised by the same page, through an OfflineAudioContext, so
+     the master carries exactly the cues the live player schedules. Rendering it
+     here rather than in a second browser session keeps it one source of truth. */
+  if (SCORE) {
+    plates.wav = path.join(plateDir, 'score.wav');
+    const b64 = await page.evaluate(async (d) => {
+      const bytes = await window.__seq.renderWav(window.__seq.CUES, d);
+      let s = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return btoa(s);
+    }, totalSeconds(sched) + 0.4);
+    await writeFile(plates.wav, Buffer.from(b64, 'base64'));
   }
 
   await browser.close();
@@ -210,10 +226,16 @@ try {
   }
   args.push('-f', 'lavfi', '-t', String(total), '-i', `color=c=0x0d0b09:s=${W}x${H}:r=${FPS}`);
   for (const p of plates.type) args.push('-loop', '1', '-t', String(total), '-i', p);
+  // the score goes last so it cannot shift the video input indices the graph uses
+  const wavIdx = beats.length * 2 + 6;
+  if (SCORE) args.push('-i', plates.wav);
 
   args.push(
     '-filter_complex_script', path.join(plateDir, 'filter.txt'),
     '-map', '[out]',
+  );
+  if (SCORE) args.push('-map', `${wavIdx}:a`, '-af', MASTER_AF, '-c:a', 'aac', '-b:a', '192k');
+  args.push(
     '-r', String(FPS),
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '17',
     '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
@@ -221,11 +243,11 @@ try {
     out,
   );
 
-  console.log('  compositing...');
+  console.log(`  compositing${SCORE ? ' with score' : ''}...`);
   await execFileP('ffmpeg', args, { maxBuffer: 1 << 26 });
 
   const { stdout } = await execFileP('ffprobe', ['-v', 'error',
-    '-show_entries', 'format=duration,size:stream=width,height,r_frame_rate',
+    '-show_entries', 'format=duration,size:stream=codec_type,codec_name,width,height,r_frame_rate',
     '-of', 'default=noprint_wrappers=1', out]);
   console.log(`\ndone -> ${out}\n${stdout.trim()}`);
 } finally {

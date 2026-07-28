@@ -31,14 +31,16 @@ function noiseBuffer(ctx, dur, colour = 0.86) {
 
 /* ── voices ─────────────────────────────────────────────────────────────── */
 
-function drone(ctx, dest, when, { dur = 26, gain = 0.3 } = {}) {
+/* attack/release are exposed because a short cue with the default 3.4s fade-in never
+   reaches its level — the lockup drone has only ~5s to be there under the bell. */
+function drone(ctx, dest, when, { dur = 26, gain = 0.3, attack = 3.4, release = 3.2 } = {}) {
   const g = ctx.createGain();
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass'; lp.frequency.value = 820; lp.Q.value = 0.7;
   g.connect(lp).connect(dest);
   g.gain.setValueAtTime(0.0001, when);
-  g.gain.exponentialRampToValueAtTime(gain, when + 3.4);
-  g.gain.setValueAtTime(gain, when + Math.max(3.5, dur - 3.2));
+  g.gain.exponentialRampToValueAtTime(gain, when + Math.min(attack, dur * 0.5));
+  g.gain.setValueAtTime(gain, when + Math.max(attack + 0.1, dur - release));
   g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
   [[1, 0.5, 'sine'], [1.5, 0.24, 'sine'], [2, 0.18, 'sine'], [3, 0.07, 'triangle'], [1.004, 0.28, 'sine']]
     .forEach(([mul, amp, type], i) => {
@@ -124,7 +126,37 @@ function strike(ctx, dest, when, { gain = 0.8 } = {}) {
   scratch(ctx, dest, when, { gain: 0.14, dur: 0.5 });
 }
 
-const VOICES = { drone, pluck, scratch, riser, strike };
+/* A tuned membrane stroke — the pulse the empire procession rides on.
+
+   Shorter and more pitched than `strike`, which is a struck bell for the lockup.
+   The partials are deliberately inharmonic and the pitch drops slightly as it
+   decays, which is what makes a drum head read as a drum head rather than a beep. */
+function tabla(ctx, dest, when, { gain = 0.3, freq = 196, dur = 0.5, slap = 0.45 } = {}) {
+  const g = ctx.createGain();
+  env(g.gain, when, gain, 0.004, dur);
+  g.connect(dest);
+  [[1, 1], [2.13, 0.38], [3.41, 0.17], [4.52, 0.08]].forEach(([mul, amp]) => {
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq * mul, when);
+    o.frequency.exponentialRampToValueAtTime(freq * mul * 0.84, when + dur * 0.55);
+    const og = ctx.createGain(); og.gain.value = amp;
+    o.connect(og).connect(g);
+    o.start(when); o.stop(when + dur + 0.05);
+  });
+  if (slap > 0) {                       // the finger transient, gone in 50 ms
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx, 0.07, 0.32);
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 1500;
+    const ng = ctx.createGain();
+    env(ng.gain, when, gain * slap, 0.001, 0.05);
+    src.connect(hp).connect(ng).connect(dest);
+    src.start(when); src.stop(when + 0.12);
+  }
+}
+
+const VOICES = { drone, pluck, scratch, riser, strike, tabla };
 
 /** Play one cue on any context. `when` is absolute in that context's clock. */
 export function playCue(ctx, dest, cue, when) {
