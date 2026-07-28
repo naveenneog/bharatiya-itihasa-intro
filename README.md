@@ -413,6 +413,57 @@ the bell to within 20 ms.
 
 ---
 
+## Sample integration — the sequence inside a real episode
+
+`episodes/aryabhata/` is a working episode built from an actual IndianHistory story,
+**Aryabhata Turns the Earth** — chosen because it is literally the Gupta beat of the title
+sequence: *"Aryabhata measures the year. An iron pillar refuses to rust."*
+
+```powershell
+node tools/build-episode.mjs                                   # assets + data + all three cuts
+node tools/build-episode.mjs --story <id> --slug <name>         # any other story
+```
+
+The IndianHistory project is read **only**. Art is downscaled and audio copied into
+`episodes/<slug>/`, so the episode can be served or shipped on its own and this repo never
+depends on a sibling checkout being present.
+
+### The three cuts
+
+All three play the same 28 panels with the same player. What differs is only **where the titles
+sit** — which is the decision that has to be made once and then holds for every episode.
+
+| cut | shape | the trade |
+| --- | --- | --- |
+| **A · Titles first** | full 61 s sequence → episode card → story | most cinematic; a minute of titles before content, every episode |
+| **B · Cold open** | hero + map (23 s) → titles → card → story | the titles arrive once you already care. Standard episodic television |
+| **C · Series stinger** | 15 s sequence → story | opening beat + *this episode's own era*. Changes per episode, never outstays |
+
+C is built by a `variants.mjs` entry that takes a **subset of beats** — `00-itihasa` and
+`05-gupta` — through exactly the same schedule, score and render path as the full sequence. A
+different episode swaps one beat id.
+
+### The player
+
+- **The caption tracks the voice word by word.** Every English line in the source carries
+  `words: [{ w, t, d }]` in milliseconds; the player marks each word *said* and *now* against
+  `audio.currentTime`. Hindi has no word timings in the source, so it runs whole-line — the
+  language toggle switches voice, caption and slogans together.
+- **Four of the twenty-eight panels are not plain pictures** and are rendered as what their data
+  describes rather than flattened: a located map with a pinned, labelled marker; two action
+  beats with a cut-out figure moving over a panning, zooming background; and a three-slice split
+  with its own slogans. Flattening them would have shipped four black frames.
+- **The frame is the title sequence's frame** — same palette, same vignette, same grain tile
+  outside any filter, same fonts — so the join from titles to story is invisible.
+- Each panel's Ken Burns push is scaled to that panel's own narration length, so the movement
+  finishes exactly when the voice does.
+
+Verified in a headless browser: every panel kind renders, zero page errors, zero failed
+requests, and all three cuts hand off from titles to story at the right moment — cut B's titles
+firing at 23.2 s, exactly when the cold open ends.
+
+---
+
 
 
 - **GSAP 3.15.0** — core, DrawSVGPlugin, MorphSVGPlugin, MotionPathPlugin, CustomEase.

@@ -16,6 +16,7 @@ import { launch } from '../scripts/browser.mjs';
 import { DIRECTIONS } from './directions.mjs';
 import { clipSeconds, schedule, totalSeconds } from './timeline.mjs';
 import { MASTER_AF } from './score.mjs';
+import { variant, beatsFor } from './variants.mjs';
 
 const execFileP = promisify(execFile);
 const ROOT = 'versions';
@@ -23,7 +24,8 @@ const argv = process.argv.slice(2);
 const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : d; };
 const PORT = Number(flag('port', '4398'));
 const VARIANT = flag('variant', 'default');
-const BUILD = VARIANT === 'default' ? 'build' : `build-${VARIANT}`;
+const V = variant(VARIANT);
+const BUILD = V.out;
 
 const flagIdx = new Set();
 argv.forEach((a, i) => { if (a.startsWith('--')) { flagIdx.add(i); flagIdx.add(i + 1); } });
@@ -37,7 +39,7 @@ const raw = out.replace(/\.wav$/, '-raw.wav');
 await mkdir(path.dirname(out), { recursive: true });
 
 const beats = [];
-for (const b of dir.beats) {
+for (const b of beatsFor(dir, V)) {
   beats.push({ ...b, clipLen: await clipSeconds(path.join(ROOT, dir.id, 'clips', `${b.id}-r1.mp4`)) });
 }
 const total = totalSeconds(schedule(beats));

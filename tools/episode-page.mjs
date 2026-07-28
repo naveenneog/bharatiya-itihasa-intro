@@ -1,0 +1,458 @@
+/* The episode player, and the three cuts of it that are up for approval.
+
+   All three play the same story with the same player. What differs is only where the
+   title sequence sits relative to the content, which is the decision that actually
+   has to be made once and then holds for every episode in the series:
+
+     A  titles first      the full 61s sequence, then the episode. Cinematic, and a
+                          minute of titles before content on every single episode.
+     B  cold open         the hero and the map play first, the titles fire on the line
+                          that states the premise, then the story resumes. Standard
+                          episodic television, and it earns the titles.
+     C  series stinger    a 15s cut of the sequence built from the opening beat and
+                          *this episode's own era*, then straight into the story. The
+                          titles change per episode and never outstay.
+
+   The player is one file for all three: the cut is data.
+*/
+
+export const CUTS = [
+  {
+    id: 'cut-a-titles',
+    name: 'A · Titles first',
+    pitch: 'The full 61-second sequence, an episode card, then the story. The most cinematic '
+      + 'opening and the most expensive: a minute of titles before any content, every episode.',
+    intro: { src: '../../../dist/v5-empires-mobile.mp4', before: 0 },
+    card: true,
+  },
+  {
+    id: 'cut-b-cold-open',
+    name: 'B · Cold open, then titles',
+    pitch: 'The hero and the map play first — about forty seconds that state who this is and '
+      + 'what he claimed — then the titles fire and the story resumes. Standard episodic '
+      + 'television: the titles arrive once you already care.',
+    intro: { src: '../../../dist/v5-empires-mobile.mp4', before: 2 },
+    card: true,
+  },
+  {
+    id: 'cut-c-stinger',
+    name: 'C · Series stinger',
+    pitch: 'A fifteen-second cut of the sequence — the opening beat, then this episode\'s own '
+      + 'era — and straight into the story. The titles change per episode, so they stay '
+      + 'meaningful, and they never outstay their welcome.',
+    intro: { src: '../../../dist/v6-episode-titles.mp4', before: 0 },
+    card: false,
+  },
+];
+
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+export const episodePage = (ep, cut) => `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>${esc(ep.title)} — ${esc(cut.name)}</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../../vendor/fonts/fonts.css">
+<style>
+  :root{
+    --paper:#0d0b09; --ink:#e8b64a; --ink-hi:#f6dc9a; --saffron:#e07b2a;
+    --dim:#b7a684; --faint:rgba(183,166,132,.42);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;color:var(--dim);
+    font-family:"Marcellus",Georgia,serif;-webkit-font-smoothing:antialiased}
+  body{display:grid;place-items:center;overflow:hidden}
+
+  #stage{position:relative;width:min(100vw,177.78vh);aspect-ratio:16/9;
+    overflow:hidden;background:var(--paper);isolation:isolate}
+
+  /* picture — the intro film and the panel art share the frame */
+  #film,#art{position:absolute;inset:0}
+  #film{opacity:0;transition:opacity .5s linear;z-index:1}
+  #film.on{opacity:1}
+  #film video{width:100%;height:100%;object-fit:cover;display:block}
+
+  /* the scene wrapper owns the cross-fade; the images inside it are always opaque */
+  #art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    transform-origin:center}
+  /* a slow push, so a still panel is never actually still */
+  @keyframes ken{from{transform:scale(1.02) translate(0,0)}to{transform:scale(1.13) translate(-1.2%,-1%)}}
+  #art .scene.on img.ken{animation:ken linear forwards}
+
+  /* the four panels that are not plain pictures */
+  #art .scene{position:absolute;inset:0;opacity:0;transition:opacity .9s ease}
+  #art .scene.on{opacity:1}
+  .scene .pin{position:absolute;width:1.5vw;height:1.5vw;min-width:12px;min-height:12px;
+    border-radius:50%;background:var(--saffron);transform:translate(-50%,-50%);
+    box-shadow:0 0 0 0 rgba(224,123,42,.7);animation:ping 2.1s ease-out infinite}
+  @keyframes ping{0%{box-shadow:0 0 0 0 rgba(224,123,42,.65)}100%{box-shadow:0 0 0 3.2vw rgba(224,123,42,0)}}
+  .scene .pinlabel{position:absolute;transform:translate(-50%,14px);white-space:nowrap;
+    font-size:clamp(9px,1vw,17px);letter-spacing:.24em;text-transform:uppercase;
+    color:var(--ink-hi);background:rgba(6,5,4,.72);padding:.45em .9em;border-radius:2px;
+    border:1px solid rgba(232,182,74,.28)}
+  @keyframes bgmove{from{transform:scale(1) translateX(0)}to{transform:scale(var(--z,1.12)) translateX(var(--pan,-6%))}}
+  .scene img.bg{animation:bgmove linear forwards}
+  @keyframes charmove{
+    from{transform:translateX(var(--fx,0%)) scale(var(--fs,.85)) rotate(var(--fr,0deg))}
+    to{transform:translateX(var(--tx,0%)) scale(var(--ts2,1.03)) rotate(var(--tr,0deg))}}
+  .scene img.char{object-fit:contain;animation:charmove linear forwards;
+    filter:drop-shadow(0 18px 34px rgba(0,0,0,.72))}
+  .scene.split{display:flex;gap:2px}
+  .scene.split .sl{position:relative;flex:1;overflow:hidden}
+  .scene.split .sl img{position:absolute;inset:0;opacity:1;transition:none}
+  .scene.split .sl b{position:absolute;left:6%;right:6%;bottom:34%;z-index:2;display:block;
+    font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-weight:400;
+    font-size:clamp(11px,1.35vw,24px);line-height:1.3;color:var(--ink-hi);
+    text-shadow:0 2px 16px #000;text-align:center}
+  .scene.split .sl::after{content:"";position:absolute;inset:0;z-index:1;
+    background:linear-gradient(0deg,rgba(6,5,4,.9) 0%,rgba(6,5,4,.55) 44%,rgba(6,5,4,0) 74%)}
+
+  /* the caption sits in a band that is dark enough to hold text over any art */
+  #capwrap{position:absolute;left:0;right:0;bottom:0;z-index:4;padding:0 7.4% 5.6%;
+    background:linear-gradient(0deg,rgba(6,5,4,.93) 0%,rgba(6,5,4,.82) 42%,rgba(6,5,4,.42) 72%,rgba(6,5,4,0) 100%);
+    padding-top:9%;pointer-events:none}
+  #cap{max-width:64ch;margin:0 auto;text-align:center;
+    font-family:"Cormorant Garamond",Georgia,serif;
+    font-size:clamp(15px,2.05vw,37px);line-height:1.38;color:rgba(183,166,132,.55)}
+  #cap.speech{font-style:italic;color:rgba(232,182,74,.5)}
+  #cap .w{transition:color .18s linear,text-shadow .18s linear}
+  #cap .w.said{color:var(--ink-hi)}
+  #cap .w.now{color:#fff;text-shadow:0 0 18px rgba(232,182,74,.55)}
+  #cap.plain{color:var(--ink-hi)}
+  #speaker{margin:0 auto .5em;text-align:center;font-family:"Marcellus",serif;
+    font-size:clamp(9px,.86vw,15px);letter-spacing:.34em;text-transform:uppercase;
+    color:var(--saffron);opacity:0}
+  #speaker.on{opacity:1}
+
+  /* episode card */
+  #card{position:absolute;inset:0;z-index:5;display:grid;place-content:center;text-align:center;
+    background:var(--paper);opacity:0;transition:opacity .8s ease;pointer-events:none}
+  #card.on{opacity:1}
+  .card-num{font-size:clamp(9px,.8vw,14px);letter-spacing:.5em;color:var(--saffron);margin-bottom:1.6em}
+  .card-hi{font-family:"Tiro Devanagari Hindi",serif;font-size:clamp(26px,3.5vw,64px);
+    line-height:1.18;color:var(--ink-hi)}
+  .card-en{margin-top:.5em;font-size:clamp(13px,1.5vw,27px);letter-spacing:.3em;color:var(--dim)}
+  .card-era{margin-top:1.4em;font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;
+    font-size:clamp(12px,1.25vw,22px);color:var(--dim);opacity:.85}
+
+  /* brand finish, carried over from the title sequence so the join is invisible */
+  #vig{position:absolute;inset:0;pointer-events:none;z-index:6;
+    box-shadow:inset 0 0 190px 70px rgba(0,0,0,.72)}
+  #grain{position:absolute;inset:-8px;pointer-events:none;z-index:7;opacity:.075;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3'/></filter><rect width='320' height='320' filter='url(%23n)'/></svg>");
+    background-size:320px 320px}
+
+  /* chrome */
+  #bar{position:absolute;left:0;right:0;bottom:0;height:3px;z-index:8;background:rgba(232,182,74,.14)}
+  #bar i{display:block;height:100%;width:0;background:var(--ink);transition:width .2s linear}
+  #chrome{position:absolute;left:0;right:0;top:0;z-index:9;display:flex;align-items:center;gap:9px;
+    padding:14px 18px;opacity:0;transition:opacity .25s ease}
+  #stage:hover #chrome,#chrome.show{opacity:1}
+  #chrome button{cursor:pointer;font-family:inherit;font-size:11px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--dim);background:rgba(6,5,4,.62);
+    border:1px solid rgba(183,166,132,.28);border-radius:2px;padding:6px 12px}
+  #chrome button:hover{color:var(--ink-hi);border-color:rgba(232,182,74,.6)}
+  #chrome button.act{color:var(--paper);background:var(--ink);border-color:var(--ink)}
+  #where{margin-left:auto;font-size:11px;letter-spacing:.16em;color:var(--dim);
+    background:rgba(6,5,4,.62);padding:6px 11px;border-radius:2px}
+  #cut{position:absolute;left:18px;bottom:16px;z-index:9;font-size:10.5px;letter-spacing:.26em;
+    text-transform:uppercase;color:rgba(183,166,132,.5)}
+
+  #start{position:absolute;inset:0;z-index:20;display:grid;place-content:center;gap:18px;
+    background:rgba(6,5,4,.9);text-align:center;cursor:pointer}
+  #start h1{font-family:"Tiro Devanagari Hindi",serif;font-size:clamp(24px,3.2vw,58px);
+    color:var(--ink-hi);font-weight:400}
+  #start p{font-size:clamp(11px,1.1vw,17px);letter-spacing:.28em;text-transform:uppercase;color:var(--dim)}
+  #start span{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:clamp(13px,1.3vw,22px);
+    color:var(--saffron);letter-spacing:.06em;text-transform:none}
+  #start.gone{display:none}
+  @media (prefers-reduced-motion:reduce){ #art img.on{animation:none} }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="art"></div>
+  <div id="film"><video id="vid" src="${esc(cut.intro.src)}" playsinline preload="auto"></video></div>
+
+  <div id="card">
+    <div class="card-num">${esc(ep.era || '')}</div>
+    <div class="card-hi">${esc(ep.title_i18n?.hi || ep.title)}</div>
+    <div class="card-en">${esc(ep.title.toUpperCase())}</div>
+    <div class="card-era">${esc(ep.hero?.legend || '')}</div>
+  </div>
+
+  <div id="capwrap">
+    <div id="speaker"></div>
+    <div id="cap"></div>
+  </div>
+
+  <div id="vig"></div><div id="grain"></div>
+  <div id="bar"><i></i></div>
+  <div id="cut">${esc(cut.name)}</div>
+
+  <div id="chrome">
+    <button id="pp">Pause</button>
+    <button id="prev">Prev</button>
+    <button id="next">Next</button>
+    <button id="en" class="act">EN</button>
+    <button id="hi">हिं</button>
+    <button id="skip">Skip titles</button>
+    <div id="where"></div>
+  </div>
+
+  <div id="start">
+    <h1>${esc(ep.title_i18n?.hi || 'आर्यभट')}</h1>
+    <p>${esc(ep.title)}</p>
+    <span>${esc(cut.name)} — tap to begin</span>
+  </div>
+</div>
+
+<script type="module">
+const CUT = ${JSON.stringify({ intro: cut.intro, card: cut.card })};
+const ep = await (await fetch('../episode.json')).json();
+const P = ep.panels;
+
+const $ = (s) => document.querySelector(s);
+const art = $('#art'), film = $('#film'), vid = $('#vid'), card = $('#card');
+const cap = $('#cap'), speaker = $('#speaker'), bar = $('#bar i'), where = $('#where');
+
+let lang = 'en';
+let i = -1;                 // current panel index
+let audio = null;
+let raf = 0;
+let paused = false;
+let introDone = false;
+
+/* Preload the next panel's picture and sound while the current one plays, so a cut
+   never waits on the network. Two ahead is enough and keeps memory flat. */
+const cache = new Map();
+function warm(n) {
+  for (const p of P.slice(n, n + 2)) {
+    if (!p || cache.has(p.id)) continue;
+    const im = new Image(); if (p.art) im.src = p.art;
+    const a = new Audio(); a.preload = 'auto';
+    const src = p.audio[lang] || p.audio.en; if (src) a.src = src;
+    cache.set(p.id, { im, a });
+  }
+}
+
+function paintCaption(p) {
+  cap.classList.toggle('speech', !!p.speech);
+  speaker.textContent = p.speech ? (p.role === 'male' ? 'Aryabhata' : p.role) : '';
+  speaker.classList.toggle('on', !!p.speech);
+  // English has word timings, so the caption can track the voice; Hindi does not
+  if (lang === 'en' && p.words.length) {
+    cap.classList.remove('plain');
+    cap.innerHTML = p.words.map(([w], k) => \`<span class="w" data-k="\${k}">\${w}</span>\`).join(' ');
+  } else {
+    cap.classList.add('plain');
+    cap.textContent = p.text[lang] || p.text.en;
+  }
+}
+
+function tick(p) {
+  if (!audio) return;
+  const ms = audio.currentTime * 1000;
+  if (lang === 'en' && p.words.length) {
+    const spans = cap.children;
+    for (let k = 0; k < p.words.length; k++) {
+      const [, t, d] = p.words[k];
+      const s = spans[k]; if (!s) continue;
+      const now = ms >= t && ms < t + d + 60;
+      const said = ms >= t;
+      if (s.classList.contains('now') !== now) s.classList.toggle('now', now);
+      if (s.classList.contains('said') !== said) s.classList.toggle('said', said);
+    }
+  }
+  const done = P.slice(0, i).reduce((a, q) => a + q.dur, 0) + audio.currentTime;
+  bar.style.width = (100 * done / ep.runtime).toFixed(2) + '%';
+  raf = requestAnimationFrame(() => tick(p));
+}
+
+/* Build the picture for a panel. Most are one image with a slow push; four are not,
+   and each of those gets what its data actually describes rather than a fallback. */
+function buildScene(p, secs) {
+  const el = document.createElement('div');
+  el.className = 'scene ' + p.kind;
+  const img = (src, cls) => {
+    const m = document.createElement('img');
+    m.src = src; m.className = cls; m.style.animationDuration = secs + 's';
+    return m;
+  };
+
+  if (p.kind === 'map' && p.map) {
+    el.appendChild(img(p.map, 'ken'));
+    const pin = document.createElement('i');
+    pin.className = 'pin';
+    pin.style.left = (p.pin.x * 100) + '%';
+    pin.style.top = (p.pin.y * 100) + '%';
+    el.appendChild(pin);
+    if (p.pin.label) {
+      const lb = document.createElement('div');
+      lb.className = 'pinlabel';
+      lb.style.left = (p.pin.x * 100) + '%';
+      lb.style.top = (p.pin.y * 100) + '%';
+      lb.textContent = p.pin.label;
+      el.appendChild(lb);
+    }
+    return el;
+  }
+
+  if (p.kind === 'action' && p.bg) {
+    const b = img(p.bg, 'bg');
+    b.style.setProperty('--z', p.motion?.bgZoom ?? 1.12);
+    b.style.setProperty('--pan', (p.motion?.bgPan ?? -6) + '%');
+    el.appendChild(b);
+    for (const c of (p.chars || [])) {
+      if (!c.img) continue;
+      const m = img(c.img, 'char');
+      const mo = c.motion || {};
+      m.style.setProperty('--fx', (mo.fromX ?? 0) + '%');
+      m.style.setProperty('--tx', (mo.toX ?? 0) + '%');
+      m.style.setProperty('--fs', mo.fromScale ?? 0.85);
+      m.style.setProperty('--ts2', mo.toScale ?? 1.03);
+      m.style.setProperty('--fr', (mo.fromRot ?? mo.rotFrom ?? 0) + 'deg');
+      m.style.setProperty('--tr', (mo.toRot ?? mo.rotTo ?? 0) + 'deg');
+      el.appendChild(m);
+    }
+    return el;
+  }
+
+  if (p.kind === 'split' && p.slices?.length) {
+    for (const s of p.slices) {
+      const d = document.createElement('div');
+      d.className = 'sl';
+      if (s.img) { const m = document.createElement('img'); m.src = s.img; d.appendChild(m); }
+      const b = document.createElement('b');
+      b.textContent = s.slogan?.[lang] || s.slogan?.en || '';
+      d.appendChild(b);
+      el.appendChild(d);
+    }
+    return el;
+  }
+
+  if (p.art) el.appendChild(img(p.art, 'ken'));
+  return el;
+}
+
+function show(n) {
+  cancelAnimationFrame(raf);
+  if (audio) { audio.pause(); audio = null; }
+  if (n >= P.length) return finish();
+  i = n;
+  const p = P[n];
+  where.textContent = \`\${n + 1} / \${P.length}\`;
+
+  const scene = buildScene(p, Math.max(4, p.dur + 1.2));
+  art.appendChild(scene);
+  requestAnimationFrame(() => scene.classList.add('on'));
+  setTimeout(() => { [...art.children].slice(0, -1).forEach((el) => el.remove()); }, 1000);
+
+  paintCaption(p);
+  const src = p.audio[lang] || p.audio.en;
+  audio = new Audio(src);
+  audio.play().catch(() => {});
+  audio.onended = () => { if (!paused) show(i + 1); };
+  warm(n + 1);
+  tick(p);
+}
+
+function finish() {
+  cancelAnimationFrame(raf);
+  card.querySelector('.card-hi').textContent = ep.moral ? '' : '';
+  card.querySelector('.card-num').textContent = 'THE MORAL';
+  card.querySelector('.card-en').textContent = '';
+  card.querySelector('.card-era').textContent = ep.moral || '';
+  card.classList.add('on');
+  bar.style.width = '100%';
+}
+
+async function playIntro() {
+  film.classList.add('on');
+  vid.currentTime = 0;
+  try { await vid.play(); } catch { /* blocked until gesture */ }
+  await new Promise((r) => {
+    vid.onended = r;
+    vid.onerror = r;
+  });
+  film.classList.remove('on');
+  introDone = true;
+  await new Promise((r) => setTimeout(r, 420));
+}
+
+async function showCard() {
+  if (!CUT.card) return;
+  card.classList.add('on');
+  await new Promise((r) => setTimeout(r, 2600));
+  card.classList.remove('on');
+  await new Promise((r) => setTimeout(r, 700));
+}
+
+/* The cut is expressed as "how many panels play before the titles". Everything else
+   about the three versions is identical, which is the point of comparing them. */
+async function run() {
+  const before = CUT.intro.before;
+  if (before > 0) {
+    await new Promise((resolve) => {
+      let stop = false;
+      const step = (n) => {
+        if (stop) return;
+        if (n >= before) { resolve(); return; }
+        show(n);
+        audio.onended = () => step(n + 1);
+      };
+      step(0);
+      window.__abortColdOpen = () => { stop = true; resolve(); };
+    });
+    if (audio) { audio.pause(); audio = null; }
+    cancelAnimationFrame(raf);
+    [...art.children].forEach((el) => el.classList.remove('on'));
+    await new Promise((r) => setTimeout(r, 600));
+  }
+  await playIntro();
+  await showCard();
+  show(before);
+}
+
+$('#pp').addEventListener('click', () => {
+  paused = !paused;
+  $('#pp').textContent = paused ? 'Play' : 'Pause';
+  if (paused) { audio?.pause(); vid.pause(); }
+  else { if (audio) { audio.play().catch(() => {}); } else if (!introDone) vid.play().catch(() => {}); }
+});
+$('#prev').addEventListener('click', () => show(Math.max(0, i - 1)));
+$('#next').addEventListener('click', () => show(Math.min(P.length - 1, i + 1)));
+$('#skip').addEventListener('click', () => {
+  window.__abortColdOpen?.();
+  vid.pause(); film.classList.remove('on'); introDone = true;
+  vid.currentTime = 0; vid.onended = null;
+  card.classList.remove('on');
+  show(CUT.intro.before);
+});
+for (const L of ['en', 'hi']) {
+  $('#' + L).addEventListener('click', () => {
+    if (lang === L) return;
+    lang = L;
+    $('#en').classList.toggle('act', L === 'en');
+    $('#hi').classList.toggle('act', L === 'hi');
+    cache.clear();
+    if (i >= 0) show(i);        // restart the panel in the new voice
+  });
+}
+
+$('#start').addEventListener('click', () => {
+  $('#start').classList.add('gone');
+  $('#chrome').classList.add('show');
+  setTimeout(() => $('#chrome').classList.remove('show'), 2600);
+  warm(0);
+  run();
+}, { once: true });
+
+// handle for QA: jump straight to a panel without waiting out the narration
+window.__ep = { show, get index() { return i; }, panels: P, setLang(L) { lang = L; } };
+</script>
+</body>
+</html>
+`;

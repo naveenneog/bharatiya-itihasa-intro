@@ -23,6 +23,7 @@ import { launch } from '../scripts/browser.mjs';
 import { DIRECTIONS } from './directions.mjs';
 import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
 import { MASTER_AF } from './score.mjs';
+import { variant, beatsFor } from './variants.mjs';
 
 const execFileP = promisify(execFile);
 const ROOT = 'versions';
@@ -36,7 +37,8 @@ const PORT = Number(flag('port', '4399'));
 const OUT = flag('out', null);
 const SCORE = argv.includes('--score');
 const VARIANT = flag('variant', 'default');
-const BUILD = VARIANT === 'default' ? 'build' : `build-${VARIANT}`;
+const V = variant(VARIANT);
+const BUILD = V.out;
 
 const flagIdx = new Set();
 argv.forEach((a, i) => { if (a.startsWith('--')) { flagIdx.add(i); flagIdx.add(i + 1); } });
@@ -193,7 +195,7 @@ function buildGraph(sched, plates, total) {
 // ---------------------------------------------------------------- main
 
 const beats = [];
-for (const b of dir.beats) {
+for (const b of beatsFor(dir, V)) {
   const clip = await latestClip(dir.id, b.id);
   if (!clip) { console.error(`missing clip for ${b.id} — run gen-clips first`); process.exit(1); }
   beats.push({ ...b, clip, clipLen: await clipSeconds(path.join(ROOT, dir.id, 'clips', clip)) });

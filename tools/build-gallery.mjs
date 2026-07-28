@@ -108,6 +108,46 @@ try {
   });
 } catch { /* not rendered */ }
 
+/* Episodes are a different kind of artifact from the intro versions — a full story
+   with the title sequence integrated — so they get their own band at the top rather
+   than a card in the version list. */
+const episodes = [];
+for (const slug of (await ls('episodes')).sort()) {
+  let ep;
+  try { ep = JSON.parse(await readFile(path.join('episodes', slug, 'episode.json'), 'utf8')); } catch { continue; }
+  const cuts = [];
+  for (const d of (await ls(path.join('episodes', slug))).sort()) {
+    if (d.startsWith('cut-') && await isDir(path.join('episodes', slug, d))) cuts.push(d);
+  }
+  if (cuts.length) episodes.push({ slug, ep, cuts });
+}
+
+const CUT_COPY = {
+  'cut-a-titles': ['A · Titles first',
+    'The full 61-second sequence, an episode card, then the story. Most cinematic, and a minute of titles before content on every episode.'],
+  'cut-b-cold-open': ['B · Cold open, then titles',
+    'The hero and the map play first — about 23 seconds establishing who this is and what he claimed — then the titles fire and the story resumes. Standard episodic television: the titles arrive once you already care.'],
+  'cut-c-stinger': ['C · Series stinger',
+    "A 15-second cut built from the opening beat and this episode's own era, then straight into the story. The titles change per episode, so they stay meaningful and never outstay."],
+};
+
+const episodeBand = episodes.length ? `
+<section class="eps">
+  <h2 class="epsh">Sample integration — the title sequence in a real episode</h2>
+  ${episodes.map((e) => `
+  <p class="epitch"><b>${esc(e.ep.title)}</b> — ${e.ep.panels.length} panels, ${(e.ep.runtime / 60).toFixed(1)} min of
+  narration in English and Hindi, with the caption tracking the voice word by word.
+  Three cuts, differing only in where the titles sit.</p>
+  <div class="cuts">${e.cuts.map((c) => {
+    const [name, why] = CUT_COPY[c] || [c, ''];
+    return `<div class="cut">
+      <h3>${esc(name)}</h3>
+      <p>${esc(why)}</p>
+      <a class="play" href="episodes/${esc(e.slug)}/${esc(c)}/index.html" target="_blank">▶ Play this cut</a>
+    </div>`;
+  }).join('')}</div>`).join('')}
+</section>` : '';
+
 const card = (v) => `
 <section class="ver" id="${esc(v.id)}">
   <header>
@@ -174,10 +214,21 @@ const html = `<!doctype html>
   .beatname{font-size:13px;color:var(--ink);margin:0 0 8px;letter-spacing:.05em}
   .revs{color:var(--gold);font-size:11px;margin-left:6px}
   .empty{color:var(--dim);font-style:italic}
+  .eps{margin:0 0 60px;padding:26px 26px 30px;border:1px solid rgba(232,182,74,.28);
+    border-radius:10px;background:rgba(232,182,74,.045)}
+  .epsh{font-size:19px;color:var(--gold);margin:0 0 12px;font-weight:500}
+  .epitch{max-width:82ch;color:var(--ink);margin:0 0 20px}
+  .epitch b{color:var(--gold);font-weight:600}
+  .cuts{display:flex;flex-wrap:wrap;gap:16px}
+  .cut{flex:1 1 290px;min-width:280px;padding:16px 18px 6px;border-radius:8px;
+    border:1px solid rgba(232,182,74,.18);background:rgba(0,0,0,.28)}
+  .cut h3{margin:0 0 8px;font-size:14px;letter-spacing:.06em;text-transform:none;color:var(--gold)}
+  .cut p{font-size:13.5px;color:var(--dim);margin:0 0 14px;line-height:1.5}
 </style></head><body>
 <h1>Bhāratīya Itihāsa — intro versions</h1>
 <p class="sub">Every generated version, kept intact. Click a still to open it full size.
 Generated ${new Date().toLocaleString()}.</p>
+${episodeBand}
 <nav>${versions.map((v) => `<a href="#${esc(v.id)}">${esc(v.meta.name || v.id)}</a>`).join('')}</nav>
 ${versions.length ? versions.map(card).join('\n') : '<p class="empty">Nothing generated yet.</p>'}
 </body></html>`;
