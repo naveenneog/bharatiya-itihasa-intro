@@ -19,7 +19,10 @@ import { promisify } from 'node:util';
 const execFileP = promisify(execFile);
 
 export const TARGET_I = -14;    // LUFS integrated, the streaming reference
-export const TARGET_TP = -1.0;  // dBTP ceiling, headroom for lossy re-encode
+/* Asking for -1.0 lands the delivered file around -0.6 dBTP, because loudnorm's ceiling
+   is applied to its own estimate and the AAC encode adds a little back. Asking for -1.5
+   leaves the master where it was meant to be with room for the platform's re-encode. */
+export const TARGET_TP = -1.5;  // dBTP ceiling
 export const TARGET_LRA = 11;   // LU, loudnorm's default range
 
 const spec = (extra = '') =>
