@@ -159,9 +159,11 @@ Full brief with URLs was produced by a research sub-agent; re-run if needed.
    the whole phrase flashes. 1 of 28 panels, but it is the first thing anyone sees.
    `repairWords()` in `build-episode.mjs` splits fused tokens across the span they actually occupy,
    weighting digits ×3.5 because "499" is three characters and three words of speech.
-9. **The same number is read two different ways** by the narration: `cover` says "four ninety-nine
-   C E", `p08` says "four hundred and ninety-nine". Source-audio inconsistency, not ours — but it is
-   the opening line. Flagged, not yet resolved.
+9. **The same number is read two different ways** by the narration: `cover` said "four
+   hundred ninety-nine C E", `p08` "four hundred and ninety-nine". **Root cause found and
+   fixed** (see "Years are spoken as years"): Azure's voices read a bare integer as a
+   quantity and the upstream `_norm()` never normalised years. Not a source-audio quirk —
+   a missing normalisation rule, and it affects every story with a date in it.
 10. **A number token highlighted for 2.1 s** (`62,832`, `3.1416`) looks like a frozen caption even
     though the timing is correct. Fix intended: sweep the highlight across the token. **Not done.**
 11. **Every master shipped 4–6 dB too quiet.** v4 −19.8, v5 −18.3, v6 −17.8 LUFS against a −14
@@ -283,12 +285,45 @@ spec) and writes:
 - `<slug>-thumb.jpg` — 1280×720 composed in a page with the project's own fonts, and it
   **asserts the art loaded** (a black rectangle with good type on it looks deliberate).
 
+---
+
+## Years are spoken as years (fixed)
+
+Azure's neural voices read a bare integer as a **quantity**, so `499 CE` came out as
+"four hundred ninety-nine C E" — in the second phrase of the first episode. The upstream
+`_norm()` in `IndianHistory/tools/voice.py` expands regnal Roman numerals and strips
+diacritics but never normalises years.
+
+- `tools/years.mjs` — `yearWords()` and `speakYears()`. Only rewrites a number **in a date
+  context** (beside CE/BCE/AD/BC, across an era-marked range, or after
+  in/by/around/circa/since/the year), so `62,832`, `20,000` and `3.1416` stay quantities.
+- `tools/speak.mjs` — re-synthesises a line through the **same voice config as voice.py**
+  (`en-IN-Arjun:DragonHDLatestNeural`, narrator base `-6%`, per-mood pitch/style, 24 kHz
+  96 kbps mono MP3). `--all --dry` audits a whole episode.
+- `tools/years.test.mjs` — 33 assertions, `npm run test:years`.
+
+**Audit result: 3 of 28 panels** — `cover` (499 CE), `p02` (in 476), `p08` (the year 499).
+All three fixed; fixing only the cover would have recreated the inconsistency.
+
+**IndianHistory is still read-only from here.** The corrected audio is an override in
+`episodes/aryabhata/voice-fix/`, picked up by `audioFixed()` in `build-episode.mjs`.
+`episodes/aryabhata/voice-fix/PORT-UPSTREAM.md` has the port-back instructions — it is one
+line in `_norm()` — and how to remove the override afterwards.
+
+Caption timings survive because `foldToWritten()` merges the spoken run ("four
+ninety-nine", two boundaries) back onto the single written token `499`, and asserts the
+token count matches. This **also retired the fused-token defect on `cover`** that
+`repairWords()` was patching around.
+
+Needs `microsoft-cognitiveservices-speech-sdk` (word boundaries need the WebSocket
+protocol; the REST TTS endpoint does not return them) and `az login`.
+
 ## Still to do
 
 1. Fix the 2.1 s number-token caption dwell (sweep the highlight across the token).
-2. The narration reads `499` two different ways between `cover` and `p08` — source-audio issue,
-   flagged, unresolved.
-3. Consider a 1440p delivery so YouTube gives the video a VP9 encode.
+2. Consider a 1440p delivery so YouTube gives the video a VP9 encode.
+3. Port the year fix into `voice.py` once that project is free, then delete the override.
+4. Re-check whether `repairWords()` still earns its place once years are fixed upstream.
 
 ---
 
