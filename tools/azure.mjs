@@ -9,11 +9,15 @@
              GET  /openai/v1/videos/{id}/content?api-version=preview -> video/mp4
 
    sora-2 limits (probed by sending invalid values and reading the validation error):
-     size    720x1280 | 1280x720 | 1024x1792 | 1792x1024
+     size    720x1280 | 1280x720 only. The request schema also advertises 1024x1792
+             and 1792x1024 and they pass validation, but the model then rejects the
+             job — 720p is the real ceiling, so masters upscale at assembly.
      seconds 4 | 8 | 12
    Image-to-video works: POST multipart with an `input_reference` file part. The
    reference MUST be exactly the requested width x height or you get
    "Inpaint image must match the requested width and height".
+   Moderation refuses reference images containing people ("people-in-user-uploads");
+   text-to-video of people is fine, so portrait beats fall back to that.
 */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -64,6 +68,9 @@ async function call(url, init, tries = 10) {
       continue;
     }
     if (r.status >= 500) { await sleep(12000 * i); continue; }
+    /* Azure returns 400 for a reference-image upload that timed out server-side.
+       It is transient despite the 4xx, and it is the only 400 worth retrying. */
+    if (r.status === 400 && /upload timed out/i.test(body)) { await sleep(6000 * i); continue; }
     throw new Error(`${url}\n  ${last}`);
   }
   throw new Error(`gave up after ${tries}\n  ${last}`);

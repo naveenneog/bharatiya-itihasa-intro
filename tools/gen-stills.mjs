@@ -11,7 +11,11 @@ import { mkdir, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 const ROOT = 'versions';
-const filter = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const argv = process.argv.slice(2);
+const beatArg = argv.indexOf('--beat');
+// comma list, e.g. --beat 00-itihasa,08-vijayanagara
+const BEATS = beatArg >= 0 ? argv[beatArg + 1].split(',').map((s) => s.trim()) : null;
+const filter = argv.filter((a, i) => !a.startsWith('--') && i !== beatArg + 1);
 const dirs = filter.length
   ? DIRECTIONS.filter((d) => filter.some((f) => d.id.includes(f)))
   : DIRECTIONS;
@@ -36,6 +40,7 @@ async function nextRev(dir, beatId) {
 const jobs = [];
 for (const dir of dirs) {
   for (const beat of dir.beats) {
+    if (BEATS && !BEATS.some((f) => beat.id.includes(f))) continue;
     jobs.push({
       label: `${dir.id}/${beat.id}`,
       dir,

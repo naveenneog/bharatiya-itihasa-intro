@@ -7,9 +7,10 @@
 
    Nothing is ever overwritten — each run writes a new revision (-r1, -r2, ...).
 
-   node tools/gen-clips.mjs                 # all directions
-   node tools/gen-clips.mjs v2c v2d         # only matching directions
-   node tools/gen-clips.mjs --seconds 8     # longer takes
+   node tools/gen-clips.mjs                    # all directions
+   node tools/gen-clips.mjs v2c v2d            # only matching directions
+   node tools/gen-clips.mjs --seconds 8        # longer takes
+   node tools/gen-clips.mjs v3 --beat 05-gupta # one beat, to redo a bad take
 */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -35,6 +36,7 @@ const CONC = Number(flag('conc', '2'));  // sora rejects with 429 "too many runn
    text-to-video and carry their look in the prompt instead. */
 const NOREF = argv.includes('--no-ref');
 const MISSING = argv.includes('--missing');   // only generate beats that have no clip yet
+const BEATS = (() => { const v = flag('beat', null); return v ? v.split(',').map((s) => s.trim()) : null; })();
 const [W, H] = SIZE.split('x').map(Number);
 
 // Drop flags and their values, keep bare direction filters.
@@ -98,6 +100,7 @@ async function makeRef(still, out) {
 const jobs = [];
 for (const dir of dirs) {
   for (const beat of dir.beats) {
+    if (BEATS && !BEATS.some((f) => beat.id.includes(f))) continue;
     if (MISSING && await latestClip(dir.id, beat.id)) continue;
     jobs.push({
       label: `${dir.id}/${beat.id}`,
@@ -114,11 +117,15 @@ for (const dir of dirs) {
 
         // With a reference, hold the established frame and describe only what moves.
         // Without one, the prompt has to carry the whole look as well as the motion.
+        // A beat may override the direction's motion: sora holds a single hero object
+        // well but invents repeating texture over broad fields, so those beats need
+        // an explicit instruction to keep the scene solid.
+        const motion = beat.motion || dir.motion;
         const prompt = ref
-          ? `${beat.prompt}\n\nCamera and composition stay as established. ${dir.motion} `
+          ? `${beat.prompt}\n\nCamera and composition stay as established. ${motion} `
             + 'Motion is slow, deliberate and cinematic. The dark empty left third of the frame stays '
             + 'dark and empty throughout. No text, letters or captions appear at any point.'
-          : `${beat.prompt}\n\n${dir.style}\n\n${dir.motion} Motion is slow, deliberate and cinematic. `
+          : `${beat.prompt}\n\n${dir.style}\n\n${motion} Motion is slow, deliberate and cinematic. `
             + 'Cinematic 16:9 widescreen. Deep near-black background. Warm antique gold and saffron are '
             + 'the only strong colours. The left third of the frame stays dark and empty throughout, for titles. '
             + 'No text, letters or captions appear at any point.';
@@ -131,8 +138,12 @@ for (const dir of dirs) {
   }
 }
 
-console.log(`generating ${jobs.length} clips (${SECONDS}s, ${SIZE}${NOREF ? ', text-to-video' : ', locked to stills'}) across ${dirs.length} direction(s), ${CONC} at a time\n`);
-const t0 = Date.now();
+if (!jobs.length) {
+  console.error(BEATS ? `no beat matched --beat ${BEATS.join(',')}` : 'nothing to generate');
+  process.exit(1);
+}
+
+console.log(`generating ${jobs.length} clips (${SECONDS}s, ${SIZE}${NOREF ? ', text-to-video' : ', locked to stills'}) across ${dirs.length} direction(s), ${CONC} at a time\n`);const t0 = Date.now();
 let done = 0;
 
 const results = await pool(jobs, CONC, (job, res) => {

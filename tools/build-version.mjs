@@ -11,6 +11,7 @@
 import { mkdir, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { DIRECTIONS } from './directions.mjs';
+import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
 
 const ROOT = 'versions';
 const filter = process.argv.slice(2).filter((a) => !a.startsWith('--'));
@@ -112,11 +113,34 @@ const page = (dir, beats) => `<!doctype html>
   #tag{position:absolute;left:0;right:0;top:14px;text-align:center;font-size:11px;
     letter-spacing:.34em;text-transform:uppercase;color:rgba(183,166,132,.55);z-index:9}
   html.export #chrome,html.export #tag{display:none}
+
+  /* layer mode — ?layer=<part> isolates one element on transparency so the offline
+     master can composite it in ffmpeg. Capturing through the real page means the
+     render uses the real fonts, metrics and gradients rather than a restatement of
+     them. Every layer is a still: no timers run, all motion is applied downstream.
+     Each part is captured separately because they are not one contiguous z-band —
+     scrim and rules sit under the type, vignette and grain sit over it. */
+  html.layer,html.layer body,html.layer #frame{background:transparent!important}
+  html.layer #frame > *{display:none}
+  html.layer-scrim #scrim{display:block}
+  /* .rule has no id, so it needs #frame to outweigh the blanket rule above */
+  html.layer-rules #frame > .rule{display:block}
+  html.layer-type  #type{display:block}
+  html.layer-wm    #wm{display:grid}
+  html.layer-vig   #vig{display:block}
+  html.layer-grain #grain{display:block}
+  html.layer .era,html.layer #wm,html.layer .rule{transition:none}
+
   @media (prefers-reduced-motion:reduce){
     #film video,.era,.rule,#wm,#wm-bg{transition-duration:.01ms!important}
   }
 </style>
-<script>if(new URLSearchParams(location.search).has('export'))document.documentElement.classList.add('export');</script>
+<script>(function(){
+  var q = new URLSearchParams(location.search);
+  if (q.has('export')) document.documentElement.classList.add('export');
+  var l = q.get('layer');
+  if (l) document.documentElement.classList.add('layer', 'layer-' + l);
+})();</script>
 </head>
 <body>
 <div id="tag">${dir.name} · version ${dir.id}</div>
@@ -131,8 +155,8 @@ ${beats.map((b, i) => `    <video data-i="${i}" src="../clips/${b.clip}" muted p
 ${beats.map((b, i) => `    <div class="era" data-i="${i}">
       <div class="era-num">${b.era.num}</div>
       <div class="era-hi">${b.era.hi}</div>
-      <div class="era-en">${b.era.en}</div>
-      <div class="era-when">${b.era.when}</div>
+      <div class="era-en">${b.era.en}</div>${b.era.when ? `
+      <div class="era-when">${b.era.when}</div>` : ''}
       <div class="era-line">${b.era.line}</div>
     </div>`).join('\n')}
   </div>
@@ -148,9 +172,8 @@ ${beats.map((b, i) => `    <div class="era" data-i="${i}">
   </div>
 </div>
 <script type="module">
-const BEAT = ${beats[0]?.seconds ?? 4};   // clip length
-const XF   = 0.62;                        // crossfade
-const STEP = BEAT - XF;                   // beat-to-beat stride
+const SCHED = ${JSON.stringify(schedule(beats))};
+const XF = ${XF};
 const frame = document.getElementById('frame');
 const vids  = [...document.querySelectorAll('#film video')];
 const eras  = [...document.querySelectorAll('.era')];
@@ -165,35 +188,52 @@ function reset() {
   frame.classList.remove('lit');
   wm.classList.remove('on'); wmBg.classList.remove('on');
   eras.forEach((e) => e.classList.remove('on'));
-  vids.forEach((v) => { v.classList.remove('on'); v.pause(); v.currentTime = 0; });
+  vids.forEach((v, i) => { v.classList.remove('on'); v.pause(); v.currentTime = SCHED[i].seek; });
 }
 
 function run() {
   reset();
-  // force reflow so the rules re-draw rather than snapping
-  void frame.offsetWidth;
+  void frame.offsetWidth;   // force reflow so the rules re-draw rather than snapping
   at(0.15, () => frame.classList.add('lit'));
 
-  vids.forEach((v, i) => {
-    const t0 = i * STEP;
-    at(t0, () => { v.classList.add('on'); v.play().catch(() => {}); });
-    // the label has to ride most of the beat — a 22-word line needs the time
-    at(t0 + 0.52, () => eras[i].classList.add('on'));
-    at(t0 + BEAT - 0.75, () => eras[i].classList.remove('on'));
-    if (i < vids.length - 1) at(t0 + BEAT, () => { v.classList.remove('on'); v.pause(); });
+  SCHED.forEach((s, i) => {
+    const v = vids[i];
+    at(s.start, () => { v.currentTime = s.seek; v.classList.add('on'); v.play().catch(() => {}); });
+    at(s.labelIn, () => eras[i].classList.add('on'));
+    at(s.labelOut, () => eras[i].classList.remove('on'));
+    // hold one crossfade past the beat so the next clip has something to fade over
+    if (i < SCHED.length - 1) at(s.start + s.dur + XF, () => { v.classList.remove('on'); v.pause(); });
   });
 
-  const end = (vids.length - 1) * STEP + BEAT;
-  at(end - 0.5, () => { wmBg.classList.add('on'); vids.at(-1).classList.remove('on'); });
+  const last = SCHED[SCHED.length - 1];
+  const end = last.start + last.dur;
+  at(end - 0.5, () => { wmBg.classList.add('on'); vids[vids.length - 1].classList.remove('on'); });
   at(end + 0.15, () => wm.classList.add('on'));
 }
 
-document.getElementById('replay').addEventListener('click', run);
-// wait for enough data on every clip, otherwise the first beat plays black
-await Promise.all(vids.map((v) => v.readyState >= 3
-  ? Promise.resolve()
-  : new Promise((r) => v.addEventListener('canplay', r, { once: true }))));
-run();
+window.__seq = { SCHED, run, duration: SCHED[SCHED.length - 1].start + SCHED[SCHED.length - 1].dur + ${TAIL} };
+
+/* Layer mode: hold one static pose for the offline renderer instead of playing.
+   ?layer=scrim|rules|vig|grain  static plates
+   ?layer=type&beat=N            one era block
+   ?layer=wm                     the wordmark */
+const q = new URLSearchParams(location.search);
+const layer = q.get('layer');
+if (layer) {
+  vids.forEach((v) => { v.removeAttribute('src'); v.load(); });
+  if (layer === 'type') eras[Number(q.get('beat') || 0)]?.classList.add('on');
+  if (layer === 'rules') frame.classList.add('lit');
+  if (layer === 'wm') wm.classList.add('on');
+  await document.fonts.ready;
+  requestAnimationFrame(() => requestAnimationFrame(() => { window.__layerReady = true; }));
+} else {
+  document.getElementById('replay').addEventListener('click', run);
+  // wait for enough data on every clip, otherwise the first beat plays black
+  await Promise.all(vids.map((v) => v.readyState >= 3
+    ? Promise.resolve()
+    : new Promise((r) => v.addEventListener('canplay', r, { once: true }))));
+  run();
+}
 </script>
 </body>
 </html>
@@ -208,7 +248,7 @@ for (const dir of dirs) {
   const beats = [];
   for (const b of dir.beats) {
     const clip = await latest(dir.id, 'clips', b.id, 'mp4');
-    if (clip) beats.push({ ...b, clip });
+    if (clip) beats.push({ ...b, clip, clipLen: await clipSeconds(path.join(ROOT, dir.id, 'clips', clip)) });
   }
   if (beats.length !== dir.beats.length) {
     console.log(`  skip ${dir.id} — ${beats.length}/${dir.beats.length} clips`);
@@ -217,7 +257,9 @@ for (const dir of dirs) {
   const out = path.join(ROOT, dir.id, 'build', 'index.html');
   await mkdir(path.dirname(out), { recursive: true });
   await writeFile(out, page(dir, beats));
-  console.log(`  ok   ${dir.id} -> ${out}`);
+  const s = schedule(beats);
+  const total = totalSeconds(s);
+  console.log(`  ok   ${dir.id} -> ${out}  (${beats.length} beats, ${total.toFixed(1)}s)`);
   built++;
 }
 console.log(`\n${built} version(s) assembled`);

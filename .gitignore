@@ -9,3 +9,7 @@ tmp/
 # regenerable, so they stay out. The stills and clips themselves are committed:
 # generative output cannot be reproduced, and every version is meant to be kept.
 versions/**/clips/*-ref.png
+
+# Layer plates are Playwright captures of the committed page, re-taken on every
+# master render. The page is the source of truth, not the capture.
+versions/**/build/plates/

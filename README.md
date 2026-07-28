@@ -222,9 +222,83 @@ and are recorded at the top of `tools/azure.mjs`:
 
 ### Open
 
-The four directions are a hedge, not an answer — **pick one and it gets the full v1 treatment**
-(deterministic frame-exact render, score, QA gate, cross-engine check). Longer 8–12 s takes and
-extra revisions per beat are one command each.
+Longer takes and extra revisions per beat are one command each. Every direction remains
+playable so the comparison stays honest.
+
+---
+
+## v3 — Ink and Light, extended to the empires
+
+`v2c` was the chosen direction, so it was taken from four abstract beats to a **fourteen-beat,
+61-second procession**: a two-beat opening, twelve empires, then the wordmark.
+
+```powershell
+node tools/gen-stills.mjs  v3-empires                  # 14 stills
+node tools/gen-clips.mjs   v3-empires --seconds 8      # 14 clips, locked to the stills
+node tools/build-version.mjs v3-empires                # playable page
+node tools/render-master.mjs v3-empires                # dist/v3-empires-ink.mp4
+```
+
+Both generators take `--beat a,b,c` to redo individual beats, and never overwrite: each run
+writes a new `-rN` revision so every take stays reviewable.
+
+### What the extension changed
+
+- **The visual language did not change.** Everything is still macro ink and liquid gold in
+  black water. What changed is that each beat now carries *one empire's defining object* in
+  that medium — pure abstraction cannot tell Gupta from Chola, and a roll-call of empires has
+  to be legible.
+- **Beats accelerate monotonically, 6.4 s → 3.4 s**, unbroken across all fourteen. Timing was
+  the one thing v1 was tuned around and the one lesson worth carrying: five thousand years
+  should arrive faster than you can hold it. The copy shortens in step so reading load per
+  second stays flat, and the acceleration then breaks on the chakra, which holds.
+- **The opening carries no numeral and no date.** Numbering is reserved for empires and
+  neither opening beat is one. The first names the form itself — *itihāsa* is literally
+  *iti-ha-āsa*, "so indeed it was" — and the second establishes the ground before any empire
+  exists.
+- **Empires overlap**, so the order is by start date, not a claim that one replaced another.
+  The Sultanate and Vijayanagara are contemporaries.
+
+### Decisions worth knowing
+
+- **One clock, one module.** `tools/timeline.mjs` computes the schedule and is imported by
+  both the browser player and the offline renderer. When the timing lived in the player, the
+  renderer had to restate it and any edit silently desynced the two.
+- **The in-point centres each beat inside its clip.** Clips are generated at 8 s and shown for
+  3.4–6.4 s, so a beat plays the middle — where the ink is actually moving — rather than the
+  first seconds where it has barely left the reference frame.
+- **Sora holds a single hero object; it invents repeating texture over broad fields.** Every
+  beat built around one object against black held for the full 8 s. The one landscape beat
+  grew a field of scallops across the terrain, and needed a per-beat `motion` override telling
+  it the rock does not move. That override is the only per-beat motion in the sequence.
+- **Prompts must name one subject.** Two beats first came back unreadable because the prompt
+  named two things and the model foregrounded the wrong one — a bundle of columns instead of
+  the Qutb Minar, an extreme close-up blade instead of a hill fort. Naming a single hero with
+  an explicit silhouette fixed both.
+- **Art must stay out of the type zone.** Vijayanagara's wheel drifted left under the labels;
+  the prompt now states the left half is empty black water and nothing else.
+
+### The master render
+
+v1's renderer scrubbed a GSAP timeline frame by frame. That cannot work here — the picture is
+fourteen `<video>` elements and a headless browser will not seek them frame-accurately. So the
+master is **composited** instead:
+
+- **Picture** — clips trimmed to their in-points and cross-faded by ffmpeg's `xfade`.
+- **Plates** — the scrim, rules, type, wordmark, vignette and grain captured *from the real
+  page* as transparent PNGs via `?layer=…`, then given their motion by ffmpeg alpha fades.
+
+Everything the viewer sees is therefore still authored in the page; the renderer never restates
+a font, a gradient or a duration. Each part is captured separately because they are not one
+contiguous z-band — scrim and rules sit under the type, vignette and grain over it.
+
+Two bugs worth recording, both caught by **extracting frames back out of the encoded file**:
+
+- The gold rules never rendered. `html.layer #frame > *{display:none}` carries id specificity
+  and beat `html.layer-rules .rule` — `.rule` is the only plate with no id. Every plate is now
+  asserted to contain non-zero alpha, so a silently-empty layer cannot ship again.
+- Azure returns **HTTP 400 for a reference-image upload that timed out server-side**. It is
+  transient despite the 4xx and is now the one 400 the client retries.
 
 ---
 
