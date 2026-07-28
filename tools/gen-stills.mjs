@@ -15,7 +15,11 @@ const argv = process.argv.slice(2);
 const beatArg = argv.indexOf('--beat');
 // comma list, e.g. --beat 00-itihasa,08-vijayanagara
 const BEATS = beatArg >= 0 ? argv[beatArg + 1].split(',').map((s) => s.trim()) : null;
-const filter = argv.filter((a, i) => !a.startsWith('--') && i !== beatArg + 1);
+/* Guard the -1: without it, `beatArg + 1` is 0 when --beat is absent and the first
+   positional argument — the direction filter — is silently dropped, which quietly
+   regenerates every direction in the repo instead of the one asked for. */
+const skip = beatArg >= 0 ? beatArg + 1 : -1;
+const filter = argv.filter((a, i) => !a.startsWith('--') && i !== skip);
 const dirs = filter.length
   ? DIRECTIONS.filter((d) => filter.some((f) => d.id.includes(f)))
   : DIRECTIONS;

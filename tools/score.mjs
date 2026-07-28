@@ -148,8 +148,18 @@ export function buildProcession(sched, total) {
   const cues = [];
   const cue = (t, voice, opts = {}) => cues.push({ t: +Math.max(0, t).toFixed(3), voice, ...opts });
 
-  const empires = sched.filter((s) => s.era.num);
-  const opening = sched.filter((s) => !s.era.num);
+  /* A sequence is either an unnumbered opening followed by a numbered procession —
+     the empires cut — or numbered the whole way, which is what a single-kingdom
+     sequence looks like when every beat is one of its aspects. The drum still needs
+     something to arrive into, so when there is no opening section the first beat
+     becomes one: drone and pluck alone, and the theka enters on beat two. */
+  const numbered = sched.filter((s) => s.era.num);
+  const unnumbered = sched.filter((s) => !s.era.num);
+  const hasOpening = unnumbered.length > 0;
+  const opening = hasOpening ? unnumbered : numbered.slice(0, 1);
+  const empires = hasOpening ? numbered : numbered.slice(1);
+  if (!empires.length) return buildScore(sched, total);
+
   const first = sched[0];
   const last = sched[sched.length - 1];
   const end = last.start + last.dur;
@@ -232,3 +242,4 @@ export function buildProcession(sched, total) {
 /* Scores are keyed so an older version keeps the score it shipped with. Changing
    the procession must not retune v4. */
 export const SCORES = { standard: buildScore, procession: buildProcession };
+

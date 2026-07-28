@@ -34,6 +34,17 @@ export const VARIANTS = {
     beats: ['00-itihasa', '05-gupta'],
     scrim: MOBILE_SCRIM,
   },
+  /* The same idea one level down: a kingdom sequence has its own stinger, cut to the
+     two beats that set up the episode in front of it. Sized against YouTube's own
+     measurement rather than taste — Analytics calls the first 30 seconds the intro, so
+     a ~12s cold open plus ~16s of titles puts the story back on screen before the
+     number that decides whether the video gets recommended is taken. The full 45s
+     sequence remains its own piece; it is not what an episode opens with. */
+  stinger: {
+    out: 'build-stinger', ts: 1.6, tw: '37%', score: 'procession',
+    beats: ['01-dinara', '03-bhramati'],
+    scrim: MOBILE_SCRIM,
+  },
 };
 
 export function variant(name) {

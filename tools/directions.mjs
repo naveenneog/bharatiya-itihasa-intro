@@ -257,3 +257,126 @@ export const EMPIRES = {
 
 DIRECTIONS.push(EMPIRES);
 
+/* ── v7: one kingdom, ten aspects ─────────────────────────────────────────────
+
+   The empires sequence gives each dynasty a single beat. That is right for a
+   roll-call of five thousand years and wrong for a storyline, where the whole
+   point is to stay inside one age long enough for it to become a place.
+
+   So this is the Gupta age given ten beats instead of one, and the beats are
+   chosen for stopping power rather than for completeness: zero, a rotating Earth,
+   four decimal places of pi, a pillar that will not rust, and the ancestor of
+   chess. Every one of those is a fact a viewer will want to argue with or repeat,
+   which is the only reliable engine of a video being watched to the end and sent
+   to somebody else.
+
+   Same visual language as v3, unchanged — the series must not drift between
+   storylines or it stops looking like a series. What changes is the density: an
+   age gets a paragraph, not a sentence.
+
+   Accelerates 6.0 -> 3.4 across ten beats, ~45s with the wordmark hold. */
+
+/* Consistency across a set comes from the light being identical, not from the
+   words being similar. This pins the lighting and the lens so ten separately
+   generated frames read as ten frames of one film. */
+const INK_LIGHT = 'A single hard rim light from the upper right; everything it does not touch falls to '
+  + 'pure black. Shot on a macro probe lens at f/2, razor-thin plane of focus, no fill light, no ambient haze.';
+
+const GUPTA_STYLE = `${INK_STYLE} ${INK_LIGHT}`;
+
+/* Every prompt states the placement rather than trusting FRAME to carry it. The
+   empires set taught this: subjects drift into the left third unless told twice. */
+const RIGHT = 'The subject stands in the right half of the frame. The entire left third is empty black '
+  + 'water and nothing else — no object, no highlight, no tendril enters it.';
+
+export const GUPTA = {
+  id: 'v7-gupta-ink',
+  name: 'Ink and Light — the Gupta Age',
+  tagline: 'The age that counted to nothing.',
+  pitch: 'One kingdom given ten beats instead of one. Zero, a turning Earth, four decimal places of '
+    + 'pi, a pillar that will not rust, and the ancestor of chess — the Gupta age told through the '
+    + 'things it made that are still in your hands.',
+  motion: 'The object surfaces out of the ink rather than being revealed by a cut — fluid, unhurried, '
+    + 'and always still settling when the next aspect takes over.',
+  style: GUPTA_STYLE,
+  beats: [
+    {
+      id: '01-dinara', dur: 6.0,
+      era: { num: 'I', hi: 'स्वर्ण युग', en: 'THE GOLDEN AGE', when: 'c. 320 – 550 CE',
+        line: 'Two hundred years. Almost everything you think of as classical India.' },
+      prompt: `A thick Gupta gold coin half-submerged in black water, its struck relief of a seated king with a
+        lyre catching the light, black ink curling off its milled edge, flakes of gold leaf settling on its face. ${RIGHT}`,
+    },
+    {
+      id: '02-shunya', dur: 5.6,
+      era: { num: 'II', hi: 'दशगुणोत्तर', en: 'PLACE VALUE', when: 'assumed by the Āryabhaṭīya',
+        line: 'Ten digits, and position doing the rest. The written zero follows later.' },
+      prompt: `One single perfect sphere of black ink suspended motionless in clear water, dead centre of the
+        right half, with one slow concentric ring of gold pigment expanding outward from it into the darkness.
+        Nothing else in the frame at all. ${RIGHT}`,
+    },
+    {
+      id: '03-bhramati', dur: 5.2,
+      era: { num: 'III', hi: 'भ्रमति', en: 'THE EARTH TURNS', when: 'Āryabhaṭīya, 499 CE',
+        line: 'He wrote that the ground beneath us is the thing that moves.' },
+      prompt: `An antique bronze armillary sphere of nested engraved rings rotating in black water, ink streaming
+        off its meridians, a single point of gold light burning at its centre like a captured star. ${RIGHT}`,
+    },
+    {
+      id: '04-vritta', dur: 4.9,
+      era: { num: 'IV', hi: 'वृत्त', en: 'THE CIRCLE', when: 'π ≈ 3.1416',
+        line: '62,832 to 20,000. Four decimal places, fifteen centuries ago.' },
+      prompt: `A perfect circle drawn in liquid gold suspended in black water, with faint gold construction
+        lines and a chord across it, the gold still bleeding softly outward at the edges of the stroke. ${RIGHT}`,
+    },
+    {
+      id: '05-stambha', dur: 4.6,
+      era: { num: 'V', hi: 'लौह स्तम्भ', en: 'THE IRON PILLAR', when: 'raised c. 400 CE',
+        line: 'Sixteen centuries standing in the open air. It has barely rusted.' },
+      prompt: `A tall dark wrought-iron pillar rising out of black water, its Sanskrit inscription band catching
+        a hard gold rim light, water sheeting off bare uncorroded metal, ink curling around its base. ${RIGHT}`,
+    },
+    {
+      id: '06-ajanta', dur: 4.3,
+      era: { num: 'VI', hi: 'अजन्ता', en: 'AJANTA', when: 'Vākāṭaka, c. 460 – 480 CE',
+        line: 'Painted by the Guptas’ allies and kin, in the same century’s light.' },
+      prompt: `A fragment of an ancient painted rock wall submerged in black water, the ochre and lapis pigment
+        of a serene painted eye and jewelled headdress dissolving slowly into ink, gold leaf lifting off the
+        surface in flakes. ${RIGHT}`,
+    },
+    {
+      id: '07-nalanda', dur: 4.0,
+      era: { num: 'VII', hi: 'नालन्दा', en: 'NALANDA', when: 'endowed early 5th century',
+        line: 'A monastic college drawing students from Persia, Tibet and China.' },
+      prompt: `A tall stack of ancient palm-leaf manuscript folios bound between wooden boards, standing in
+        black water, ink bleeding from the incised script, gold dust settling in the grain of the leaves. ${RIGHT}`,
+    },
+    {
+      id: '08-kavya', dur: 3.8,
+      era: { num: 'VIII', hi: 'काव्य', en: 'THE POETRY', when: 'Kālidāsa',
+        line: 'Sanskrit at its height. Most scholars place him in this age.' },
+      prompt: `A single palm leaf with a bronze stylus resting across it in black water, a peacock feather
+        drifting beside it, black ink lifting off the incised letters in fine threads, gold light along the
+        feather's eye. ${RIGHT}`,
+    },
+    {
+      id: '09-chaturanga', dur: 3.6,
+      era: { num: 'IX', hi: 'चतुरङ्ग', en: 'CHATURANGA', when: 'the four-limbed army',
+        line: 'Elephant, horse, chariot, foot. The game chess descends from.' },
+      prompt: `Four carved stone game pieces — an elephant, a horse, a chariot and a foot soldier — standing on
+        a submerged chequered stone board in black water, ink pooling between the squares, gold light raking
+        across the carved figures. ${RIGHT}`,
+    },
+    {
+      id: '10-hunas', dur: 3.4,
+      era: { num: 'X', hi: 'अस्त', en: 'THE SETTING', when: 'by 550 CE',
+        line: 'Skandagupta threw the Hunas back. Succession and silver did the rest.' },
+      prompt: `A worn Gupta gold coin sinking edge-on into black water, its gold visibly dissolving away in
+        thin streamers that rise as the coin falls, the darkness closing over it. ${RIGHT}`,
+    },
+  ],
+};
+
+DIRECTIONS.push(GUPTA);
+
+

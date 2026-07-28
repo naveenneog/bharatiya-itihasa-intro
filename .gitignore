@@ -13,3 +13,6 @@ versions/**/clips/*-ref.png
 # Layer plates are Playwright captures of the committed page, re-taken on every
 # master render. The page is the source of truth, not the capture.
 versions/**/build*/plates/
+
+# Written by tools/publish.mjs on every run to compose the thumbnail in a page.
+episodes/**/.thumb.html

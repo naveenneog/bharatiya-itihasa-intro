@@ -18,6 +18,7 @@ import { mkdir, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { genVideo, pool } from './azure.mjs';
 import { DIRECTIONS } from './directions.mjs';
+import { picks, choose } from './picks.mjs';
 
 const execFileP = promisify(execFile);
 const ROOT = 'versions';
@@ -53,17 +54,13 @@ if (!dirs.length) {
   process.exit(1);
 }
 
-/** Newest still revision for a beat, or null. */
+/** The chosen still for a beat — the picked revision if picks.json names one, else newest. */
 async function latestStill(dirId, beatId) {
   const stills = path.join(ROOT, dirId, 'stills');
   const files = await readdir(stills).catch(() => []);
-  const re = new RegExp(`^${beatId}-r(\\d+)\\.png$`);
-  let best = null; let n = 0;
-  for (const f of files) {
-    const g = f.match(re);
-    if (g && Number(g[1]) > n) { n = Number(g[1]); best = path.join(stills, f); }
-  }
-  return best;
+  const p = await picks(ROOT, dirId);
+  const f = choose(files, beatId, 'png', p[beatId]);
+  return f ? path.join(stills, f) : null;
 }
 
 /** Newest clip revision for a beat, or null — used by --missing to resume a partial run. */

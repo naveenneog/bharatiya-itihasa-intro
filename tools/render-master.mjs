@@ -23,6 +23,7 @@ import { launch } from '../scripts/browser.mjs';
 import { DIRECTIONS } from './directions.mjs';
 import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
 import { MASTER_AF } from './score.mjs';
+import { normaliseTo, assertLoudness } from './loudness.mjs';
 import { variant, beatsFor } from './variants.mjs';
 
 const execFileP = promisify(execFile);
@@ -234,11 +235,21 @@ try {
   const wavIdx = beats.length * 2 + 6;
   if (SCORE) args.push('-i', plates.wav);
 
+  /* Loudness is measured on the limited signal, because the limiter is what the
+     mix actually delivers; measuring the raw score would leave the master a dB or
+     two off target. Pass one runs on a throwaway render of exactly that chain. */
+  let audioFilter = MASTER_AF;
+  if (SCORE) {
+    const limited = path.join(plateDir, 'score-limited.wav');
+    await execFileP('ffmpeg', ['-y', '-loglevel', 'error', '-i', plates.wav, '-af', MASTER_AF, limited]);
+    audioFilter = `${MASTER_AF},${await normaliseTo(limited, 'score')}`;
+  }
+
   args.push(
     '-filter_complex_script', path.join(plateDir, 'filter.txt'),
     '-map', '[out]',
   );
-  if (SCORE) args.push('-map', `${wavIdx}:a`, '-af', MASTER_AF, '-c:a', 'aac', '-b:a', '192k');
+  if (SCORE) args.push('-map', `${wavIdx}:a`, '-af', audioFilter, '-c:a', 'aac', '-b:a', '192k');
   args.push(
     '-r', String(FPS),
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '17',
@@ -254,6 +265,7 @@ try {
     '-show_entries', 'format=duration,size:stream=codec_type,codec_name,width,height,r_frame_rate',
     '-of', 'default=noprint_wrappers=1', out]);
   console.log(`\ndone -> ${out}\n${stdout.trim()}`);
+  if (SCORE) await assertLoudness(out);
 } finally {
   stop();
 }

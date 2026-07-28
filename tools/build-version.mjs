@@ -15,6 +15,7 @@ import { DIRECTIONS } from './directions.mjs';
 import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
 import { buildScore, SCORES } from './score.mjs';
 import { variant, beatsFor } from './variants.mjs';
+import { picks, choose } from './picks.mjs';
 
 const argv = process.argv.slice(2);
 const vIdx = argv.indexOf('--variant');
@@ -22,18 +23,15 @@ const VNAME = vIdx >= 0 ? argv[vIdx + 1] : 'default';
 const V = variant(VNAME);
 
 const ROOT = 'versions';
-const filter = argv.filter((a, i) => !a.startsWith('--') && i !== vIdx + 1);
+/* Same -1 guard as gen-stills: when --variant is absent, vIdx + 1 is 0 and the
+   direction filter gets dropped, building every direction instead of the one asked for. */
+const skip = vIdx >= 0 ? vIdx + 1 : -1;
+const filter = argv.filter((a, i) => !a.startsWith('--') && i !== skip);
 
 async function latest(dirId, kind, beatId, ext) {
-  const d = path.join(ROOT, dirId, kind);
-  const files = await readdir(d).catch(() => []);
-  const re = new RegExp(`^${beatId}-r(\\d+)\\.${ext}$`);
-  let best = null; let n = 0;
-  for (const f of files) {
-    const g = f.match(re);
-    if (g && Number(g[1]) > n) { n = Number(g[1]); best = f; }
-  }
-  return best;
+  const files = await readdir(path.join(ROOT, dirId, kind)).catch(() => []);
+  const p = await picks(ROOT, dirId);
+  return choose(files, beatId, ext, p[beatId]);
 }
 
 const page = (dir, beats) => `<!doctype html>

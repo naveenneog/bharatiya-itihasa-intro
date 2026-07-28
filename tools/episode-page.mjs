@@ -118,19 +118,59 @@ export const episodePage = (ep, cut) => `<!doctype html>
 
   /* framed: never crop. The whole panel sits right of centre and the caption takes the
      column beside it — the title sequence's own layout, applied to the story. */
-  .framed #art .scene{left:38%}
-  .framed #art img{object-fit:contain;object-position:50% 50%;animation:none!important}
-  .framed #art .scene::before{content:"";position:absolute;left:-14%;top:0;bottom:0;width:22%;
-    z-index:2;pointer-events:none;
-    background:linear-gradient(90deg,rgba(13,11,9,1) 0%,rgba(13,11,9,.72) 46%,rgba(13,11,9,0) 100%)}
+  .framed #art .scene{left:0}
+  .framed #art img{object-fit:contain;object-position:50% 50%}
+  /* panDown/panUp travel object-position, which does nothing once the picture is
+     contained — there is no slack to travel through. Without a replacement the framed
+     cut is five minutes of stills, so the picture breathes instead: the panel pushes
+     3% over its own length while the blurred surround drifts the other way. Alternate
+     panels invert, so twenty-eight of them never fall into a rhythm. */
+  @keyframes framedIn{from{transform:scale(1)}to{transform:scale(1.034)}}
+  @keyframes framedOut{from{transform:scale(1.034)}to{transform:scale(1)}}
+  @keyframes plateDrift{from{transform:scale(1.18) translate(0,0)}
+                        to{transform:scale(1.27) translate(-1.6%,.8%)}}
+  .framed #art .scene.on img.sharp.pan-down{animation:framedIn linear forwards}
+  .framed #art .scene.on img.sharp.pan-up{animation:framedOut linear forwards}
+  .framed #art .scene.on img.plate{animation:plateDrift linear forwards}
+  .framed #art .scene.on img.bg,.framed #art .scene.on img.char{animation:none}
+
   .framed #capwrap{right:auto;width:38%;bottom:auto;top:0;height:100%;padding:0 3.2% 0 5%;
     display:grid;align-content:center;background:none}
-  .framed #cap{text-align:left;max-width:none;font-size:clamp(13px,1.62vw,29px)}
-  .framed #speaker{text-align:left;margin-left:0}
+  /* Larger than the bled cut's, not smaller. Contain-fitting frees the width the caption
+     used to share with the picture, and burnt-in text on a phone needs to clear about
+     3.5% of frame height to stay readable — 29px in a 1080 frame did not. */
+  .framed #cap{text-align:left;max-width:none;font-size:clamp(15px,2.34vw,44px);line-height:1.42}
+  .framed #speaker{text-align:left;margin-left:0;font-size:clamp(10px,1.02vw,19px)}
+
+  /* Contain-fitting a square panel into 16:9 leaves a third of the frame empty, and
+     empty reads as unfinished. The same picture, blown up, blurred and pushed down to
+     near-black, fills it: the frame is complete, the panel's own colour bleeds into the
+     surround, and not one pixel of the art has been cropped to get there. */
+  #art img.plate{display:none}
+  .framed #art img.plate{display:block;object-fit:cover;transform:scale(1.18);
+    filter:blur(42px) saturate(.62) brightness(.30);z-index:0}
+  .framed #art img.sharp{left:38%;width:62%;z-index:3}
+  .framed #art .scene::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at 68% 50%,rgba(6,5,4,0) 30%,rgba(6,5,4,.58) 100%)}
+  .framed #art .scene::before{content:"";position:absolute;left:24%;top:0;bottom:0;width:24%;
+    z-index:2;pointer-events:none;
+    background:linear-gradient(90deg,rgba(13,11,9,1) 0%,rgba(13,11,9,.74) 46%,rgba(13,11,9,0) 100%)}
+
+  /* Export mode. A master carries the picture and nothing else — no buttons, no cut
+     label, no progress bar, and no intro <video>, because the titles are composited
+     from the real master file rather than screen-grabbed through a page. */
+  html.export #chrome,html.export #start,html.export #bar,
+  html.export #cut,html.export #film{display:none!important}
+  html.export,html.export body{cursor:none}
 
   /* the four panels that are not plain pictures */
   #art .scene{position:absolute;inset:0;opacity:0;transition:opacity .9s ease}
   #art .scene.on{opacity:1}
+  /* The pin's coordinates are fractions of the picture, so they have to be measured
+     against the picture's box and not the frame's — in the framed cut those are not the
+     same rectangle. The box also lifts the pin above the artwork's own stacking level. */
+  .scene .pinbox{position:absolute;inset:0;z-index:4;pointer-events:none}
+  .framed #art .scene .pinbox{left:38%;width:62%}
   .scene .pin{position:absolute;width:1.5vw;height:1.5vw;min-width:12px;min-height:12px;
     border-radius:50%;background:var(--saffron);transform:translate(-50%,-50%);
     box-shadow:0 0 0 0 rgba(224,123,42,.7);animation:ping 2.1s ease-out infinite}
@@ -339,33 +379,44 @@ function buildScene(p, secs, pos) {
     m.src = src; m.className = cls; m.style.animationDuration = secs + 's';
     return m;
   };
+  /* In the framed cut a picture is two layers: a blurred blow-up that fills the frame
+     and the untouched panel sitting on top of it. Everywhere else the plate is
+     display:none, so this costs one cached decode and changes nothing. */
+  const laid = (src, cls) => {
+    el.appendChild(img(src, 'plate'));
+    el.appendChild(img(src, cls + ' sharp'));
+  };
 
   if (p.kind === 'map' && p.map) {
-    el.appendChild(img(p.map, pan));
+    laid(p.map, pan);
+    const box = document.createElement('div');
+    box.className = 'pinbox';
     const pin = document.createElement('i');
     pin.className = 'pin';
     pin.style.left = (p.pin.x * 100) + '%';
     pin.style.top = (p.pin.y * 100) + '%';
-    el.appendChild(pin);
+    box.appendChild(pin);
     if (p.pin.label) {
       const lb = document.createElement('div');
       lb.className = 'pinlabel';
       lb.style.left = (p.pin.x * 100) + '%';
       lb.style.top = (p.pin.y * 100) + '%';
       lb.textContent = p.pin.label;
-      el.appendChild(lb);
+      box.appendChild(lb);
     }
+    el.appendChild(box);
     return el;
   }
 
   if (p.kind === 'action' && p.bg) {
-    const b = img(p.bg, 'bg');
+    el.appendChild(img(p.bg, 'plate'));
+    const b = img(p.bg, 'bg sharp');
     b.style.setProperty('--z', p.motion?.bgZoom ?? 1.12);
     b.style.setProperty('--pan', (p.motion?.bgPan ?? -6) + '%');
     el.appendChild(b);
     for (const c of (p.chars || [])) {
       if (!c.img) continue;
-      const m = img(c.img, 'char');
+      const m = img(c.img, 'char sharp');
       const mo = c.motion || {};
       m.style.setProperty('--fx', (mo.fromX ?? 0) + '%');
       m.style.setProperty('--tx', (mo.toX ?? 0) + '%');
@@ -391,7 +442,7 @@ function buildScene(p, secs, pos) {
     return el;
   }
 
-  if (p.art) el.appendChild(img(p.art, pan));
+  if (p.art) laid(p.art, pan);
   return el;
 }
 
@@ -508,8 +559,96 @@ $('#start').addEventListener('click', () => {
   run();
 }, { once: true });
 
-// handle for QA: jump straight to a panel without waiting out the narration
-window.__ep = { show, get index() { return i; }, panels: P, setLang(L) { lang = L; } };
+/* ── export: the picture as a pure function of time ───────────────────────
+   The live player is driven by <audio> events, which a headless browser cannot
+   step frame by frame. So the export path never plays anything. Given t it works
+   out which panel is on screen, rebuilds that panel only when it changes, and
+   scrubs the CSS move to the exact instant with a negative animation-delay
+   against a paused animation. Two consequences matter:
+
+     the render is deterministic — same frames on any machine, none dropped
+     the render cannot drift from the player — it *is* the player's own markup,
+     its own keyframes and its own word timings, read at a different clock
+
+   Panel durations come from the narration files, so picture and voice stay in
+   sync by construction rather than by a number kept in step by hand. */
+const EXPORT = new URLSearchParams(location.search).has('export');
+if (EXPORT) document.documentElement.classList.add('export');
+
+const DURATION = ORDER.reduce((a, k) => a + P[k].dur, 0);
+let scrubbed = -1;
+
+function panelAt(t) {
+  let acc = 0;
+  for (let n = 0; n < ORDER.length; n++) {
+    const d = P[ORDER[n]].dur;
+    if (t < acc + d || n === ORDER.length - 1) {
+      return { n, lt: Math.max(0, Math.min(d, t - acc)), d, start: acc };
+    }
+    acc += d;
+  }
+  return { n: 0, lt: 0, d: 0, start: 0 };
+}
+
+function seek(t) {
+  const { n, lt, d } = panelAt(t);
+  const p = P[ORDER[n]];
+
+  if (n !== scrubbed) {
+    scrubbed = n;
+    i = n;
+    cancelAnimationFrame(raf);
+    art.replaceChildren();
+    const scene = buildScene(p, Math.max(4, d + 1.2), n);
+    scene.classList.add('on');              // no cross-fade to wait out when scrubbing
+    art.appendChild(scene);
+    paintCaption(p);
+    where.textContent = \`\${n + 1} / \${ORDER.length}\`;
+  }
+
+  for (const el of art.querySelectorAll('img')) {
+    el.style.animationPlayState = 'paused';
+    el.style.animationDelay = (-lt).toFixed(3) + 's';
+  }
+
+  if (lang === 'en' && p.words.length) {
+    const ms = lt * 1000;
+    const spans = cap.children;
+    for (let k = 0; k < p.words.length; k++) {
+      const [, wt, wd] = p.words[k];
+      const s = spans[k];
+      if (!s) continue;
+      s.classList.toggle('now', ms >= wt && ms < wt + wd + 60);
+      s.classList.toggle('said', ms >= wt);
+    }
+  }
+
+  const done = ORDER.slice(0, n).reduce((a, k) => a + P[k].dur, 0) + lt;
+  bar.style.width = (100 * done / ep.runtime).toFixed(2) + '%';
+  return { panel: p.id, index: n, local: lt };
+}
+
+/** The schedule the renderer needs: where every panel starts, in the cut's order. */
+function timeline() {
+  let acc = 0;
+  return ORDER.map((k) => {
+    const p = P[k];
+    const row = { id: p.id, start: +acc.toFixed(3), dur: p.dur, mood: p.mood || null, audio: p.audio };
+    acc += p.dur;
+    return row;
+  });
+}
+
+// handle for QA and for the master renderer
+window.__ep = {
+  show, seek, panelAt, timeline,
+  duration: DURATION,
+  order: ORDER,
+  get index() { return i; },
+  panels: P,
+  setLang(L) { lang = L; },
+};
+window.__epReady = true;
 </script>
 </body>
 </html>
