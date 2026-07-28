@@ -93,3 +93,142 @@ export function buildScore(sched, total) {
 
   return cues.sort((a, b) => a.t - b.t);
 }
+
+/* ── v5: the same procession, played rather than counted ────────────────────
+
+   The v4 pulse was one drum striking a uniform grid whose spacing was derived from
+   the picture beats. It accelerated correctly and still read as a metronome, because
+   nothing about it varied except speed, and its three gear changes fell wherever the
+   edit happened to put them.
+
+   This replaces it with how the instrument is actually played:
+
+   - a theka of bols on two drums, so the groove comes from *which drum speaks when*
+     rather than from spacing alone;
+   - one steady grid of its own that accelerates smoothly, ignoring the picture cuts
+     it used to be chained to — music running on its own clock against the edit is
+     what makes an edit feel scored rather than counted;
+   - one dugun, a clean doubling of density, placed deliberately on an empire rather
+     than three arbitrary gear changes;
+   - a tihai to finish: a phrase three times over, landing its last stroke exactly on
+     the bell.
+
+   A bansuri answers the sitar every second empire, so the long middle has a melody
+   over it instead of forty seconds of drum and drone. */
+
+const SA = 65.41;
+const SCALE = [0, 3, 5, 7, 10, 12, 15, 19];
+const note = (step, mul) => SA * mul
+  * Math.pow(2, (SCALE[step % SCALE.length] + 12 * Math.floor(step / SCALE.length)) / 12);
+
+/* Keherwa, eight matras. `dha` is both drums together, `ge` is bass alone,
+   `na`/`tin`/`ta` are the treble, `ke` is the bass choked. */
+const THEKA = ['dha', 'ge', 'na', 'tin', 'na', 'ke', 'dhin', 'na'];
+
+function emitBol(cue, bol, t, v) {
+  switch (bol) {
+    case 'dha':
+      cue(t, 'baya', { gain: 0.32 * v, dur: 0.8 });
+      cue(t, 'daya', { gain: 0.24 * v, freq: 330, dur: 0.55, open: true });
+      break;
+    case 'dhin':
+      cue(t, 'baya', { gain: 0.26 * v, dur: 0.7, bend: 0.42 });
+      cue(t, 'daya', { gain: 0.2 * v, freq: 330, dur: 0.4, open: true });
+      break;
+    case 'ge': cue(t, 'baya', { gain: 0.28 * v, dur: 0.72 }); break;
+    case 'ke': cue(t, 'baya', { gain: 0.17 * v, dur: 0.2, damp: true }); break;
+    case 'na': cue(t, 'daya', { gain: 0.2 * v, freq: 330, dur: 0.42, open: true }); break;
+    case 'tin': cue(t, 'daya', { gain: 0.17 * v, freq: 392, dur: 0.3, open: true, slap: 0.5 }); break;
+    case 'ta': cue(t, 'daya', { gain: 0.16 * v, freq: 330, dur: 0.18, open: false }); break;
+    default: break;
+  }
+}
+
+export function buildProcession(sched, total) {
+  const cues = [];
+  const cue = (t, voice, opts = {}) => cues.push({ t: +Math.max(0, t).toFixed(3), voice, ...opts });
+
+  const empires = sched.filter((s) => s.era.num);
+  const opening = sched.filter((s) => !s.era.num);
+  const first = sched[0];
+  const last = sched[sched.length - 1];
+  const end = last.start + last.dur;
+  const n = empires.length;
+
+  const t0 = empires[0].start;
+  const span = end - t0;
+  const M0 = 0.62;                       // matra at the entry — the spacing that worked
+  const M1 = 0.34;                       // matra at the finish
+  const matraAt = (t) => M0 + (M1 - M0) * Math.min(1, Math.max(0, (t - t0) / span));
+  const dugunAt = empires[Math.min(n - 1, Math.round(n * 0.5))].start;
+
+  // ── the bed ─────────────────────────────────────────────────────────────
+  cue(0, 'drone', { dur: end + 1.4, gain: 0.17 });
+  cue(empires[Math.floor(n * 0.5)].start, 'drone',
+    { dur: end - empires[Math.floor(n * 0.5)].start + 1.4, gain: 0.1, attack: 5 });
+  cue(empires[Math.floor(n * 0.75)].start, 'drone',
+    { dur: end - empires[Math.floor(n * 0.75)].start + 1.4, gain: 0.11, attack: 4 });
+
+  // ── the opening: still no drum, so the procession has something to arrive into ──
+  cue(first.start + 0.25, 'scratch', { gain: 0.055, dur: 1.4 });
+  opening.forEach((s, i) => {
+    if (i) cue(s.start, 'scratch', { gain: 0.04, dur: 1.1 });
+    cue(s.labelIn - 0.12, 'pluck', { step: i * 2, gain: 0.2, dur: 4.2 });
+  });
+  cue(opening[opening.length - 1].labelIn + 0.3, 'bansuri',
+    { freq: note(2, 4), dur: 3.4, gain: 0.1, meend: 2 });
+
+  // ── the theka ───────────────────────────────────────────────────────────
+  const tihaiLen = 9;
+  const tihaiFrom = end - (tihaiLen - 1) * M1 - 0.02;
+  let t = t0;
+  let i = 0;
+  while (t < tihaiFrom) {
+    const m = matraAt(t);
+    // half density until the dugun, full after: one deliberate doubling, on an empire
+    const step = t < dugunAt ? 2 : 1;
+    if (i % step === 0) {
+      const u = (t - t0) / span;
+      emitBol(cue, THEKA[i % THEKA.length], t, 0.72 + 0.5 * u);
+    }
+    t += m;
+    i++;
+  }
+
+  /* The tihai: the same three-stroke phrase three times over, its final stroke landing
+     on `end` with the bell. This is how the form actually ends, and it means the finish
+     is arrived at rather than faded out of. */
+  for (let k = 0; k < tihaiLen; k++) {
+    const at = end - (tihaiLen - 1 - k) * M1;
+    const head = k % 3 === 0;
+    emitBol(cue, head ? 'dha' : (k % 3 === 1 ? 'na' : 'tin'), at, head ? 1.35 : 1.0);
+  }
+
+  // ── melody over the procession ──────────────────────────────────────────
+  empires.forEach((s, e) => {
+    cue(s.labelIn - 0.1, 'pluck',
+      { step: e, gain: 0.16 + 0.09 * (e / (n - 1)), dur: Math.min(4, s.dur + 0.6) });
+    // the flute answers every second empire, so the two lines trade rather than stack
+    if (e % 2 === 1) {
+      cue(s.labelIn + s.dur * 0.34, 'bansuri', {
+        freq: note(2 + Math.floor(e / 2), 4),
+        dur: Math.min(3.6, s.dur + 1.1),
+        gain: 0.09 + 0.05 * (e / (n - 1)),
+        meend: e % 4 === 1 ? 2 : 0,
+      });
+    }
+  });
+
+  // ── the lockup ──────────────────────────────────────────────────────────
+  cue(end - 2.4, 'drone', { dur: (total - end) + 2.4, gain: 0.22, attack: 1.5, release: 3.4 });
+  cue(end - 1.7, 'riser', { dur: 1.7, gain: 0.12 });
+  cue(end, 'strike', { gain: 0.66 });
+  cue(end + 0.35, 'bansuri', { freq: note(0, 4), dur: 4.2, gain: 0.13, meend: 3 });
+  cue(end + 0.55, 'pluck', { step: 0, gain: 0.2, dur: 4.4 });
+
+  return cues.sort((a, b) => a.t - b.t);
+}
+
+/* Scores are keyed so an older version keeps the score it shipped with. Changing
+   the procession must not retune v4. */
+export const SCORES = { standard: buildScore, procession: buildProcession };

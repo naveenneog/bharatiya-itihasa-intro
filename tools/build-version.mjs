@@ -7,15 +7,42 @@
 
    node tools/build-version.mjs            # all directions that have clips
    node tools/build-version.mjs v2c
+   node tools/build-version.mjs v3-empires --variant mobile
 */
 import { mkdir, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { DIRECTIONS } from './directions.mjs';
 import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
-import { buildScore } from './score.mjs';
+import { buildScore, SCORES } from './score.mjs';
+
+/* Variants are separate builds of the same picture. `default` is what v3 and v4
+   shipped and must keep shipping; `mobile` enlarges the type for a phone held in
+   landscape, where the frame is a few hundred pixels wide and 2.1vw of Devanagari
+   is unreadable, and carries the reworked procession score. Each writes to its own
+   directory so an older version is never overwritten. */
+const VARIANTS = {
+  default: {
+    out: 'build', ts: 1, tw: '38%', score: 'standard',
+    scrim: 'linear-gradient(90deg,rgba(6,5,4,.94) 0%,rgba(6,5,4,.78) 26%,rgba(6,5,4,.20) 48%,rgba(6,5,4,0) 66%)',
+  },
+  mobile: {
+    out: 'build-mobile', ts: 1.6, tw: '37%', score: 'procession',
+    /* At 1.6x the longest line ran out of the dark zone and onto bright gold, so the
+       column is narrower than the desktop one, not wider — the type wraps sooner and
+       stays where it can be read. The scrim is correspondingly deeper and reaches
+       further, which costs a little of the art and buys all of the legibility. */
+    scrim: 'linear-gradient(90deg,rgba(6,5,4,.97) 0%,rgba(6,5,4,.93) 28%,rgba(6,5,4,.72) 44%,rgba(6,5,4,.24) 60%,rgba(6,5,4,0) 75%)',
+  },
+};
+
+const argv = process.argv.slice(2);
+const vIdx = argv.indexOf('--variant');
+const VNAME = vIdx >= 0 ? argv[vIdx + 1] : 'default';
+const V = VARIANTS[VNAME];
+if (!V) { console.error(`unknown variant ${VNAME} — one of ${Object.keys(VARIANTS).join(', ')}`); process.exit(1); }
 
 const ROOT = 'versions';
-const filter = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const filter = argv.filter((a, i) => !a.startsWith('--') && i !== vIdx + 1);
 
 async function latest(dirId, kind, beatId, ext) {
   const d = path.join(ROOT, dirId, kind);
@@ -41,6 +68,8 @@ const page = (dir, beats) => `<!doctype html>
   :root{
     --paper:#0d0b09; --ink:#e8b64a; --ink-hi:#f6dc9a; --saffron:#e07b2a;
     --dim:#b7a684; --faint:rgba(183,166,132,.42);
+    --ts:${V.ts};            /* type scale — raised for phone-sized frames */
+    --tw:${V.tw};            /* width of the type column */
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{height:100%;background:#000;color:var(--dim);
@@ -58,7 +87,7 @@ const page = (dir, beats) => `<!doctype html>
 
   /* the left third is where type lives — deepen it so type always holds contrast */
   #scrim{position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(90deg,rgba(6,5,4,.94) 0%,rgba(6,5,4,.78) 26%,rgba(6,5,4,.20) 48%,rgba(6,5,4,0) 66%)}
+    background:${V.scrim}}
   #vig{position:absolute;inset:0;pointer-events:none;
     box-shadow:inset 0 0 190px 70px rgba(0,0,0,.72)}
   /* grain lives outside any filter — an SVG filter here would re-rasterise every frame */
@@ -74,23 +103,23 @@ const page = (dir, beats) => `<!doctype html>
 
   /* type — every era block is anchored to the same optical centre; if they sat in
      normal flow each successive label would step down the frame */
-  #type{position:absolute;left:8.6%;top:0;bottom:0;width:38%;pointer-events:none}
+  #type{position:absolute;left:8.6%;top:0;bottom:0;width:var(--tw);pointer-events:none}
   .era{position:absolute;left:0;top:50%;width:100%;
     opacity:0;transform:translateY(calc(-50% + 14px));
     transition:opacity .7s ease,transform .7s cubic-bezier(.22,1,.36,1)}
   .era.on{opacity:1;transform:translateY(-50%)}
   .era-num{display:flex;align-items:center;gap:14px;
-    font-size:clamp(9px,.78vw,14px);letter-spacing:.5em;color:var(--saffron)}
-  .era-num::after{content:"";display:block;width:4.2vw;height:1px;background:var(--faint)}
+    font-size:calc(clamp(9px,.78vw,14px) * var(--ts));letter-spacing:.5em;color:var(--saffron)}
+  .era-num::after{content:"";display:block;width:calc(4.2vw * var(--ts));height:1px;background:var(--faint)}
   .era-hi{margin-top:.7em;font-family:"Tiro Devanagari Hindi",serif;
-    font-size:clamp(22px,2.1vw,38px);line-height:1.1;color:var(--ink-hi)}
-  .era-en{margin-top:.35em;font-size:clamp(11px,1.05vw,19px);letter-spacing:.36em;color:var(--dim)}
+    font-size:calc(clamp(22px,2.1vw,38px) * var(--ts));line-height:1.1;color:var(--ink-hi)}
+  .era-en{margin-top:.35em;font-size:calc(clamp(11px,1.05vw,19px) * var(--ts));letter-spacing:.36em;color:var(--dim)}
   /* Marcellus has no lining figures — 1010 reads as IOIO. Set dates in Cormorant. */
   .era-when{margin-top:.6em;font-family:"Cormorant Garamond",Georgia,serif;
     font-variant-numeric:lining-nums;font-feature-settings:"lnum" 1;
-    font-size:clamp(11px,.92vw,17px);letter-spacing:.24em;color:var(--saffron)}
+    font-size:calc(clamp(11px,.92vw,17px) * var(--ts));letter-spacing:.24em;color:var(--saffron)}
   .era-line{margin-top:.75em;font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;
-    font-size:clamp(14px,1.4vw,25px);line-height:1.34;color:var(--dim)}
+    font-size:calc(clamp(14px,1.4vw,25px) * var(--ts));line-height:1.34;color:var(--dim)}
 
   /* wordmark */
   #wm{position:absolute;inset:0;display:grid;place-content:center;text-align:center;
@@ -176,7 +205,7 @@ ${beats.map((b, i) => `    <div class="era" data-i="${i}">
 <script type="module">
 import { LiveSting, renderWav } from '../../../src/audio.js';
 const SCHED = ${JSON.stringify(schedule(beats))};
-const CUES = ${JSON.stringify(buildScore(schedule(beats), totalSeconds(schedule(beats))))};
+const CUES = ${JSON.stringify(SCORES[V.score](schedule(beats), totalSeconds(schedule(beats))))};
 const XF = ${XF};
 const frame = document.getElementById('frame');
 const vids  = [...document.querySelectorAll('#film video')];
@@ -266,12 +295,12 @@ for (const dir of dirs) {
     console.log(`  skip ${dir.id} — ${beats.length}/${dir.beats.length} clips`);
     continue;
   }
-  const out = path.join(ROOT, dir.id, 'build', 'index.html');
+  const out = path.join(ROOT, dir.id, V.out, 'index.html');
   await mkdir(path.dirname(out), { recursive: true });
   await writeFile(out, page(dir, beats));
   const s = schedule(beats);
   const total = totalSeconds(s);
-  console.log(`  ok   ${dir.id} -> ${out}  (${beats.length} beats, ${total.toFixed(1)}s)`);
+  console.log(`  ok   ${dir.id} [${VNAME}] -> ${out}  (${beats.length} beats, ${total.toFixed(1)}s)`);
   built++;
 }
 console.log(`\n${built} version(s) assembled`);

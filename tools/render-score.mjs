@@ -22,6 +22,8 @@ const ROOT = 'versions';
 const argv = process.argv.slice(2);
 const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : d; };
 const PORT = Number(flag('port', '4398'));
+const VARIANT = flag('variant', 'default');
+const BUILD = VARIANT === 'default' ? 'build' : `build-${VARIANT}`;
 
 const flagIdx = new Set();
 argv.forEach((a, i) => { if (a.startsWith('--')) { flagIdx.add(i); flagIdx.add(i + 1); } });
@@ -30,7 +32,7 @@ const filter = argv.filter((_, i) => !flagIdx.has(i));
 const dir = DIRECTIONS.find((d) => filter.some((f) => d.id.includes(f)));
 if (!dir) { console.error('usage: node tools/render-score.mjs <version-id>'); process.exit(1); }
 
-const out = flag('out', path.join('dist', `${dir.id}-score.wav`));
+const out = flag('out', path.join('dist', `${dir.id}-${VARIANT}-score.wav`));
 const raw = out.replace(/\.wav$/, '-raw.wav');
 await mkdir(path.dirname(out), { recursive: true });
 
@@ -45,7 +47,7 @@ try {
   await new Promise((r) => setTimeout(r, 700));
   const browser = await launch();
   const page = await browser.newPage();
-  await page.goto(`http://localhost:${PORT}/${ROOT}/${dir.id}/build/index.html?export=1&layer=scrim`,
+  await page.goto(`http://localhost:${PORT}/${ROOT}/${dir.id}/${BUILD}/index.html?export=1&layer=scrim`,
     { waitUntil: 'load' });
   await page.waitForFunction(() => window.__seq && window.__seq.CUES, { timeout: 20000 });
 

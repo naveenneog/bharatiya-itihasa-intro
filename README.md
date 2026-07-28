@@ -359,6 +359,60 @@ struck bell is the loudest sustained moment in the piece.
 
 ---
 
+## v5 — the empires, for a phone
+
+Same picture a third time, with the type sized for a phone and the score rewritten. v3 and v4
+are untouched; this is a separate build directory and a separate file.
+
+```powershell
+node tools/build-version.mjs  v3-empires --variant mobile
+node tools/render-score.mjs   v3-empires --variant mobile        # audio + loudness, seconds not minutes
+node tools/render-master.mjs  v3-empires --variant mobile --score --out dist/v5-empires-mobile.mp4
+```
+
+`--variant` selects a **build directory, a type scale and a score**, so a version keeps the score
+it shipped with. Rebuilding the default variant still emits v4's 57 tabla cues; the mobile
+variant emits the two-drum theka. Changing the procession cannot retune v4.
+
+### Type
+
+The frame is `min(100vw,177.78vh)`, so on a phone in landscape it is a few hundred pixels wide
+and `2.1vw` of Devanagari is unreadable. Every size is now `calc(<original> * var(--ts))`, with
+`--ts` at 1.6 for mobile.
+
+Scaling type alone was not enough — **the longest lines then ran out of the dark zone and onto
+bright gold.** So the mobile column is *narrower* than the desktop one, not wider (37% against
+38%): the type wraps sooner and stays where it can be read. The scrim is correspondingly deeper
+and reaches further, which costs a little of the art and buys all of the legibility.
+
+### Score
+
+v4's pulse accelerated correctly and still read as a metronome. Nothing about it varied except
+speed, its three gear changes fell wherever the edit happened to put them, and it was one drum
+playing one sound. v5 replaces it with how the instrument is actually played:
+
+- **Two drums.** `baya` is the bass, whose signature is the pitch *bend* as the heel slides on
+  the head after the strike; `daya` is the treble, tuned to the tonic, near-harmonic because a
+  tabla head is loaded to ring at a pitch. Damped strokes do not bend.
+- **A theka of bols**, not beats — Keherwa, `dha ge na tin | na ke dhin na`. The groove comes
+  from *which drum speaks when*.
+- **Its own clock.** The grid accelerates smoothly, 1.24 s → 0.34 s, ignoring the picture cuts
+  v4 was chained to. Music running on its own clock against an edit is what makes the edit feel
+  scored rather than counted.
+- **One dugun** — a clean doubling of density, placed deliberately on an empire — where v4 had
+  three arbitrary gear changes.
+- **A tihai** to finish: a phrase three times over, its last stroke landing *exactly* on the
+  bell, so the ending is arrived at rather than faded out of.
+- **A bansuri** answers the sitar every second empire, so the long middle has a melody over it
+  instead of forty seconds of drum and drone. The flute's character is the breath noise, the
+  vibrato that arrives late as a player's does, and the *meend* — the glide into the note from
+  below.
+
+Measured: **−18.2 LUFS, −1.5 dBTP, LRA 7.6**, 73 drum onsets, and the tihai verified to land on
+the bell to within 20 ms.
+
+---
+
 
 
 - **GSAP 3.15.0** — core, DrawSVGPlugin, MorphSVGPlugin, MotionPathPlugin, CustomEase.

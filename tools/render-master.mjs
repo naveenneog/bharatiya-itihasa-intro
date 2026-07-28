@@ -35,6 +35,8 @@ const FPS = Number(flag('fps', '30'));
 const PORT = Number(flag('port', '4399'));
 const OUT = flag('out', null);
 const SCORE = argv.includes('--score');
+const VARIANT = flag('variant', 'default');
+const BUILD = VARIANT === 'default' ? 'build' : `build-${VARIANT}`;
 
 const flagIdx = new Set();
 argv.forEach((a, i) => { if (a.startsWith('--')) { flagIdx.add(i); flagIdx.add(i + 1); } });
@@ -83,7 +85,7 @@ async function capture(page, url, out) {
 
 async function renderPlates(sched, plateDir) {
   await mkdir(plateDir, { recursive: true });
-  const base = `http://localhost:${PORT}/${ROOT}/${dir.id}/build/index.html?export=1`;
+  const base = `http://localhost:${PORT}/${ROOT}/${dir.id}/${BUILD}/index.html?export=1`;
 
   const browser = await launch();
   const page = await browser.newPage({
@@ -211,7 +213,7 @@ process.on('exit', stop);
 try {
   await new Promise((r) => setTimeout(r, 700));
 
-  const plateDir = path.join(ROOT, dir.id, 'build', 'plates');
+  const plateDir = path.join(ROOT, dir.id, BUILD, 'plates');
   await rm(plateDir, { recursive: true, force: true });
   console.log('  capturing plates from the page...');
   const plates = await renderPlates(sched, plateDir);

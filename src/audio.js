@@ -156,7 +156,123 @@ function tabla(ctx, dest, when, { gain = 0.3, freq = 196, dur = 0.5, slap = 0.45
   }
 }
 
-const VOICES = { drone, pluck, scratch, riser, strike, tabla };
+/* ── the tabla pair ───────────────────────────────────────────────────────
+
+   `tabla` above is one drum and one sound, which is why a run of it reads as a
+   metronome. A real tabla is two drums and a vocabulary of strokes (bols), and the
+   groove comes from which drum speaks when — so these are modelled separately and
+   the score spells out bols rather than beats.
+
+   baya  the big left-hand bass drum. Its signature is the pitch *bend*: the heel
+         slides on the head after the strike and the note swoops up. Damped strokes
+         (ke) are choked and do not bend.
+   daya  the small right-hand treble drum, tuned to the tonic. Open strokes (na)
+         ring; closed ones (ta, tin) are cut short. Its partials are deliberately
+         near-harmonic — a tabla head is loaded to ring at a pitch, unlike most drums. */
+
+function baya(ctx, dest, when, { gain = 0.34, freq = 88, dur = 0.75, bend = 0.55, damp = false } = {}) {
+  const g = ctx.createGain();
+  env(g.gain, when, gain, 0.006, damp ? 0.13 : dur);
+  g.connect(dest);
+  const o = ctx.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(freq, when);
+  if (!damp && bend) o.frequency.exponentialRampToValueAtTime(freq * (1 + bend), when + dur * 0.45);
+  else o.frequency.exponentialRampToValueAtTime(freq * 0.86, when + 0.12);
+  const og = ctx.createGain(); og.gain.value = 1;
+  o.connect(og).connect(g);
+  o.start(when); o.stop(when + dur + 0.1);
+
+  const h = ctx.createOscillator();       // a little body above the fundamental
+  h.type = 'sine'; h.frequency.setValueAtTime(freq * 2.4, when);
+  const hg = ctx.createGain(); env(hg.gain, when, gain * 0.22, 0.004, damp ? 0.09 : dur * 0.4);
+  h.connect(hg).connect(dest);
+  h.start(when); h.stop(when + dur + 0.1);
+
+  const src = ctx.createBufferSource();   // the palm
+  src.buffer = noiseBuffer(ctx, 0.05, 0.4);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+  const ng = ctx.createGain(); env(ng.gain, when, gain * 0.5, 0.001, 0.04);
+  src.connect(lp).connect(ng).connect(dest);
+  src.start(when); src.stop(when + 0.1);
+}
+
+function daya(ctx, dest, when, { gain = 0.26, freq = 330, dur = 0.55, open = true, slap = 0.4 } = {}) {
+  const d = open ? dur : Math.min(dur, 0.16);
+  const g = ctx.createGain();
+  env(g.gain, when, gain, 0.003, d);
+  g.connect(dest);
+  [[1, 1], [2.0, 0.5], [3.0, 0.22], [4.1, 0.1], [5.4, 0.05]].forEach(([mul, amp]) => {
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq * mul, when);
+    o.frequency.exponentialRampToValueAtTime(freq * mul * 0.97, when + d * 0.8);
+    const og = ctx.createGain(); og.gain.value = amp;
+    o.connect(og).connect(g);
+    o.start(when); o.stop(when + d + 0.05);
+  });
+  if (slap > 0) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx, 0.05, 0.25);
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 2600; bp.Q.value = 0.9;
+    const ng = ctx.createGain(); env(ng.gain, when, gain * slap, 0.001, 0.035);
+    src.connect(bp).connect(ng).connect(dest);
+    src.start(when); src.stop(when + 0.09);
+  }
+}
+
+/* A bamboo flute. Nearly a sine — the character is all in the breath noise riding
+   with it, the slow vibrato that arrives late rather than immediately, and the
+   meend, the glide into the note from below that no keyed instrument can do. */
+function bansuri(ctx, dest, when, { freq = 392, dur = 2.6, gain = 0.15, meend = 0, breath = 0.5 } = {}) {
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(gain, when + Math.min(0.34, dur * 0.22));
+  g.gain.setValueAtTime(gain, when + dur * 0.62);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = 0.6;
+  g.connect(lp).connect(dest);
+
+  const vib = ctx.createOscillator();     // vibrato fades in, as a player's does
+  vib.type = 'sine'; vib.frequency.value = 5.2;
+  const vg = ctx.createGain();
+  vg.gain.setValueAtTime(0.0001, when);
+  vg.gain.exponentialRampToValueAtTime(freq * 0.008, when + dur * 0.55);
+  vib.connect(vg);
+  vib.start(when); vib.stop(when + dur + 0.1);
+
+  [[1, 1], [2, 0.16], [3, 0.05]].forEach(([mul, amp]) => {
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    if (meend) {
+      o.frequency.setValueAtTime(freq * mul * Math.pow(2, -meend / 12), when);
+      o.frequency.exponentialRampToValueAtTime(freq * mul, when + Math.min(0.42, dur * 0.28));
+    } else {
+      o.frequency.setValueAtTime(freq * mul, when);
+    }
+    vg.connect(o.frequency);
+    const og = ctx.createGain(); og.gain.value = amp;
+    o.connect(og).connect(g);
+    o.start(when); o.stop(when + dur + 0.1);
+  });
+
+  if (breath > 0) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx, dur + 0.1, 0.7);
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = freq * 2.1; bp.Q.value = 1.6;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, when);
+    ng.gain.exponentialRampToValueAtTime(gain * 0.12 * breath, when + 0.2);
+    ng.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    src.connect(bp).connect(ng).connect(dest);
+    src.start(when); src.stop(when + dur + 0.1);
+  }
+}
+
+const VOICES = { drone, pluck, scratch, riser, strike, tabla, baya, daya, bansuri };
 
 /** Play one cue on any context. `when` is absolute in that context's clock. */
 export function playCue(ctx, dest, cue, when) {

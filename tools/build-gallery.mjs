@@ -87,6 +87,26 @@ try {
     builds: ['../dist/v4-empires-scored.mp4'],
   });
 } catch { /* not rendered */ }
+try {
+  await stat('dist/v5-empires-mobile.mp4');
+  versions.push({
+    id: 'v5-empires-mobile',
+    dir: '.',
+    play: 'versions/v3-empires-ink/build-mobile/index.html',
+    meta: {
+      name: 'v5 — the Empires, for a phone',
+      pitch: 'The same picture again, with the type set 1.6x larger and the column narrowed so the '
+        + 'labels wrap early and stay inside the dark zone — sized to be read on a phone held in '
+        + 'landscape, where the frame is a few hundred pixels wide.',
+      motion: 'Rescored: two drums instead of one, a Keherwa theka of bols rather than a uniform '
+        + 'pulse, one dugun where v4 had three gear changes, a bansuri answering the sitar, and a '
+        + 'tihai whose last stroke lands exactly on the bell.',
+    },
+    beats: new Map(),
+    clips: [],
+    builds: ['../dist/v5-empires-mobile.mp4'],
+  });
+} catch { /* not rendered */ }
 
 const card = (v) => `
 <section class="ver" id="${esc(v.id)}">
