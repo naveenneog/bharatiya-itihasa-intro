@@ -137,6 +137,20 @@ export const CUTS = [  {
     intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
     open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'framed', caption: 'flow',
   },
+  /* The picture cuts on the sentence as well as on the panel. The narration moves through
+     three or four clauses while one image holds, and that — not the panel lengths, which are
+     set by the narration and cannot be edited — is why the body feels slower than the intro.
+     Each clause gets its own framing, cut hard on a boundary where a reader already takes a
+     breath. Built on the flow caption because that is the strongest of the three. */
+  {
+    id: 'cut-j-shots',
+    name: 'J · Flow + the picture cuts',
+    pitch: 'Cut I, with each panel\'s picture cutting to a new framing on the clause '
+      + 'boundaries — two or three shots per panel instead of one image held throughout.',
+    intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
+    open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'framed',
+    caption: 'flow', shots: true,
+  },
 ];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -368,8 +382,20 @@ export const episodePage = (ep, cut) => `<!doctype html>
   html.export.cap-flow #cap,html.export.cap-flow #cap .w{transition:none}
   .cap-flow #speaker{opacity:0!important}
 
-  .cap-stroke #cap .w{position:relative}  .cap-stroke #cap .w.now::after{content:"";position:absolute;left:0;right:0;bottom:-0.16em;
-    height:2px;background:linear-gradient(90deg,rgba(232,182,74,0),#e8b64a,rgba(232,182,74,0))}
+  /* shots — the picture cuts on the sentence.
+
+     A hard cut, not a dissolve: a dissolve reads as the same shot changing its mind, and the
+     whole point is a second visual event. The blurred plate underneath does not move, so the
+     frame stays filled and only the picture in it changes.
+
+     transform-origin does the framing. Scaling a contained image about a corner moves the
+     eye into that part of the picture, which is what a cut-in is; scaling about the centre
+     just makes everything bigger. */
+  .scene .shotbox{position:absolute;inset:0;transition:none}
+  .scene.shot-in .shotbox{transform:scale(1.34);transform-origin:52% 34%}
+  .scene.shot-side .shotbox{transform:scale(1.22);transform-origin:22% 62%}
+
+  .cap-stroke #cap .w{position:relative}  .cap-stroke #cap .w.now::after{content:"";position:absolute;left:0;right:0;bottom:-0.16em;    height:2px;background:linear-gradient(90deg,rgba(232,182,74,0),#e8b64a,rgba(232,182,74,0))}
   #speaker{margin:0 auto .5em;text-align:center;font-family:"Marcellus",serif;
     font-size:clamp(9px,.86vw,15px);letter-spacing:.34em;text-transform:uppercase;
     color:var(--saffron);opacity:0}
@@ -459,7 +485,7 @@ export const episodePage = (ep, cut) => `<!doctype html>
 </div>
 
 <script type="module">
-const CUT = ${JSON.stringify({ intro: cut.intro, card: cut.card, open: openIds(ep.panels, cut), frame: cut.frame, caption: cut.caption || 'settle' })};
+const CUT = ${JSON.stringify({ intro: cut.intro, card: cut.card, open: openIds(ep.panels, cut), frame: cut.frame, caption: cut.caption || 'settle', shots: !!cut.shots })};
 const ep = await (await fetch('../episode.json')).json();
 const P = ep.panels;
 if (CUT.frame === 'framed') document.querySelector('#stage').classList.add('framed');
@@ -601,9 +627,73 @@ function paintWords(p, ms) {
   }
 }
 
+/* Where a panel's picture cuts.
+
+   A panel holds one image for twelve to fourteen seconds while the narration moves through
+   three or four clauses. The words keep changing and the picture does not, which is the
+   real reason the body feels slower than the intro — not the panel lengths, which are fixed
+   by the narration and cannot be edited.
+
+   The cut goes where the speaker breathes. The first version looked for punctuation and
+   never fired once: the source narration is written without commas — twenty-six words, zero
+   punctuation marks — so there were no clause boundaries to find. The *pauses* are there
+   regardless of how the line was typed, and they are where a listener already segments the
+   sentence, so a cut on one reads as punctuation rather than as an edit.
+
+   Shots are at least MINSHOT seconds so nothing strobes, and a panel too short to hold two
+   of them keeps one. Returns cut times in ms from the panel's start. */
+const MINSHOT = 3.6;
+function shotCuts(p) {
+  const w = p.words || [];
+  if (w.length < 6 || p.dur < MINSHOT * 2) return [];
+  const lo = MINSHOT * 1000;
+  const hi = p.dur * 1000 - MINSHOT * 1000;
+
+  /* Every word start, with the silence in front of it. Sorted by that silence, so the
+     longest breath in the line is the first candidate. */
+  const cands = [];
+  for (let k = 1; k < w.length; k++) {
+    const t = w[k][1];
+    if (t < lo || t > hi) continue;
+    const gap = t - (w[k - 1][1] + w[k - 1][2]);
+    /* Punctuation still counts when it is there — it is a stronger signal than a pause and
+       costs nothing to prefer. */
+    const bonus = /[.,;:?!\u2014]$/.test(w[k - 1][0]) ? 400 : 0;
+    cands.push({ t, score: gap + bonus });
+  }
+  cands.sort((a, b) => b.score - a.score);
+
+  const cuts = [];
+  for (const c of cands) {
+    if (cuts.every((t) => Math.abs(t - c.t) >= lo)) cuts.push(c.t);
+    if (cuts.length >= 2) break;
+  }
+  return cuts.sort((a, b) => a - b);
+}
+
+/* The framings a shot can take. Shot 0 is always the whole picture, so a panel still opens
+   on what it is; the later shots move in. In the framed cut the sharp layer is contained
+   rather than filling the frame, so scaling it up crops *toward* the frame edge instead of
+   past it — the move is into the picture, not off it. */
+const SHOTS = ['', 'shot-in', 'shot-side'];
+
+function paintShots(p, ms, scene) {
+  if (!scene || !CUT.shots) return;
+  const cuts = scene.__cuts || [];
+  let s = 0;
+  for (const c of cuts) if (ms >= c) s++;
+  const cls = SHOTS[Math.min(s, SHOTS.length - 1)];
+  if (scene.dataset.shot !== cls) {
+    scene.dataset.shot = cls;
+    for (const c of SHOTS) if (c) scene.classList.remove(c);
+    if (cls) scene.classList.add(cls);
+  }
+}
+
 function tick(p) {
   if (!audio) return;
   paintWords(p, audio.currentTime * 1000);
+  paintShots(p, audio.currentTime * 1000, art.lastElementChild);
   const done = ORDER.slice(0, i).reduce((a, k) => a + P[k].dur, 0) + audio.currentTime;
   bar.style.width = (100 * done / ep.runtime).toFixed(2) + '%';
   raf = requestAnimationFrame(() => tick(p));
@@ -626,7 +716,16 @@ function buildScene(p, secs, pos) {
      display:none, so this costs one cached decode and changes nothing. */
   const laid = (src, cls) => {
     el.appendChild(img(src, 'plate'));
-    el.appendChild(img(src, cls + ' sharp'));
+    /* The sharp picture goes in a box of its own. The pan is a CSS animation on the image
+       and it animates transform, so a running animation beats any plain transform
+       declaration — a shot framing written on the image itself simply never applied.
+       Transforming the box instead lets the two compose: the pan keeps drifting inside the
+       shot, and the shot is what cuts. The blurred plate is left out of the box on purpose,
+       so the frame stays filled while the picture in it changes. */
+    const box = document.createElement('div');
+    box.className = 'shotbox';
+    box.appendChild(img(src, cls + ' sharp'));
+    el.appendChild(box);
   };
 
   if (p.kind === 'map' && p.map) {
@@ -697,6 +796,7 @@ function show(n) {
   where.textContent = \`\${n + 1} / \${ORDER.length}\`;
 
   const scene = buildScene(p, Math.max(4, p.dur + 1.2), n);
+  scene.__cuts = shotCuts(p);
   art.appendChild(scene);
   requestAnimationFrame(() => scene.classList.add('on'));
   setTimeout(() => { [...art.children].slice(0, -1).forEach((el) => el.remove()); }, 1000);
@@ -842,6 +942,7 @@ function seek(t) {
     cancelAnimationFrame(raf);
     art.replaceChildren();
     const scene = buildScene(p, Math.max(4, d + 1.2), n);
+    scene.__cuts = shotCuts(p);
     scene.classList.add('on');              // no cross-fade to wait out when scrubbing
     art.appendChild(scene);
     paintCaption(p);
@@ -854,6 +955,10 @@ function seek(t) {
   }
 
   paintWords(p, lt * 1000);
+  /* The shot is a pure function of the panel-local time, so scrubbing lands on exactly the
+     framing the player would be showing. It is recomputed on every seek rather than only on
+     a panel change, because a seek within one panel can cross a cut. */
+  paintShots(p, lt * 1000, art.lastElementChild);
 
   const done = ORDER.slice(0, n).reduce((a, k) => a + P[k].dur, 0) + lt;
   bar.style.width = (100 * done / ep.runtime).toFixed(2) + '%';
