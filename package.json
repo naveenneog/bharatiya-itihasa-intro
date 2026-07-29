@@ -13,7 +13,8 @@
     "render": "node scripts/render.mjs --fps 60",
     "render:draft": "node scripts/render.mjs --fps 24 --scale 0.5 --out dist/draft.mp4",
     "fonts": "node scripts/fetch-fonts.mjs",
-    "test:years": "node tools/years.test.mjs"
+    "test:years": "node tools/years.test.mjs",
+    "check": "node tools/check.mjs"
   },
   "devDependencies": {
     "playwright": "^1.49.1"

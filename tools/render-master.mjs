@@ -40,11 +40,11 @@ const OUT = flag('out', null);
 const SCORE = argv.includes('--score');
 const VARIANT = flag('variant', 'default');
 const V = variant(VARIANT);
-const BUILD = V.out;
+const BUILD = flag('build', null) || V.out;
 const CUT = flag('beats', null)?.split(',').map((s) => s.trim());
 
 const { root: ROOT, dir } = await resolveSource(argv, {
-  valued: ['fps', 'port', 'out', 'variant', 'beats', 'era'],
+  valued: ['fps', 'port', 'out', 'variant', 'beats', 'build', 'era'],
 });
 
 /* The picked revision, not the newest — the same rule build-version.mjs uses. When this

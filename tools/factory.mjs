@@ -20,7 +20,7 @@
      node tools/factory.mjs --slug zero --draft                # 40s, half scale, for a look
 */
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -62,10 +62,15 @@ if (!STORY) {
 const VERSIONS = [
   { id: 'v1', cut: 'cut-e-framed', what: 'settle — the line is present, the spoken word is lit' },
   { id: 'v2', cut: 'cut-h-card', what: 'card — a few words at a time, set large' },
+  { id: 'v3', cut: 'cut-i-flow', what: 'flow — the caption scrolls so the spoken word never moves' },
 ];
 
 const EP = path.join('episodes', SLUG);
-const INTRO = path.join('dist', `${ERA}-stinger.mp4`);
+/* One stinger per episode, not one per era. The era's default beats are a reasonable
+   era-level answer and a bad episode-level one — every episode of a series would open on
+   the same two objects, and for one of them those objects belong to a different story. */
+const INTRO = path.join('dist', `${ERA}-${SLUG}-stinger.mp4`);
+const BUILDDIR = `build-stinger-${SLUG}`;
 const THUMBS = path.join('dist', `thumbs-${SLUG}`);
 const master = (v) => path.join('dist', `${SLUG}-${v.id}-${v.cut}.mp4`);
 /* Grouped by era, because nineteen series at two versions each is four hundred folders in
@@ -73,6 +78,17 @@ const master = (v) => path.join('dist', `${SLUG}-${v.id}-${v.cut}.mp4`);
 const upload = (v) => path.join('dist', ERA, `${SLUG}_${v.id}`);
 
 const draftArgs = DRAFT ? ['--limit', '40', '--scale', '0.5', '--fps', '12'] : ['--fps', '25'];
+
+/* Read at run time, not at plan time: the stinger stage writes this file, and the stages
+   that consume it run after. Reading it up front would bake in whatever was there before. */
+function beats() {
+  try {
+    return JSON.parse(readFileSync(path.join(EP, 'stinger.json'), 'utf8')).beats.join(',');
+  } catch {
+    console.error(`no ${EP}/stinger.json — the stinger stage must run first`);
+    process.exit(1);
+  }
+}
 
 /* Every stage: what it is, what it produces, and how to make it. `makes` is what lets a
    stage be skipped; a stage with no `makes` always runs. `each` fans a stage out over the
@@ -131,15 +147,23 @@ const STAGES = [
     run: () => ['tools/thumbnail.mjs', '--slug', SLUG],
   },
   {
+    id: 'stinger',
+    what: `which two ${ERA} beats belong to this story`,
+    makes: () => path.join(EP, 'stinger.json'),
+    run: () => ['tools/stinger.mjs', '--slug', SLUG, '--era', ERA],
+  },
+  {
     id: 'intro-build',
-    what: `assemble the ${ERA} stinger page`,
-    run: () => ['tools/build-version.mjs', '--era', ERA, '--variant', 'stinger'],
+    what: `assemble this episode's ${ERA} stinger page`,
+    run: () => ['tools/build-version.mjs', '--era', ERA, '--variant', 'stinger',
+      '--beats', beats(), '--build', BUILDDIR],
   },
   {
     id: 'intro',
-    what: `render the ${ERA} stinger with its score`,
+    what: `render this episode's ${ERA} stinger with its score`,
     makes: () => INTRO,
-    run: () => ['tools/render-master.mjs', '--era', ERA, '--variant', 'stinger', '--score', '--out', INTRO],
+    run: () => ['tools/render-master.mjs', '--era', ERA, '--variant', 'stinger',
+      '--beats', beats(), '--build', BUILDDIR, '--score', '--out', INTRO],
   },
   {
     id: 'render',

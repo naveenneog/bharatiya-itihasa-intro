@@ -24,8 +24,12 @@ const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[
 const VNAME = flag('variant', 'default');
 const V = variant(VNAME);
 const CUT = flag('beats', null)?.split(',').map((s) => s.trim());
+/* The output directory can be overridden so a per-story cut of an era's sequence does not
+   overwrite another story's. Without it every episode of a series builds into the same
+   `build-stinger/`, and the last one to run wins. */
+const BUILD = flag('build', null) || V.out;
 
-const sources = await resolveSources(argv, { valued: ['variant', 'beats'] });
+const sources = await resolveSources(argv, { valued: ['variant', 'beats', 'build'] });
 
 async function latest(root, dirId, kind, beatId, ext) {
   const files = await readdir(path.join(root, dirId, kind)).catch(() => []);
@@ -269,7 +273,7 @@ for (const { root, dir } of sources) {
     console.log(`  skip ${dir.id} — ${beats.length}/${want.length} clips`);
     continue;
   }
-  const out = path.join(root, dir.id, V.out, 'index.html');
+  const out = path.join(root, dir.id, BUILD, 'index.html');
   await mkdir(path.dirname(out), { recursive: true });
   await writeFile(out, page(dir, beats));
   const s = schedule(beats);

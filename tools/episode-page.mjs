@@ -124,6 +124,19 @@ export const CUTS = [  {
     intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
     open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'framed', caption: 'card',
   },
+  /* The read point stops moving. In every other treatment the eye has to find the lit word
+     and where it sits changes with every line; here the caption scrolls so the spoken word
+     is always on the column's centre, and the column fades to nothing top and bottom.
+     Words rise into focus, are said, and sink — an hourglass with the live word at the
+     waist. Reading costs nothing, and the motion carries the attention instead. */
+  {
+    id: 'cut-i-flow',
+    name: 'I · Framed + hourglass flow',
+    pitch: 'Cut E, with the whole caption scrolling so the word being spoken always sits on '
+      + 'the same centre line, fading out above and below. The eye never has to search.',
+    intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
+    open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'framed', caption: 'flow',
+  },
 ];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -319,8 +332,43 @@ export const episodePage = (ep, cut) => `<!doctype html>
   /* stroke — a gold rule travels under the live word.
      Adds a moving element without moving the type, which keeps long lines readable while
      still giving the eye something that changes every few hundred milliseconds. */
-  .cap-stroke #cap .w{position:relative}
-  .cap-stroke #cap .w.now::after{content:"";position:absolute;left:0;right:0;bottom:-0.16em;
+  /* flow — the read point never moves.
+
+     The whole caption is scrolled so that the word being spoken sits on the column's
+     optical centre, and the column is masked to nothing at its top and bottom edges. Words
+     rise into focus, are said, and sink out: an hourglass with the live word at the waist.
+
+     Why it should hold attention better than the others: in every treatment so far the eye
+     has to *find* the lit word, and where it is changes with the line. Here it is always in
+     the same place, so reading costs nothing and the movement is doing the work instead.
+
+     The transform is a pure function of which word is live, and the transition is disabled
+     in export — a time-based CSS animation cannot be scrubbed frame-accurately, so the
+     master and the player would disagree by however long the ease had left to run. */
+  .cap-flow #capwrap{
+    -webkit-mask-image:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.35) 18%,#000 40%,#000 60%,rgba(0,0,0,.35) 82%,transparent 100%);
+    mask-image:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.35) 18%,#000 40%,#000 60%,rgba(0,0,0,.35) 82%,transparent 100%)}
+  /* The caption is anchored to the top of the column and then scrolled down, rather than
+     centred by the grid and scrolled from there. Both would look centred at rest, but a
+     span's offsetTop is measured from its offsetParent, and with the grid doing the
+     centring that parent is the stage — so the measured position carried the grid's own
+     offset and the live word settled about a quarter of a frame below the centre line.
+     position:relative on #cap makes the spans measure from the caption itself. */
+  .cap-flow #capwrap{align-content:start}
+  .cap-flow #cap{position:relative;transition:transform .3s cubic-bezier(.22,1,.36,1);
+    will-change:transform;color:rgba(183,166,132,.26);line-height:1.62}
+  .cap-flow #cap .w{display:inline-block;
+    transition:color .18s linear,opacity .18s linear,transform .28s cubic-bezier(.2,.9,.3,1),text-shadow .18s linear}
+  .cap-flow #cap .w.said{color:rgba(232,182,74,.42)}
+  .cap-flow #cap .w.now{color:#fff;transform:scale(1.06);text-shadow:0 0 30px rgba(232,182,74,.7)}
+  /* Both "export" and "cap-flow" are classes on the root element, so this is a compound
+     selector. Written with a space it would be looking for a .cap-flow *inside* an
+     exporting document, match nothing, and leave the transition running under the frame
+     capture — which is the same specificity mistake that once left a caption uncentred. */
+  html.export.cap-flow #cap,html.export.cap-flow #cap .w{transition:none}
+  .cap-flow #speaker{opacity:0!important}
+
+  .cap-stroke #cap .w{position:relative}  .cap-stroke #cap .w.now::after{content:"";position:absolute;left:0;right:0;bottom:-0.16em;
     height:2px;background:linear-gradient(90deg,rgba(232,182,74,0),#e8b64a,rgba(232,182,74,0))}
   #speaker{margin:0 auto .5em;text-align:center;font-family:"Marcellus",serif;
     font-size:clamp(9px,.86vw,15px);letter-spacing:.34em;text-transform:uppercase;
@@ -486,6 +534,9 @@ const SPEAKER = ep.figure || '';
 
 function paintCaption(p) {
   cap.classList.toggle('speech', !!p.speech);
+  /* The flow scroll belongs to the previous panel's line. Left alone it carries over, and
+     the first word of a new caption appears already scrolled past. */
+  cap.style.transform = '';
   speaker.textContent = p.speech ? (p.role === 'male' && SPEAKER ? SPEAKER : p.role) : '';
   speaker.classList.toggle('on', !!p.speech);
   // English has word timings, so the caption can track the voice; Hindi does not
@@ -520,14 +571,33 @@ function paintWords(p, ms) {
     if (s.classList.contains('now') !== now) s.classList.toggle('now', now);
     if (s.classList.contains('said') !== said) s.classList.toggle('said', said);
   }
-  if (!chunkOf.length) return;
-  /* Between words there is no live word, so the last one spoken decides the chunk —
-     otherwise the card blinks out in every gap. */
-  if (live < 0) for (let k = p.words.length - 1; k >= 0; k--) { if (ms >= p.words[k][1]) { live = k; break; } }
-  const c = live >= 0 ? chunkOf[live] : 0;
-  for (let k = 0; k < p.words.length; k++) {
-    const s = spans[k];
-    if (s) s.classList.toggle('inchunk', chunkOf[k] === c);
+  if (chunkOf.length) {
+    /* Between words there is no live word, so the last one spoken decides the chunk —
+       otherwise the card blinks out in every gap. */
+    if (live < 0) for (let k = p.words.length - 1; k >= 0; k--) { if (ms >= p.words[k][1]) { live = k; break; } }
+    const c = live >= 0 ? chunkOf[live] : 0;
+    for (let k = 0; k < p.words.length; k++) {
+      const s = spans[k];
+      if (s) s.classList.toggle('inchunk', chunkOf[k] === c);
+    }
+    return;
+  }
+
+  /* flow — scroll the caption so the live word sits on the column's centre line.
+
+     Held on the last spoken word between words, for the same reason the card is: the gaps
+     between words are silence, not a reason for the whole block to jump back to the top. */
+  if (CUT.caption === 'flow') {
+    if (live < 0) for (let k = p.words.length - 1; k >= 0; k--) { if (ms >= p.words[k][1]) { live = k; break; } }
+    const s = spans[live >= 0 ? live : 0];
+    if (s) {
+      /* offsetTop is relative to #cap, which is position:relative for exactly this reason.
+         The column is the full height of the frame in the framed cut, so its midpoint is
+         the optical centre the eye settles on. */
+      const mid = s.offsetTop + s.offsetHeight / 2;
+      const centre = cap.parentElement.clientHeight / 2;
+      cap.style.transform = 'translateY(' + (centre - mid).toFixed(1) + 'px)';
+    }
   }
 }
 
