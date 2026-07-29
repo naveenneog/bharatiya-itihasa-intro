@@ -25,7 +25,7 @@ import { existsSync, statSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { CUTS } from './episode-page.mjs';
+import { CUTS, openIndices } from './episode-page.mjs';
 
 const execFileP = promisify(execFile);
 
@@ -54,7 +54,7 @@ await mkdir(OUT, { recursive: true });
 
 /* The cut's own order, and where the titles land in it. Panels before the splice keep
    their times; everything after is pushed back by the title sequence. */
-const openIdx = (cut.open || []).map((id) => ep.panels.findIndex((p) => p.id === id)).filter((n) => n >= 0);
+const openIdx = openIndices(ep.panels, cut);
 const restIdx = ep.panels.map((_, n) => n).filter((n) => !openIdx.includes(n));
 const order = [...openIdx, ...restIdx].map((n) => ep.panels[n]);
 

@@ -24,7 +24,7 @@
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { chatJson } from './llm.mjs';
-import { CUTS } from './episode-page.mjs';
+import { CUTS, openIndices } from './episode-page.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
@@ -55,7 +55,7 @@ if (!FORCE && await stat(OUT).then(() => true, () => false)) {
    on `cover`, which is the third panel in the data; timing the chapters in storage order
    would put every mark in the wrong place and silently mis-measure the gaps. This is the
    same reordering publish.mjs does. */
-const openIdx = (cut.open || []).map((id) => ep.panels.findIndex((p) => p.id === id)).filter((n) => n >= 0);
+const openIdx = openIndices(ep.panels, cut);
 const order = [...openIdx, ...ep.panels.map((_, n) => n).filter((n) => !openIdx.includes(n))]
   .map((n) => ep.panels[n]);
 

@@ -111,6 +111,17 @@ const STAGES = [
     run: () => ['tools/gen-thumb-art.mjs', '--slug', SLUG],
   },
   {
+    id: 'hook',
+    what: 'the cold open — one claim, in the narrator\'s voice, over the thumbnail art',
+    makes: () => path.join(EP, 'hook', 'hook.mp3'),
+    run: () => ['tools/hook.mjs', '--slug', SLUG],
+  },
+  {
+    id: 'refold',
+    what: 'rebuild so the cold open becomes the episode\'s first panel',
+    run: () => ['tools/build-episode.mjs', '--story', STORY, '--slug', SLUG],
+  },
+  {
     id: 'thumbs',
     what: 'thumbnail candidates, rendered at feed size as well as full',
     makes: () => path.join(THUMBS, 'sheet-feed.png'),

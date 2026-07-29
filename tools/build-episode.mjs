@@ -212,6 +212,32 @@ for (const p of story.panels) {
 }
 
 const total = panels.reduce((a, p) => a + p.dur, 0);
+
+/* The channel's own cold open, if one has been written. It goes in front of everything as a
+   real panel, so the player, the renderer, the captions and the chapter times all treat it
+   like any other — rather than as a special case that four separate tools have to know
+   about and one of them will forget. */
+const hook = await readFile(path.join(OUT, 'hook', 'hook.json'), 'utf8')
+  .then(JSON.parse).catch(() => null);
+if (hook?.dur) {
+  /* The mp3 is copied into audio/ with every other line rather than referenced where it was
+     written. The renderer gathers narration from one directory, and a panel whose audio
+     lives somewhere else is a special case that every consumer would have to know about. */
+  await copyFile(path.join(OUT, 'hook', 'hook.mp3'), path.join(OUT, 'audio', 'en_hook.mp3'));
+  panels.unshift({
+    id: 'hook',
+    kind: 'panel',
+    mood: 'suspense',
+    art: hook.art,
+    role: 'narrator',
+    speech: false,
+    text: { en: hook.line, hi: '' },
+    audio: { en: '../audio/en_hook.mp3', hi: null },
+    words: hook.words || [],
+    dur: hook.dur,
+  });
+}
+
 const episode = {
   id: story.id,
   slug: SLUG,
@@ -225,6 +251,7 @@ const episode = {
   runtime: +total.toFixed(1),
   panels,
 };
+episode.runtime = +panels.reduce((a, p) => a + p.dur, 0).toFixed(1);
 await writeFile(path.join(OUT, 'episode.json'), JSON.stringify(episode, null, 2));
 
 for (const cut of CUTS) {

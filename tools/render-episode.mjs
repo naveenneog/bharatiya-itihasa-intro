@@ -244,12 +244,17 @@ try {
   if (!has('keep-frames')) await rm(frames, { recursive: true, force: true });
   }
 
-  /* Where the titles go: after the panels the cut names as its cold open. Taken from
-     the cut spec the page was generated from, so the two cannot disagree. */
-  const { CUTS } = await import('./episode-page.mjs');
+  /* Where the titles go: after the panels the cut names as its cold open. Resolved through
+     the same helper the page used, so the two cannot disagree.
+
+     It used to take the *raw* length of the cut's open list. Once a cut could name
+     alternatives — the authored hook, falling back to the cover — that length was 2 while
+     the page opened on 1, and the titles spliced after the hook plus whatever panel
+     happened to follow it. */
+  const { CUTS, openIds } = await import('./episode-page.mjs');
   const cutSpec = CUTS.find((c) => c.id === CUT);
   if (!cutSpec) throw new Error(`unknown cut ${CUT} — known: ${CUTS.map((c) => c.id).join(', ')}`);
-  const openN = (cutSpec.open || []).length;
+  const openN = openIds(tl, cutSpec).length;
   const openSecs = tl.slice(0, openN).reduce((a, p) => a + p.dur, 0);
   console.log(`  titles splice at ${openSecs.toFixed(1)}s (${openN} panel${openN === 1 ? '' : 's'} of cold open)`);
 

@@ -24,7 +24,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { CUTS } from './episode-page.mjs';
+import { CUTS, openIndices } from './episode-page.mjs';
 import { measure } from './loudness.mjs';
 
 const execFileP = promisify(execFile);
@@ -62,7 +62,7 @@ const cut = CUTS.find((c) => c.id === CUT);
 if (!cut) throw new Error(`unknown cut ${CUT}`);
 
 const introLen = await secs(INTRO);
-const openIdx = (cut.open || []).map((id) => ep.panels.findIndex((p) => p.id === id)).filter((n) => n >= 0);
+const openIdx = openIndices(ep.panels, cut);
 const restIdx = ep.panels.map((_, n) => n).filter((n) => !openIdx.includes(n));
 const order = [...openIdx, ...restIdx].map((n) => ep.panels[n]);
 

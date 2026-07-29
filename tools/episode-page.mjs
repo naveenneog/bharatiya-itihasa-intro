@@ -16,8 +16,30 @@
    The player is one file for all three: the cut is data.
 */
 
-export const CUTS = [
-  {
+/**
+ * The panels a cut opens on, before the titles.
+ *
+ * `openMode: 'first'` takes the first id that exists, so a cut can prefer the channel's own
+ * authored hook and fall back to the story's cover when no hook has been written. Anything
+ * else takes every id that exists, in order — cut B's two-panel cold open.
+ *
+ * One copy, because the same expression had been written out in the page, the packaging,
+ * the publisher and the scorer, and they only have to disagree once to time every chapter
+ * in a video wrongly.
+ */
+export function openIds(panels, cut) {
+  const have = new Set(panels.map((p) => p.id));
+  const want = (cut.open || []).filter((id) => have.has(id));
+  return cut.openMode === 'first' ? want.slice(0, 1) : want;
+}
+
+/** Indices of those panels, for callers that reorder by position. */
+export function openIndices(panels, cut) {
+  const ids = openIds(panels, cut);
+  return ids.map((id) => panels.findIndex((p) => p.id === id));
+}
+
+export const CUTS = [  {
     id: 'cut-a-titles',
     name: 'A · Titles first',
     pitch: 'The full 61-second sequence, an episode card, then the story. The most cinematic '
@@ -55,7 +77,7 @@ export const CUTS = [
       + 'the 15-second titles, then the story, with the titles finished by about 27 seconds. '
       + 'Built around YouTube measuring retention at the 30-second mark.',
     intro: { src: '../../../dist/v6-episode-titles.mp4' },
-    open: ['cover'], card: false, frame: 'bleed',
+    open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'bleed',
   },
   /* The art is composed square. Cover-cropping it to 16:9 throws away 44% of every panel,
      which is where the tops of heads and the objects on the desk live. This cut never crops:
@@ -67,7 +89,7 @@ export const CUTS = [
     pitch: 'The claim, the 15-second titles, then the story with every panel shown whole — '
       + 'the art beside the caption instead of cropped behind it. Nothing is ever cut off.',
     intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
-    open: ['cover'], card: false, frame: 'framed', caption: 'settle',
+    open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'framed', caption: 'settle',
   },
 
   /* ── caption experiments ───────────────────────────────────────────────
@@ -84,7 +106,7 @@ export const CUTS = [
     pitch: 'Cut E, with each word lifting and brightening as it is spoken and settling '
       + 'behind the next. Per-word motion in the sequence\'s own register.',
     intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
-    open: ['cover'], card: false, frame: 'framed', caption: 'rise',
+    open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'framed', caption: 'rise',
   },
   {
     id: 'cut-g-focus',
@@ -92,7 +114,7 @@ export const CUTS = [
     pitch: 'Cut E, with everything but the live phrase dropped to near-nothing. The '
       + 'strongest attention treatment and the most opinionated — you cannot read ahead.',
     intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
-    open: ['cover'], card: false, frame: 'framed', caption: 'focus',
+    open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'framed', caption: 'focus',
   },
   {
     id: 'cut-h-card',
@@ -100,7 +122,7 @@ export const CUTS = [
     pitch: 'Cut E, with the caption set large and short — the pop-up treatment that is '
       + 'everywhere on the platform, translated into this typeface. The biggest gamble.',
     intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
-    open: ['cover'], card: false, frame: 'framed', caption: 'card',
+    open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'framed', caption: 'card',
   },
 ];
 
@@ -389,7 +411,7 @@ export const episodePage = (ep, cut) => `<!doctype html>
 </div>
 
 <script type="module">
-const CUT = ${JSON.stringify({ intro: cut.intro, card: cut.card, open: cut.open, frame: cut.frame, caption: cut.caption || 'settle' })};
+const CUT = ${JSON.stringify({ intro: cut.intro, card: cut.card, open: openIds(ep.panels, cut), frame: cut.frame, caption: cut.caption || 'settle' })};
 const ep = await (await fetch('../episode.json')).json();
 const P = ep.panels;
 if (CUT.frame === 'framed') document.querySelector('#stage').classList.add('framed');
