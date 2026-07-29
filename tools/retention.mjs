@@ -37,7 +37,12 @@ const CUT = arg('cut', 'cut-e-framed');
 const INTRO = arg('intro', 'dist/v7-gupta-stinger.mp4');
 const MASTER = arg('master', `dist/ep01-${SLUG}-youtube.mp4`);
 const EP = path.join('episodes', SLUG);
-const KIT = path.join('dist', `publish-${SLUG}`);
+/* The publishing kit's location is passed in, not assumed. It was hardcoded to
+   `dist/publish-<slug>`, so once the factory began writing per-version folders the score
+   reported "no thumbnail, no chapters, no SRT" for a kit that was complete — understating
+   packaging by up to 7 points and, worse, reporting a real-looking failure that was not
+   real. A scorecard that measures the wrong folder is worse than no scorecard. */
+const KIT = arg('kit', path.join('dist', `publish-${SLUG}`));
 
 const findings = [];
 const note = (level, area, text) => findings.push({ level, area, text });

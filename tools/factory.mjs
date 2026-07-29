@@ -148,7 +148,8 @@ const STAGES = [
     what: 'measure it against what YouTube actually rewards',
     each: true,
     run: (v) => ['tools/retention.mjs', '--slug', SLUG, '--cut', v.cut,
-      '--intro', INTRO, '--master', master(v)],
+      '--intro', INTRO, '--master', master(v),
+      '--kit', path.join('dist', `upload-${SLUG}-${v.id}`)],
   },
 ];
 
