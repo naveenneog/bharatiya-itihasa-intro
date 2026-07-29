@@ -118,6 +118,20 @@ const PLATES = [
   { art: 'eye', pos: '58% 50%' },
 ];
 
+/* Plates are never overwritten, so re-generating a subject writes -r2 beside -r1. Naming
+   the revision here would have quietly gone on composing thumbnails from the old figure —
+   which is exactly the run that produced a bearded elder for an episode whose art shows a
+   moustached man in his twenties. */
+const plateFiles = await readdir(ART).catch(() => []);
+const newestPlate = (name) => {
+  let best = null; let n = 0;
+  for (const f of plateFiles) {
+    const g = f.match(new RegExp(`^${name}-r(\\d+)\\.png$`));
+    if (g && Number(g[1]) >= n) { n = Number(g[1]); best = f.replace(/\.png$/, ''); }
+  }
+  return best || `${name}-r1`;
+};
+
 /**
  * Cross this episode's authored headlines with the four plates.
  *
@@ -147,11 +161,11 @@ function fromPackaging(meta) {
       tight: lines.join(' ').length > 22,
     };
     for (const p of PLATES) {
-      cands.push({ id: `LOUD-${p.art}-${key}`, art: `${p.art}-r1`, pos: p.pos, side: 'left', head: `${key}Loud` });
+      cands.push({ id: `LOUD-${p.art}-${key}`, art: newestPlate(p.art), pos: p.pos, side: 'left', head: `${key}Loud` });
     }
     if (i === 0) {
       for (const p of PLATES.slice(0, 2)) {
-        cands.push({ id: `quiet-${p.art}-${key}`, art: `${p.art}-r1`, pos: p.pos, side: 'left', head: key });
+        cands.push({ id: `quiet-${p.art}-${key}`, art: newestPlate(p.art), pos: p.pos, side: 'left', head: key });
       }
     }
   });

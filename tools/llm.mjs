@@ -8,6 +8,7 @@
    Auth mirrors tools/azure.mjs: an AAD token from the Azure CLI, no keys on disk.
 */
 import { token, ENDPOINT } from './azure.mjs';
+import { readFile } from 'node:fs/promises';
 
 const APIV = '2025-01-01-preview';
 
@@ -15,7 +16,7 @@ const APIV = '2025-01-01-preview';
  * One chat completion.
  *
  * @param {string} system
- * @param {string} user
+ * @param {string|Array} user  text, or a content array for multimodal input
  * @param {{model?: string, json?: boolean, maxTokens?: number}} opts
  */
 export async function chat(system, user, { model = 'gpt-5.1', json = false, maxTokens = 8000 } = {}) {
@@ -58,4 +59,24 @@ export async function chatJson(system, user, opts = {}) {
     }
   }
   throw new Error('unreachable');
+}
+
+/* Images as message content.
+
+   Needed because some questions here are about pictures, not about text. The thumbnail's
+   subject has to be the same person the episode's own artwork shows — and the narration
+   does not say whether he has a beard. Describing him from the story produced a
+   bearded elder in a turban for an episode whose art shows a moustached man in his
+   twenties, so a viewer clicked one man and met another. */
+export async function imagePart(file, { detail = 'high' } = {}) {
+  const b64 = (await readFile(file)).toString('base64');
+  const ext = file.toLowerCase().endsWith('.png') ? 'png' : 'jpeg';
+  return { type: 'image_url', image_url: { url: `data:image/${ext};base64,${b64}`, detail } };
+}
+
+/** A user message of text plus one or more images. */
+export async function withImages(text, files, opts = {}) {
+  const parts = [{ type: 'text', text }];
+  for (const f of files) parts.push(await imagePart(f, opts));
+  return parts;
 }

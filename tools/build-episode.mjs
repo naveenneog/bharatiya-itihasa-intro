@@ -220,6 +220,16 @@ const total = panels.reduce((a, p) => a + p.dur, 0);
 const hook = await readFile(path.join(OUT, 'hook', 'hook.json'), 'utf8')
   .then(JSON.parse).catch(() => null);
 if (hook?.dur) {
+  /* The picture is resolved here, from whichever thumbnail was picked, rather than frozen
+     into hook.json when the line was written. The whole point of the cold open is that it
+     is the frame the viewer clicked; picking a different thumbnail later has to move it too,
+     or the two silently drift apart and nobody notices until they are side by side. */
+  const picked = await readFile(path.join(OUT, 'publish.json'), 'utf8')
+    .then((s) => JSON.parse(s).thumb?.art).catch(() => null);
+  if (picked) {
+    await copyFile(path.join(OUT, picked), path.join(OUT, 'hook', 'hook.png'));
+    console.log(`  cold open uses ${picked}`);
+  }
   /* The mp3 is copied into audio/ with every other line rather than referenced where it was
      written. The renderer gathers narration from one directory, and a panel whose audio
      lives somewhere else is a special case that every consumer would have to know about. */

@@ -20,7 +20,7 @@
      node tools/publish.mjs --slug zero --master dist/zero-v1-cut-e-framed.mp4 \
        --out dist/upload-zero-v1
 */
-import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, copyFile, readdir } from 'node:fs/promises';
 import { existsSync, statSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -145,7 +145,13 @@ let marks = timed
   .filter((p) => meta.chapters[p.id])
   .map((p) => ({ at: p.start, name: meta.chapters[p.id] }))
   .sort((a, b) => a.at - b.at);
-if (!marks.length || marks[0].at > 0.5) marks.unshift({ at: 0, name: meta.chapters[order[0].id] || 'Open' });
+/* The cold open is authored after the packaging is, so nothing has named it. "Open" is a
+   wasted first chapter — it is the one every viewer sees in the description box, and it
+   should say what the video claims. "The claim" is what episode one called the same beat. */
+if (!marks.length || marks[0].at > 0.5) {
+  const first = order[0].id;
+  marks.unshift({ at: 0, name: meta.chapters[first] || (first === 'hook' ? 'The claim' : 'Open') });
+}
 marks[0].at = 0;
 
 const kept = [];
@@ -212,6 +218,53 @@ if (thumbBytes > 2 * 1024 * 1024) {
   throw new Error(`thumbnail is ${(thumbBytes / 1024 / 1024).toFixed(1)} MB — YouTube's limit is 2 MB`);
 }
 
+/* ── the A/B set ──────────────────────────────────────────────────────────
+   YouTube can test up to three thumbnails against each other, and the title is worth
+   testing too. Both were being decided once and then lost: the alternatives existed in
+   publish.json and in dist/thumbs-<slug>/ and neither travelled with the upload.
+
+   So the folder carries the runners-up as well as the winner. The picked thumbnail is
+   always A, so a folder is unambiguous about what shipped. */
+const AB = path.join(OUT, 'ab');
+await mkdir(AB, { recursive: true });
+
+const sheet = path.join('dist', `thumbs-${SLUG}`);
+const others = (await readdir(sheet).catch(() => []))
+  .filter((f) => f.endsWith('.png') && !f.startsWith('sheet') && f !== `${cand}.png`)
+  /* One per concept beyond the winner. Three variations of the same picture is not a test,
+     it is the same thumbnail three times. */
+  .filter((f) => !f.startsWith('quiet-'));
+
+const seenArt = new Set([cand.replace(/^(LOUD|quiet)-/, '').split('-')[0]]);
+const picks2 = [];
+for (const f of others) {
+  const concept = f.replace(/^(LOUD|quiet)-/, '').split('-')[0];
+  if (seenArt.has(concept)) continue;
+  seenArt.add(concept);
+  picks2.push(f);
+  if (picks2.length >= 2) break;
+}
+
+const abList = [[`A-${cand}`, path.join(sheet, `${cand}.png`)]];
+for (const [i, f] of picks2.entries()) abList.push([`${'BC'[i]}-${f.replace(/\.png$/, '')}`, path.join(sheet, f)]);
+
+for (const [name, src] of abList) {
+  await execFileP('ffmpeg', ['-y', '-loglevel', 'error', '-i', src, '-q:v', '2', path.join(AB, `${name}.jpg`)]);
+  await execFileP('ffmpeg', ['-y', '-loglevel', 'error', '-i', src, '-vf', 'scale=320:180', path.join(AB, `${name}-feed.png`)]);
+}
+
+/* Titles too. The model ranked five and marked the risky ones; shipping only the first
+   throws away the test. */
+const titles = (meta.options?.titles || []).map((t, i) =>
+  `${i === 0 ? 'A' : 'ABC'[i] || i + 1}. ${t.text}${t.risk && t.risk !== 'none' ? `   [${t.risk}]` : ''}`
+    + (t.why ? `\n     ${t.why}` : ''));
+await writeFile(path.join(AB, 'titles.txt'),
+  `${titles.length ? titles.join('\n\n') : meta.title || ep.title}\n`);
+
+const headlines = (meta.options?.thumb_headlines || []).map((h, i) =>
+  `${i + 1}. ${h.lines.join(' / ')}${h.risk && h.risk !== 'none' ? `   [${h.risk}]` : ''}`);
+await writeFile(path.join(AB, 'headlines.txt'), `${headlines.join('\n')}\n`);
+
 // ── the video, and the sequence in front of it ───────────────────────────
 /* Collected rather than referenced. An upload folder that points at a master somewhere
    else is one `dist` clean away from being a folder of text files. */
@@ -244,6 +297,15 @@ const upload = [
   `4. Thumbnail      ${SLUG}-thumb.jpg`,
   `5. Subtitles      ${SLUG}.en.srt (English, manual)`,
   `6. Tags           tags.txt`,
+  '',
+  '## A/B testing',
+  '',
+  'YouTube tests up to three thumbnails against each other. `ab/` holds them, A first —',
+  'A is what shipped, B and C are different concepts rather than restyles of the same one.',
+  'Each has a `-feed.png` at 320x180, which is the size the choice is actually made at.',
+  '',
+  '  ab/titles.txt      five ranked titles, overclaims marked',
+  '  ab/headlines.txt   five ranked thumbnail headlines',
   '',
   '## Check before publishing',
   '',

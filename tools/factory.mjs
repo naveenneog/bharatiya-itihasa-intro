@@ -68,6 +68,9 @@ const EP = path.join('episodes', SLUG);
 const INTRO = path.join('dist', `${ERA}-stinger.mp4`);
 const THUMBS = path.join('dist', `thumbs-${SLUG}`);
 const master = (v) => path.join('dist', `${SLUG}-${v.id}-${v.cut}.mp4`);
+/* Grouped by era, because nineteen series at two versions each is four hundred folders in
+   one directory otherwise. */
+const upload = (v) => path.join('dist', ERA, `${SLUG}_${v.id}`);
 
 const draftArgs = DRAFT ? ['--limit', '40', '--scale', '0.5', '--fps', '12'] : ['--fps', '25'];
 
@@ -150,17 +153,16 @@ const STAGES = [
     id: 'publish',
     what: 'captions, chapters, description, thumbnail, video — the upload folder',
     each: true,
-    makes: (v) => path.join('dist', `upload-${SLUG}-${v.id}`, 'UPLOAD.md'),
+    makes: (v) => path.join(upload(v), 'UPLOAD.md'),
     run: (v) => ['tools/publish.mjs', '--slug', SLUG, '--cut', v.cut, '--intro', INTRO,
-      '--master', master(v), '--out', path.join('dist', `upload-${SLUG}-${v.id}`)],
+      '--master', master(v), '--out', upload(v)],
   },
   {
     id: 'score',
     what: 'measure it against what YouTube actually rewards',
     each: true,
     run: (v) => ['tools/retention.mjs', '--slug', SLUG, '--cut', v.cut,
-      '--intro', INTRO, '--master', master(v),
-      '--kit', path.join('dist', `upload-${SLUG}-${v.id}`)],
+      '--intro', INTRO, '--master', master(v), '--kit', upload(v)],
   },
 ];
 

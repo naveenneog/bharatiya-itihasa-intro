@@ -153,12 +153,20 @@ for (const p of targets) {
     + `  -> ${path.relative('.', best.mp3)}`);
 }
 
-if (!DRY && touched) {
+if (!DRY) {
+  /* Written even when nothing changed. The file is the record that this story's narration
+     was audited, not just that something was wrong with it — and a stage that produces
+     nothing on a clean story is indistinguishable, to anything downstream, from a stage
+     that failed. */
+  await mkdir(OUT, { recursive: true });
   await writeFile(path.join(OUT, 'index.json'), JSON.stringify(overrides, null, 2));
+}
+
+if (!DRY && touched) {
   console.log(`\n${touched} line(s) re-synthesised -> ${OUT}/index.json`);
   console.log('run `node tools/build-episode.mjs` to pick them up');
 } else if (DRY) {
   console.log(`\n${touched} line(s) would change (dry run)`);
 } else {
-  console.log('\nnothing to do — no years needed rewriting');
+  console.log(`\nnothing to do — no years needed rewriting (audit recorded in ${OUT}/index.json)`);
 }
