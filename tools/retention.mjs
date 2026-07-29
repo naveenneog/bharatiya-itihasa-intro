@@ -300,7 +300,12 @@ console.log(`\n  ${findings.length - nf - nw} pass · ${nw} warn · ${nf} fail`)
    rate — only whether the things known to destroy retention have been removed. */
 const bandOf = (n) => (n >= 85 ? 'strong' : n >= 70 ? 'solid' : n >= 55 ? 'workable' : 'weak');
 const w = {};
-w.intro = titlesEnd <= 30 ? (titlesEnd <= 25 ? 30 : 27) : 10;
+/* A ramp, not a step. The cliff sat at exactly 25s, so titles ending at 25.1s scored three
+   points below titles ending at 24.9s — a tenth of a second swinging the same weight as a
+   real editorial decision. YouTube measures at 30s; everything before that is degrees of
+   better, not a pass and a fail. The same class of mistake as a loudness threshold that
+   turned half a decibel of measurement noise into a five-point difference. */
+w.intro = titlesEnd > 30 ? 10 : Math.round(30 - 3 * Math.max(0, (titlesEnd - 22) / 8));
 if (!claimy) w.intro -= 5;
 w.hooks = (biggest.gap <= 15 ? 12 : biggest.gap <= 25 ? 9 : biggest.gap <= 40 ? 5 : 2)
   + (Math.min(...thirds) > 0 ? 4 : 0)
