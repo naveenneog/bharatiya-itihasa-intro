@@ -64,11 +64,43 @@ export const CUTS = [
   {
     id: 'cut-e-framed',
     name: 'E · Framed, nothing cropped',
-    pitch: 'Same structure as D, but the art is never cropped — the whole square panel is in '
-      + 'frame with the caption in a column beside it, exactly the layout the title sequence '
-      + 'uses. Nothing is beheaded, and the episode and the titles become one visual system.',
-    intro: { src: '../../../dist/v6-episode-titles.mp4' },
-    open: ['cover'], card: false, frame: 'framed',
+    pitch: 'The claim, the 15-second titles, then the story with every panel shown whole — '
+      + 'the art beside the caption instead of cropped behind it. Nothing is ever cut off.',
+    intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
+    open: ['cover'], card: false, frame: 'framed', caption: 'settle',
+  },
+
+  /* ── caption experiments ───────────────────────────────────────────────
+     Identical to cut E in every respect except how the caption behaves, so a comparison
+     between them is a comparison of the treatment and nothing else.
+
+     What holds attention on a phone is word-synchronised text with per-word motion. The
+     treatments currently trending — neon fills, comic bursts, bouncing pop-ups — are
+     Shorts-native and would wreck this brand, so the mechanic is borrowed and the
+     aesthetic is not. */
+  {
+    id: 'cut-f-rise',
+    name: 'F · Framed + rising words',
+    pitch: 'Cut E, with each word lifting and brightening as it is spoken and settling '
+      + 'behind the next. Per-word motion in the sequence\'s own register.',
+    intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
+    open: ['cover'], card: false, frame: 'framed', caption: 'rise',
+  },
+  {
+    id: 'cut-g-focus',
+    name: 'G · Framed + focus',
+    pitch: 'Cut E, with everything but the live phrase dropped to near-nothing. The '
+      + 'strongest attention treatment and the most opinionated — you cannot read ahead.',
+    intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
+    open: ['cover'], card: false, frame: 'framed', caption: 'focus',
+  },
+  {
+    id: 'cut-h-card',
+    name: 'H · Framed + word cards',
+    pitch: 'Cut E, with the caption set large and short — the pop-up treatment that is '
+      + 'everywhere on the platform, translated into this typeface. The biggest gamble.',
+    intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
+    open: ['cover'], card: false, frame: 'framed', caption: 'card',
   },
 ];
 
@@ -208,6 +240,60 @@ export const episodePage = (ep, cut) => `<!doctype html>
   #cap .w.said{color:var(--ink-hi)}
   #cap .w.now{color:#fff;text-shadow:0 0 18px rgba(232,182,74,.55)}
   #cap.plain{color:var(--ink-hi)}
+
+  /* ── caption treatments ────────────────────────────────────────────────
+     What actually holds attention on a phone in 2026 is word-synchronised text with
+     per-word motion. The styles trending on the platform — neon fills, comic bursts,
+     bouncing pop-ups — are Shorts-native and would destroy this brand on contact, so what
+     is borrowed is the *mechanic* (sync, contrast, motion per word) and not the aesthetic.
+     Same typeface, same two colours, in every treatment.
+
+     A treatment is chosen per cut, so two versions of an episode can differ by exactly
+     this and nothing else — which is the only way to learn which one works. */
+
+  /* rise — each word lifts and brightens as it is spoken, then settles.
+     The kinetic mechanic in a refined register: motion the eye tracks, not motion that
+     performs. The lift is 0.14em rather than a fixed pixel value so it scales with the
+     type and reads the same on a phone as on a desktop. */
+  .cap-rise #cap .w{display:inline-block;transition:color .16s linear,transform .22s cubic-bezier(.2,.9,.3,1),text-shadow .16s linear}
+  .cap-rise #cap .w.now{transform:translateY(-0.14em)}
+  .cap-rise #cap .w.said{transform:translateY(0)}
+
+  /* focus — everything except the live phrase falls back to near-nothing.
+     The strongest attention treatment and the most opinionated: it removes the ability to
+     read ahead, which is exactly why it holds. Words already said stay faintly visible so
+     the line still reads as a sentence rather than as flashcards. */
+  .cap-focus #cap{color:rgba(183,166,132,.16)}
+  .cap-focus #cap .w{transition:color .2s linear,opacity .2s linear,text-shadow .2s linear}
+  .cap-focus #cap .w.said{color:rgba(183,166,132,.4)}
+  .cap-focus #cap .w.now{color:#fff;text-shadow:0 0 26px rgba(232,182,74,.75)}
+
+  /* card — the pop-up treatment, translated. One short phrase at a time, large and centred,
+     instead of a running line. Chunking is done in the player on punctuation first and
+     length second, because a phrase that breaks mid-clause reads as a stutter.
+
+     The biggest departure and the biggest gamble: it carries the least text per second, so
+     it lives or dies on the phrasing. Words outside the live phrase are not merely dimmed
+     but removed from the flow, or the block still reads as a wall. */
+  .cap-card #capwrap{padding-top:14%}
+  .cap-card #cap{font-size:clamp(22px,3.4vw,64px);line-height:1.14;max-width:18ch;
+    min-height:2.3em;display:flex;flex-wrap:wrap;gap:0 .28em;align-content:center;
+    justify-content:center;color:rgba(183,166,132,.34)}
+  .cap-card #cap .w{display:none;transition:color .14s linear,transform .2s cubic-bezier(.2,.9,.3,1)}
+  .cap-card #cap .w.inchunk{display:inline-block}
+  .cap-card #cap .w.inchunk.said{color:rgba(232,182,74,.6)}
+  .cap-card #cap .w.now{color:#fff;transform:scale(1.05);text-shadow:0 0 30px rgba(232,182,74,.6)}
+  /* "framed" is a class on #stage and "cap-card" is on the root element, so this is a
+     descendant relationship, not a compound one. Written as a compound selector it
+     silently matched nothing and the card sat centred inside a left-aligned column. */
+  .cap-card .framed #cap{justify-content:flex-start;text-align:left}
+
+  /* stroke — a gold rule travels under the live word.
+     Adds a moving element without moving the type, which keeps long lines readable while
+     still giving the eye something that changes every few hundred milliseconds. */
+  .cap-stroke #cap .w{position:relative}
+  .cap-stroke #cap .w.now::after{content:"";position:absolute;left:0;right:0;bottom:-0.16em;
+    height:2px;background:linear-gradient(90deg,rgba(232,182,74,0),#e8b64a,rgba(232,182,74,0))}
   #speaker{margin:0 auto .5em;text-align:center;font-family:"Marcellus",serif;
     font-size:clamp(9px,.86vw,15px);letter-spacing:.34em;text-transform:uppercase;
     color:var(--saffron);opacity:0}
@@ -297,10 +383,15 @@ export const episodePage = (ep, cut) => `<!doctype html>
 </div>
 
 <script type="module">
-const CUT = ${JSON.stringify({ intro: cut.intro, card: cut.card, open: cut.open, frame: cut.frame })};
+const CUT = ${JSON.stringify({ intro: cut.intro, card: cut.card, open: cut.open, frame: cut.frame, caption: cut.caption || 'settle' })};
 const ep = await (await fetch('../episode.json')).json();
 const P = ep.panels;
 if (CUT.frame === 'framed') document.querySelector('#stage').classList.add('framed');
+/* The caption treatment is a class on the root, so it can be swapped without touching the
+   player: the word spans and their .now/.said classes are identical in every treatment and
+   only their CSS differs. That is what makes two versions comparable — they differ by this
+   and by nothing else. */
+if (CUT.caption && CUT.caption !== 'settle') document.documentElement.classList.add('cap-' + CUT.caption);
 
 /* The cut names which panels play before the titles; everything else follows in the
    source order. Expressing it as ids rather than a count means a cut can open on any
@@ -334,6 +425,32 @@ function warm(n) {
   }
 }
 
+/* Group the words of a line into short phrases.
+
+   The "card" treatment shows one phrase at a time rather than a running line, which is the
+   pop-up mechanic that is everywhere on the platform. Chunking on punctuation first and
+   only then on length keeps the phrases readable — a chunk that breaks mid-clause reads as
+   a stutter, which is worse than no chunking at all. */
+function chunkWords(words, max) {
+  const out = [];
+  let cur = [];
+  for (let k = 0; k < words.length; k++) {
+    cur.push(k);
+    const w = words[k][0];
+    const ends = /[.,;:?!—]$/.test(w);
+    if ((ends && cur.length >= 2) || cur.length >= max || k === words.length - 1) {
+      out.push(cur);
+      cur = [];
+    }
+  }
+  if (cur.length) out.push(cur);
+  const of = new Array(words.length);
+  out.forEach((g, ci) => g.forEach((k) => { of[k] = ci; }));
+  return of;
+}
+
+let chunkOf = [];
+
 function paintCaption(p) {
   cap.classList.toggle('speech', !!p.speech);
   speaker.textContent = p.speech ? (p.role === 'male' ? 'Aryabhata' : p.role) : '';
@@ -341,27 +458,49 @@ function paintCaption(p) {
   // English has word timings, so the caption can track the voice; Hindi does not
   if (lang === 'en' && p.words.length) {
     cap.classList.remove('plain');
-    cap.innerHTML = p.words.map(([w], k) => \`<span class="w" data-k="\${k}">\${w}</span>\`).join(' ');
+    chunkOf = CUT.caption === 'card' ? chunkWords(p.words, 5) : [];
+    cap.innerHTML = p.words.map(([w], k) =>
+      \`<span class="w" data-k="\${k}"\${chunkOf.length ? \` data-c="\${chunkOf[k]}"\` : ''}>\${w}</span>\`).join(' ');
   } else {
     cap.classList.add('plain');
     cap.textContent = p.text[lang] || p.text.en;
+    chunkOf = [];
+  }
+}
+
+/* The one place a caption's highlight state is decided.
+
+   This used to exist twice — once for live playback and once for the frame-accurate export
+   — and two copies of the rule that decides what the viewer sees is how the master and the
+   player quietly stop agreeing. */
+function paintWords(p, ms) {
+  if (lang !== 'en' || !p.words.length) return;
+  const spans = cap.children;
+  let live = -1;
+  for (let k = 0; k < p.words.length; k++) {
+    const [, t, d] = p.words[k];
+    const s = spans[k];
+    if (!s) continue;
+    const now = ms >= t && ms < t + d + 60;
+    const said = ms >= t;
+    if (now) live = k;
+    if (s.classList.contains('now') !== now) s.classList.toggle('now', now);
+    if (s.classList.contains('said') !== said) s.classList.toggle('said', said);
+  }
+  if (!chunkOf.length) return;
+  /* Between words there is no live word, so the last one spoken decides the chunk —
+     otherwise the card blinks out in every gap. */
+  if (live < 0) for (let k = p.words.length - 1; k >= 0; k--) { if (ms >= p.words[k][1]) { live = k; break; } }
+  const c = live >= 0 ? chunkOf[live] : 0;
+  for (let k = 0; k < p.words.length; k++) {
+    const s = spans[k];
+    if (s) s.classList.toggle('inchunk', chunkOf[k] === c);
   }
 }
 
 function tick(p) {
   if (!audio) return;
-  const ms = audio.currentTime * 1000;
-  if (lang === 'en' && p.words.length) {
-    const spans = cap.children;
-    for (let k = 0; k < p.words.length; k++) {
-      const [, t, d] = p.words[k];
-      const s = spans[k]; if (!s) continue;
-      const now = ms >= t && ms < t + d + 60;
-      const said = ms >= t;
-      if (s.classList.contains('now') !== now) s.classList.toggle('now', now);
-      if (s.classList.contains('said') !== said) s.classList.toggle('said', said);
-    }
-  }
+  paintWords(p, audio.currentTime * 1000);
   const done = ORDER.slice(0, i).reduce((a, k) => a + P[k].dur, 0) + audio.currentTime;
   bar.style.width = (100 * done / ep.runtime).toFixed(2) + '%';
   raf = requestAnimationFrame(() => tick(p));
@@ -611,17 +750,7 @@ function seek(t) {
     el.style.animationDelay = (-lt).toFixed(3) + 's';
   }
 
-  if (lang === 'en' && p.words.length) {
-    const ms = lt * 1000;
-    const spans = cap.children;
-    for (let k = 0; k < p.words.length; k++) {
-      const [, wt, wd] = p.words[k];
-      const s = spans[k];
-      if (!s) continue;
-      s.classList.toggle('now', ms >= wt && ms < wt + wd + 60);
-      s.classList.toggle('said', ms >= wt);
-    }
-  }
+  paintWords(p, lt * 1000);
 
   const done = ORDER.slice(0, n).reduce((a, k) => a + P[k].dur, 0) + lt;
   bar.style.width = (100 * done / ep.runtime).toFixed(2) + '%';
