@@ -116,6 +116,16 @@ async function builtHere() {
 }
 
 // ── report ────────────────────────────────────────────────────────────────
+/* Only when run directly. This module is imported by the seeder and the factory, and a
+   module that prints a table and calls process.exit() on import is not importable. */
+const RUN_DIRECTLY = process.argv[1] && path.resolve(process.argv[1]).endsWith('stories.mjs');
+if (!RUN_DIRECTLY) {
+  // exported for use as a library; nothing else to do
+} else {
+  await main();
+}
+
+async function main() {
 const all = await loadStories();
 const done = await builtHere();
 
@@ -178,4 +188,5 @@ if (has('plan')) {
   console.log(`  two versions each: ~${(hrs1 * 2).toFixed(1)} h`);
   console.log(`  in a 12 h window:  ~${Math.floor(720 / PER_VERSION_MIN)} versions`
     + ` = ${Math.floor(720 / PER_VERSION_MIN / 2)} stories at two versions each\n`);
+}
 }
