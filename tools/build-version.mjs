@@ -8,29 +8,28 @@
    node tools/build-version.mjs            # all directions that have clips
    node tools/build-version.mjs v2c
    node tools/build-version.mjs v3-empires --variant mobile
+   node tools/build-version.mjs --era chola --variant kingdom
+   node tools/build-version.mjs --era all --variant stinger
 */
 import { mkdir, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { DIRECTIONS } from './directions.mjs';
 import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
 import { buildScore, SCORES } from './score.mjs';
 import { variant, beatsFor } from './variants.mjs';
 import { picks, choose } from './picks.mjs';
+import { resolveSources } from './source.mjs';
 
 const argv = process.argv.slice(2);
-const vIdx = argv.indexOf('--variant');
-const VNAME = vIdx >= 0 ? argv[vIdx + 1] : 'default';
+const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : d; };
+const VNAME = flag('variant', 'default');
 const V = variant(VNAME);
+const CUT = flag('beats', null)?.split(',').map((s) => s.trim());
 
-const ROOT = 'versions';
-/* Same -1 guard as gen-stills: when --variant is absent, vIdx + 1 is 0 and the
-   direction filter gets dropped, building every direction instead of the one asked for. */
-const skip = vIdx >= 0 ? vIdx + 1 : -1;
-const filter = argv.filter((a, i) => !a.startsWith('--') && i !== skip);
+const sources = await resolveSources(argv, { valued: ['variant', 'beats'] });
 
-async function latest(dirId, kind, beatId, ext) {
-  const files = await readdir(path.join(ROOT, dirId, kind)).catch(() => []);
-  const p = await picks(ROOT, dirId);
+async function latest(root, dirId, kind, beatId, ext) {
+  const files = await readdir(path.join(root, dirId, kind)).catch(() => []);
+  const p = await picks(root, dirId);
   return choose(files, beatId, ext, p[beatId]);
 }
 
@@ -258,23 +257,19 @@ if (layer) {
 </html>
 `;
 
-const dirs = filter.length
-  ? DIRECTIONS.filter((d) => filter.some((f) => d.id.includes(f)))
-  : DIRECTIONS;
-
 let built = 0;
-for (const dir of dirs) {
-  const want = beatsFor(dir, V);
+for (const { root, dir } of sources) {
+  const want = beatsFor(dir, V, CUT);
   const beats = [];
   for (const b of want) {
-    const clip = await latest(dir.id, 'clips', b.id, 'mp4');
-    if (clip) beats.push({ ...b, clip, clipLen: await clipSeconds(path.join(ROOT, dir.id, 'clips', clip)) });
+    const clip = await latest(root, dir.id, 'clips', b.id, 'mp4');
+    if (clip) beats.push({ ...b, clip, clipLen: await clipSeconds(path.join(root, dir.id, 'clips', clip)) });
   }
   if (beats.length !== want.length) {
     console.log(`  skip ${dir.id} — ${beats.length}/${want.length} clips`);
     continue;
   }
-  const out = path.join(ROOT, dir.id, V.out, 'index.html');
+  const out = path.join(root, dir.id, V.out, 'index.html');
   await mkdir(path.dirname(out), { recursive: true });
   await writeFile(out, page(dir, beats));
   const s = schedule(beats);

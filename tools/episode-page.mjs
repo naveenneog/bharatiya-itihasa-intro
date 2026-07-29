@@ -451,9 +451,14 @@ function chunkWords(words, max) {
 
 let chunkOf = [];
 
+/* The speaking character is named per episode, not per project. When this was the string
+   "Aryabhata" every episode's dialogue was attributed to him. The episode's own figure is
+   used instead; a story whose speaker is someone else falls back to the role. */
+const SPEAKER = ep.figure || '';
+
 function paintCaption(p) {
   cap.classList.toggle('speech', !!p.speech);
-  speaker.textContent = p.speech ? (p.role === 'male' ? 'Aryabhata' : p.role) : '';
+  speaker.textContent = p.speech ? (p.role === 'male' && SPEAKER ? SPEAKER : p.role) : '';
   speaker.classList.toggle('on', !!p.speech);
   // English has word timings, so the caption can track the voice; Hindi does not
   if (lang === 'en' && p.words.length) {

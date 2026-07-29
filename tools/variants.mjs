@@ -49,6 +49,7 @@ export const VARIANTS = {
      sequence remains its own piece; it is not what an episode opens with. */
   stinger: {
     out: 'build-stinger', ts: 1.6, tw: '37%', score: 'procession2',
+    perSource: true,
     beats: ['01-dinara', '03-bhramati'],
     scrim: MOBILE_SCRIM,
   },
@@ -63,8 +64,21 @@ export function variant(name) {
   return v;
 }
 
-/** The beats a variant actually uses, in the direction's own order. */
-export function beatsFor(dir, v) {
-  if (!v.beats) return dir.beats;
-  return dir.beats.filter((b) => v.beats.includes(b.id));
+/** The beats a variant actually uses, in the sequence's own order.
+
+    Three levels, narrowest first: an explicit `--beats a,b` for one build, then the
+    sequence's own `stinger` list (an era knows which two of its beats introduce it far
+    better than a global config does), then the variant's list. A cut that names a beat
+    the sequence does not have is a mistake worth stopping for — a silent filter would
+    quietly ship a one-beat stinger. */
+export function beatsFor(dir, v, override = null) {
+  const want = override || (v.perSource ? dir.stinger : null) || v.beats;
+  if (!want) return dir.beats;
+  const have = new Set(dir.beats.map((b) => b.id));
+  const missing = want.filter((id) => !have.has(id));
+  if (missing.length) {
+    console.error(`${dir.id}: cut names beat(s) it does not have — ${missing.join(', ')}`);
+    process.exit(1);
+  }
+  return dir.beats.filter((b) => want.includes(b.id));
 }

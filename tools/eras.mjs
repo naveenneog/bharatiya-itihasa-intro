@@ -26,6 +26,11 @@ import { beatDurations, roman, buildPrompt, INK_AND_LIGHT, RIGHT } from './ink.m
 
 export const ROOT = 'eras';
 
+/** The two beats that open an episode when an era has not chosen its own. */
+export function defaultStinger(beats) {
+  return [beats[0]?.id, beats[2]?.id ?? beats[beats.length - 1]?.id].filter(Boolean);
+}
+
 /** Every era folder that has an era.json. */
 export async function listEras() {
   const dirs = await readdir(ROOT).catch(() => []);
@@ -54,6 +59,11 @@ export async function loadEra(id) {
     id: raw.id || id,
     dir: path.join(ROOT, id),
     style: INK_AND_LIGHT,
+    /* Which two beats open an episode of this era. Derived when the era does not say,
+       so a freshly seeded era can be cut without editing anything: beat 1 establishes
+       the world, beat 3 is far enough in to be the era's strongest single image. A
+       story-specific cut overrides this per episode. */
+    stinger: raw.stinger || defaultStinger(beats),
     beats: beats.map((b, i) => ({
       ...b,
       dur: durs[i],
@@ -69,6 +79,11 @@ export async function saveEra(id, era) {
      so a stale copy of them can never be committed and then quietly disagree with the
      shared language. */
   const { dir, style, ...keep } = era;
+  /* A derived stinger is not written back — otherwise the first save would freeze
+     today's derivation into nineteen files, and changing the rule later would silently
+     stop applying to any era that had ever been saved. */
+  const derived = defaultStinger(era.beats || []);
+  if (JSON.stringify(keep.stinger) === JSON.stringify(derived)) delete keep.stinger;
   keep.beats = (era.beats || []).map(({ dur, fullPrompt, era: e, ...b }) => ({
     ...b,
     era: e ? { hi: e.hi, en: e.en, when: e.when, line: e.line } : undefined,

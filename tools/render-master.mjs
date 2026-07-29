@@ -14,20 +14,21 @@
 
      node tools/render-master.mjs v3-empires
      node tools/render-master.mjs v3-empires --score --out dist/v4-empires-scored.mp4
+     node tools/render-master.mjs --era chola --variant kingdom --score
 */
 import { mkdir, rm, readdir, writeFile } from 'node:fs/promises';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { launch } from '../scripts/browser.mjs';
-import { DIRECTIONS } from './directions.mjs';
 import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
 import { MASTER_AF } from './score.mjs';
 import { normaliseTo, assertLoudness } from './loudness.mjs';
 import { variant, beatsFor } from './variants.mjs';
+import { resolveSource } from './source.mjs';
+import { picks, choose } from './picks.mjs';
 
 const execFileP = promisify(execFile);
-const ROOT = 'versions';
 const W = 1920;
 const H = 1080;
 
@@ -40,26 +41,19 @@ const SCORE = argv.includes('--score');
 const VARIANT = flag('variant', 'default');
 const V = variant(VARIANT);
 const BUILD = V.out;
+const CUT = flag('beats', null)?.split(',').map((s) => s.trim());
 
-const flagIdx = new Set();
-argv.forEach((a, i) => { if (a.startsWith('--')) { flagIdx.add(i); flagIdx.add(i + 1); } });
-const filter = argv.filter((_, i) => !flagIdx.has(i));
+const { root: ROOT, dir } = await resolveSource(argv, {
+  valued: ['fps', 'port', 'out', 'variant', 'beats', 'era'],
+});
 
-const dir = DIRECTIONS.find((d) => filter.some((f) => d.id.includes(f)));
-if (!dir) {
-  console.error(`usage: node tools/render-master.mjs <version-id>\nknown: ${DIRECTIONS.map((d) => d.id).join(', ')}`);
-  process.exit(1);
-}
-
-async function latestClip(dirId, beatId) {
-  const d = path.join(ROOT, dirId, 'clips');
-  const files = await readdir(d).catch(() => []);
-  let best = null; let n = 0;
-  for (const f of files) {
-    const g = f.match(new RegExp(`^${beatId}-r(\\d+)\\.mp4$`));
-    if (g && Number(g[1]) > n) { n = Number(g[1]); best = f; }
-  }
-  return best;
+/* The picked revision, not the newest — the same rule build-version.mjs uses. When this
+   took the newest and the page took the pick, the master could be composited from a clip
+   the page never showed. */
+async function pickedClip(dirId, beatId) {
+  const files = await readdir(path.join(ROOT, dirId, 'clips')).catch(() => []);
+  const p = await picks(ROOT, dirId);
+  return choose(files, beatId, 'mp4', p[beatId]);
 }
 
 // ---------------------------------------------------------------- plates
@@ -196,8 +190,8 @@ function buildGraph(sched, plates, total) {
 // ---------------------------------------------------------------- main
 
 const beats = [];
-for (const b of beatsFor(dir, V)) {
-  const clip = await latestClip(dir.id, b.id);
+for (const b of beatsFor(dir, V, CUT)) {
+  const clip = await pickedClip(dir.id, b.id);
   if (!clip) { console.error(`missing clip for ${b.id} — run gen-clips first`); process.exit(1); }
   beats.push({ ...b, clip, clipLen: await clipSeconds(path.join(ROOT, dir.id, 'clips', clip)) });
 }

@@ -59,7 +59,6 @@ const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : arg
 const has = (k) => argv.includes(`--${k}`);
 
 const SRC = arg('src', 'C:/Users/navg/DailyApps/IndianHistory');
-const STORY = arg('story', 'aryabhata_turns_the_earth');
 const SLUG = arg('slug', 'aryabhata');
 const PANEL = arg('panel', null);
 const LANG = arg('lang', 'en');
@@ -71,6 +70,17 @@ const TRIES = Number(arg('tries', '4'));
 
 const EP = path.join('episodes', SLUG);
 const OUT = path.join(EP, 'voice-fix');
+
+/* The story key comes from the built episode, not from a default. When it defaulted to
+   aryabhata, `--slug zero` read one story's narration and wrote the fixes into another
+   episode's folder — a mismatch nothing downstream would have caught. */
+const STORY = arg('story', null)
+  || await readFile(path.join(EP, 'episode.json'), 'utf8')
+    .then((s) => JSON.parse(s).id)
+    .catch(() => {
+      console.error(`no episodes/${SLUG}/episode.json — run build-episode.mjs first, or pass --story`);
+      process.exit(1);
+    });
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
