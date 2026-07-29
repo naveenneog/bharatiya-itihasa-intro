@@ -21,7 +21,8 @@
 */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { writeFile, mkdir, readFile } from 'node:fs/promises';
+import { writeFile, mkdir, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 const execFileP = promisify(execFile);
@@ -92,12 +93,44 @@ export async function genImage(prompt, out, { size = '1536x1024', quality = 'hig
   return out;
 }
 
-/** Text -> video, or image -> video when `ref` is a PNG path whose pixel size is
-    exactly `size`. Polls to completion and writes the mp4. */
-export async function genVideo(prompt, out, { seconds = '4', size = '1792x1024', model = 'sora-2', ref = null, onTick } = {}) {
+/** Pixel size of an image, so a reference can be checked rather than assumed. */
+async function pixels(file) {
+  const { stdout } = await execFileP('ffprobe', ['-v', 'error', '-select_streams', 'v:0',
+    '-show_entries', 'stream=width,height', '-of', 'csv=p=0', file]);
+  const [w, h] = stdout.trim().split(',').map(Number);
+  return { w, h };
+}
+
+/* Fit a reference image to exactly the requested size.
+
+   Sora rejects any mismatch with "Inpaint image must match the requested width and height".
+   The stills are 3:2 and the video is 16:9, so this centre-crops — trimming top and bottom
+   only, which preserves both the composed empty left third and the subject placement — and
+   then scales to exact pixels.
+
+   It lives here rather than in each caller because it is a property of *this API*, not of
+   any one generator. gen-clips.mjs had it and gen-era.mjs did not, with a comment claiming
+   the client handled it; the client did not, and every era clip failed. */
+async function fitRef(ref, size) {
+  const [W, H] = size.split('x').map(Number);
+  const { w, h } = await pixels(ref);
+  if (w === W && h === H) return ref;
+  const out = path.join(os.tmpdir(), `soraref-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`);
+  await execFileP('ffmpeg', ['-y', '-loglevel', 'error', '-i', ref,
+    '-vf', `crop='min(iw,ih*${W}/${H})':'min(ih,iw*${H}/${W})',scale=${W}:${H}:flags=lanczos`,
+    '-frames:v', '1', out]);
+  return out;
+}
+
+/** Text -> video, or image -> video when `ref` is a still. A reference of any size works —
+    it is centre-cropped and scaled to `size` first, because sora requires an exact match. */
+export async function genVideo(prompt, out, { seconds = '4', size = '1280x720', model = 'sora-2', ref = null, onTick } = {}) {
   let init;
+  let tmpRef = null;
   if (ref) {
-    const png = await readFile(ref);
+    const fitted = await fitRef(ref, size);
+    if (fitted !== ref) tmpRef = fitted;
+    const png = await readFile(fitted);
     const fd = new FormData();
     fd.set('model', model);
     fd.set('prompt', prompt);
@@ -112,7 +145,15 @@ export async function genVideo(prompt, out, { seconds = '4', size = '1792x1024',
       body: JSON.stringify({ model, prompt, seconds: String(seconds), size }),
     };
   }
-  const create = await call(`${ENDPOINT}/openai/v1/videos?api-version=${VID_APIV}`, init);
+  let create;
+  try {
+    create = await call(`${ENDPOINT}/openai/v1/videos?api-version=${VID_APIV}`, init);
+  } finally {
+    /* The fitted copy is only needed for the upload. Cleaning up here rather than after
+       the poll loop keeps 170 of them out of the temp directory, and the finally matters
+       because a rejected request is exactly when they would otherwise accumulate. */
+    if (tmpRef) await rm(tmpRef, { force: true });
+  }
   const job = await create.json();
   if (!job.id) throw new Error(`no job id: ${JSON.stringify(job).slice(0, 300)}`);
 

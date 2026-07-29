@@ -34,17 +34,35 @@ const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
 const has = (k) => argv.includes(`--${k}`);
 
-const VALUE_FLAGS = new Set(['what', 'conc', 'rounds', 'seconds', 'beats']);
+const VALUE_FLAGS = new Set(['what', 'conc', 'rounds', 'seconds', 'beats', 'beat', 'era']);
+const BOOL_FLAGS = new Set(['dry', 'missing', 'all']);
 const consumed = new Set();
 argv.forEach((a, i) => { if (a.startsWith('--') && VALUE_FLAGS.has(a.slice(2))) consumed.add(i + 1); });
 const targets = argv.filter((a, i) => !a.startsWith('--') && !consumed.has(i));
+
+/* Refuse to run on a flag this tool does not understand.
+
+   `--beat 01-uzhai` (the name gen-clips.mjs uses) was silently ignored here, where the
+   flag is `--beats` — so a request for one clip generated ten. A narrowing flag that is
+   quietly dropped *widens* the job, and this job costs money per item, so an unknown flag
+   has to be an error rather than a shrug. */
+const unknown = argv.filter((a) => a.startsWith('--')
+  && !VALUE_FLAGS.has(a.slice(2)) && !BOOL_FLAGS.has(a.slice(2)));
+if (unknown.length) {
+  console.error(`unknown flag(s): ${unknown.join(', ')}`);
+  console.error(`known: ${[...VALUE_FLAGS].map((f) => `--${f} <v>`).join(', ')}, ${[...BOOL_FLAGS].map((f) => `--${f}`).join(', ')}`);
+  process.exit(1);
+}
 
 const WHAT = arg('what', 'stills');
 const ROUNDS = Number(arg('rounds', '1'));
 const SECONDS = arg('seconds', '8');
 const DRY = has('dry');
 const ONLY_MISSING = has('missing');
-const BEATFILTER = (arg('beats', '') || '').split(',').map((s) => s.trim()).filter(Boolean);
+/* Both spellings, because the sibling generator uses the singular and picking one to be
+   correct only moves which of the two costs money. */
+const BEATFILTER = [arg('beats', ''), arg('beat', '')]
+  .join(',').split(',').map((s) => s.trim()).filter(Boolean);
 
 /* Concurrency is per *kind of job*, because the two endpoints behave differently: image
    generation is fast and tolerates four in flight, video is slow and expensive and two is
@@ -147,10 +165,10 @@ async function worker() {
         await genImage(j.beat.fullPrompt, out, { size: '1536x1024', quality: 'high' });
         await writeFile(out.replace(/\.png$/, '.txt'), j.beat.fullPrompt);
       } else {
-        /* Sora needs the reference image at exactly the output size, so the still is
-           cropped to it by the existing gen-clips path. Here the still is already
-           1536x1024 and the clip is 1280x720; genVideo handles the resize internally when
-           given a ref, so the still is passed as-is. */
+        /* The still is 1536x1024 (3:2) and the clip is 1280x720 (16:9). genVideo
+           centre-crops and scales the reference to the exact requested size, because sora
+           rejects any mismatch — see fitRef in azure.mjs. This comment used to assert that
+           without it being true, and every clip here failed with a 400. */
         await genVideo(j.beat.fullPrompt, out, { seconds: SECONDS, size: '1280x720', ref: j.still });
         await writeFile(out.replace(/\.mp4$/, '.txt'), j.beat.fullPrompt);
       }
@@ -158,7 +176,13 @@ async function worker() {
       console.log(`  [${done + failed}/${queue.length}] ${((Date.now() - t0) / 1000).toFixed(0)}s  ok   ${label} -> ${path.basename(out)}`);
     } catch (e) {
       failed++;
-      console.log(`  [${done + failed}/${queue.length}] ${((Date.now() - t0) / 1000).toFixed(0)}s  FAIL ${label}: ${String(e.message).slice(0, 140)}`);
+      /* Collapse the message to one line and keep the *end* as well as the start. These
+         errors arrive as pretty-printed JSON, so a plain 140-character prefix showed
+         `HTTP 400 { "error": { "message":` and stopped — 170 identical failures with the
+         reason cut off. */
+      const msg = String(e.message).replace(/\s+/g, ' ').trim();
+      const short = msg.length > 200 ? `${msg.slice(0, 110)} … ${msg.slice(-80)}` : msg;
+      console.log(`  [${done + failed}/${queue.length}] ${((Date.now() - t0) / 1000).toFixed(0)}s  FAIL ${label}: ${short}`);
     }
   }
 }
