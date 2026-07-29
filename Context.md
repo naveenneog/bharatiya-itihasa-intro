@@ -630,6 +630,85 @@ and `saveEra()` refuses to persist a derived value, so changing the rule later s
 
 ---
 
+## The four versions
+
+Each differs from the next by exactly one thing, so a comparison between any two is a
+comparison of that thing.
+
+| | cut | what changes |
+|---|---|---|
+| v1 | `cut-e-framed` | **settle** — the whole line present, the spoken word lit |
+| v2 | `cut-h-card` | **card** — a few words at a time, set large |
+| v3 | `cut-i-flow` | **flow** — the caption scrolls so the spoken word never leaves the centre line |
+| v4 | `cut-j-shots` | flow **+ the picture cuts** on the speaker's pauses |
+
+`dist/<era>/<slug>_<version>/` — video, intro, thumbnail, SRT, chapters, description, tags,
+title, `UPLOAD.md`, and `ab/` with three thumbnails, five titles and five headlines.
+
+### The cold open — `tools/hook.mjs`
+
+The source project's opening line introduces a story; it was not written to stop a scroll.
+The channel writes its own: one claim, 12–26 words, opening on something concrete and
+stopping on the sharp part, spoken by the same narrator, **over the thumbnail's own plate**.
+
+The first prompt asked for a claim *and* for the question to stay unanswered — those pull
+against each other, and the model produced a man standing on a ridge, wondering. What is
+withheld is the **how and the why, never the what**. `hook.mjs` now checks its own output
+for inert verbs, subordinate-clause openers and numerals.
+
+### The stinger belongs to its episode — `tools/stinger.mjs`
+
+The era default is beat 1 + beat 3, which for the Guptas is a gold coin and *the turning
+Earth* — Aryabhata's beat, in front of a zero episode, and identical for every episode in
+the series. Two beats are now chosen per story: **widest first**, then the beat that is
+literally the story, so the sequence ends on what is about to be watched. Zero got
+*the golden age* → *place value*, whose image is a glowing ring with a dark centre.
+
+### The thumbnail must be the same person
+
+Described from the **narration**, the model invented a bearded elder in a turban for an
+episode whose art shows a moustached man in his late twenties. `subject.mjs` now passes the
+episode's hero, cover and first panel to the model **as images** and asks it to match age,
+facial hair, headwear, garment borders and jewellery, and to report which features it took.
+
+Two things fell out: the object drifted to an armillary sphere (episode one's object — two
+episodes would have worn the same picture), and regenerating wrote `-r2` plates while
+`thumbnail.mjs` still named `-r1`.
+
+---
+
+## Two metric artefacts, both caught by disbelieving a result
+
+**Loudness.** Two renders of identical audio landed at −0.75 and −1.21 dBTP, because
+`loudnorm` applies its ceiling to its own estimate. The scorer's threshold is −1, so the same
+content scored 73 or 78 — and it nearly got reported as *the card treatment outperforming
+settle*. A real limiter (`alimiter=limit=-1.2dB:level=disabled`) makes the ceiling a
+guarantee. `assertLoudness` now fails above −0.9.
+
+**The intro cliff.** The intro weight stepped 30 → 27 at exactly 25 s, so titles ending at
+25.1 s scored three points below 24.9 s. A tenth of a second carried the weight of a real
+editorial decision. It ramps now.
+
+**The rule both point at:** when a result is surprising, check the instrument before
+changing the video.
+
+---
+
+## Where the score can and cannot go
+
+All four versions score **77/100**, which is correct — they differ only in treatment, and the
+scorer does not measure treatment. The remaining 23 points are not reachable by cutting:
+
+- **hooks 6/20** — dominated by a **95-second stretch with no new hook**. That is the
+  narration's shape.
+- **pacing 7/15** — measures variance in panel *duration*, and durations are set by the
+  narration audio.
+
+Both need story-level edits upstream in IndianHistory. **Cut J is worth judging by eye**: the
+picture now cuts two or three times per panel, and the metric cannot see it.
+
+---
+
 ## Still to do
 
 1. **Generate era clips** — 170 jobs at ~72 s each. The one remaining big spend.
