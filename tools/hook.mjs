@@ -70,9 +70,20 @@ Five candidates, ranked best first. Each one:
   a subordinate clause ("In the age after...", "At a time when..."), which delays the subject
   past the point where anyone is still listening.
 - **States a claim, and stops on the sharp part of it.** The last three words are the ones
-  that are remembered, so the surprising thing goes at the end, not in the middle.
-- **Poses the question the episode answers; does not answer it.** If the line contains the
-  conclusion there is nothing left to stay for.
+  that are remembered, so the startling thing goes at the end, not in the middle.
+- **Asserts something.** This is the whole job. Somebody *did* something, *said* something,
+  *proved* something — or a flat astonishing fact is stated outright. The line must contain
+  something a viewer could disagree with.
+
+  What is withheld is the **how and the why**, never the what. "He said the Earth turns" is
+  a hook: you have the claim and not the argument. "He wondered what would happen if the
+  Earth turned" is not — nothing has been asserted, so there is nothing to resist and
+  nothing to resolve.
+
+  Banned constructions, because they describe a person having a thought rather than making
+  a claim: *wondering*, *pondering*, *asks himself*, *sets out to discover*, *begins the
+  long journey*, *would one day*, *little did he know*. If the main verb of your line is
+  "stands", "sits", "watches" or "wonders", rewrite it.
 - **Is true.** Every fact must be supported by the narration, or be uncontroversial general
   knowledge a historian would not dispute. Mark anything you are stretching as "overclaim"
   rather than quietly shipping it — a history channel pays twice for a click it has to
@@ -81,9 +92,13 @@ Five candidates, ranked best first. Each one:
   this is read by a speech synthesiser.
 - Plain prose. No rhetorical questions to camera, no "imagine if", no second person.
 
+A line that works, for reference: "Kusumapura, four ninety-nine. Under the quiet stars of
+Gupta Magadha, a young Aryabhata dares to say: the Earth turns." Place, date, person, and an
+assertion that lands on its last three words.
+
 Vary the five: at least one that leads with a date and place, one that leads with the
 person, one that leads with the object, and one built on a comparison to something the
-viewer already knows.`;
+viewer already knows. All five must still assert something.`;
 
 const user = `TITLE: ${ep.title}
 FIGURE: ${ep.figure || '—'}
@@ -108,10 +123,22 @@ if (!doc || FORCE) {
 }
 
 console.log('\nCANDIDATES');
+/* The prompt bans these; the model produces them anyway often enough to be worth catching.
+   A line whose main verb is inert describes a person having a thought instead of making a
+   claim, and there is nothing in it for a viewer to resist or resolve. */
+const INERT = /\bwonder(s|ing|ed)?\b|\bponder|\basks? himself\b|\bsets? out to\b|\bbegins? the long\b|\bwould one day\b|\blittle did\b|\b(stands?|sits?|watch(es)?|gazes?|stares?) \b/i;
+const OPENER = /^(in|at|during|after|before|when|while|amid|throughout|as) /i;
+
 for (const [i, h] of doc.candidates.entries()) {
   const words = h.text.trim().split(/\s+/).length;
+  const flags = [];
+  if (INERT.test(h.text)) flags.push('inert verb — describes, does not assert');
+  if (OPENER.test(h.text)) flags.push('opens on a subordinate clause');
+  if (words < 12 || words > 26) flags.push(`${words} words, outside 12-26`);
+  if (/\d/.test(h.text)) flags.push('contains a numeral — will be read as a quantity');
   console.log(`  ${i + 1}. ${h.text}`);
   console.log(`     ${words} words${h.risk && h.risk !== 'none' ? `  [${h.risk}]` : ''} — ${h.why}`);
+  for (const f of flags) console.log(`     ! ${f}`);
 }
 
 if (PICK) doc.chosen = Number(PICK) - 1;
