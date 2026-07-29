@@ -231,6 +231,10 @@ await mkdir(AB, { recursive: true });
 const sheet = path.join('dist', `thumbs-${SLUG}`);
 const others = (await readdir(sheet).catch(() => []))
   .filter((f) => f.endsWith('.png') && !f.startsWith('sheet') && f !== `${cand}.png`)
+  /* The candidates directory also holds a 320x180 preview of each one. Those are outputs,
+     not candidates — taking them as alternatives produced a `-feed-feed.png` and an 18 KB
+     "thumbnail" that was a feed preview blown back up. */
+  .filter((f) => !f.endsWith('-feed.png'))
   /* One per concept beyond the winner. Three variations of the same picture is not a test,
      it is the same thumbnail three times. */
   .filter((f) => !f.startsWith('quiet-'));

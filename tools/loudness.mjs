@@ -25,6 +25,17 @@ export const TARGET_I = -14;    // LUFS integrated, the streaming reference
 export const TARGET_TP = -1.5;  // dBTP ceiling
 export const TARGET_LRA = 11;   // LU, loudnorm's default range
 
+/* ...and then a real limiter, because loudnorm's ceiling is an estimate and estimates
+   scatter. Two renders of identical audio came out at -0.75 and -1.21 dBTP — same content,
+   same filter, half a dB apart. That is normally harmless, but it straddled the threshold
+   the retention scorer uses, so the same episode scored 73 or 78 depending on which side of
+   the coin-flip it landed. A comparison between two versions was measuring luck.
+
+   `level=disabled` matters: without it alimiter normalises upward as well, which would undo
+   the integrated loudness loudnorm just set. */
+export const CEILING = -1.2;
+const LIMITER = `alimiter=limit=${CEILING}dB:level=disabled`;
+
 const spec = (extra = '') =>
   `loudnorm=I=${TARGET_I}:TP=${TARGET_TP}:LRA=${TARGET_LRA}${extra}`;
 
@@ -54,12 +65,12 @@ export async function measure(file) {
     the ceiling; it falls back to dynamic mode on its own, so `linear=true` is a
     preference rather than a promise and is always safe to ask for. */
 export function normaliseFilter(m) {
-  return spec(
+  return `${spec(
     `:measured_I=${m.input_i}:measured_TP=${m.input_tp}`
     + `:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}`
     + `${m.target_offset !== undefined ? `:offset=${m.target_offset}` : ''}`
     + ':linear=true:print_format=summary',
-  );
+  )},${LIMITER}`;
 }
 
 /** Measure, then report what the correction will do. Returns the pass-two filter. */
@@ -80,6 +91,9 @@ export async function assertLoudness(file, tol = 1.0) {
   const off = Math.abs(i - TARGET_I);
   console.log(`  measured: ${i.toFixed(1)} LUFS, true peak ${tp.toFixed(1)} dBTP`);
   if (off > tol) throw new Error(`master is ${i.toFixed(1)} LUFS, wanted ${TARGET_I} +/- ${tol}`);
-  if (tp > -0.5) throw new Error(`true peak ${tp.toFixed(1)} dBTP will clip on re-encode`);
+  /* The limiter guarantees the ceiling, so anything above it means the limiter did not run
+     — worth failing on rather than shipping a master that clips after the platform's
+     re-encode. The slack is for measurement noise, not for headroom. */
+  if (tp > -0.9) throw new Error(`true peak ${tp.toFixed(1)} dBTP — the limiter did not take effect`);
   return { i, tp };
 }
