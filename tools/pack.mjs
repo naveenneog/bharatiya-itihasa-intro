@@ -103,8 +103,10 @@ Rules:
   mobile. No clickbait that the video does not pay off. Mark anything you are stretching
   as "overclaim" rather than quietly shipping it.
 - 5 thumbnail headlines, ranked. Each is 2-4 SHORT lines in CAPS, 1-3 words per line —
-  they are set very large over artwork and must be readable at 320x180. Do not repeat the
-  title: the thumbnail and the title are read together and should say two different things.
+  they are set very large over artwork and must be readable at 320x180. The thumbnail and
+  the title are read together, so they must say two different things: a headline that
+  restates the episode title, or the title you ranked first, wastes half the packaging.
+  Prefer a question or a reversal that the title does not contain.
 - 10-14 tags, specific before generic.
 - 8-12 chapters. Keys MUST be panel ids that appear in the transcript. The first chapter
   must be the very first panel id in the transcript. Consecutive chapters must be at least

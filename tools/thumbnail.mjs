@@ -44,10 +44,15 @@ const H = 720;
 /* Headlines. Kept separate from layout so the same words can be tried against different
    pictures — which of the two is doing the work is otherwise impossible to tell.
 
+   Aryabhata's set was written by hand before the packaging author existed, and is kept
+   verbatim so episode one can still be rebuilt exactly as it shipped. Every other episode
+   gets its headlines from `publish.json`, where tools/pack.mjs writes five ranked options
+   with the overclaims marked.
+
    "1,000 years before Copernicus" is a hook, not a stretch: the Aryabhatiya is 499 CE and
    De revolutionibus is 1543, so the gap is 1,044 years. Everything here has to survive
    someone checking it, or the channel pays for the click twice. */
-const HEADLINES = {
+const ARYABHATA_HEADLINES = {
   turns: { kicker: '499 CE', l1: 'THE EARTH', l2: 'TURNS', foot: 'BHĀRATĪYA ITIHĀSA · EP 01' },
   hook: { kicker: '1,000 YEARS EARLY', l1: 'HE SAID THE', l2: 'EARTH TURNS', foot: 'INDIA, 499 CE' },
   before: { kicker: 'INDIA, 499 CE', l1: '1,000 YEARS', l2: 'BEFORE COPERNICUS', foot: 'BHĀRATĪYA ITIHĀSA · EP 01', tight: true },
@@ -81,7 +86,7 @@ const HEADLINES = {
    because each plate puts the face somewhere different and a fixed crop decapitates one
    of them. `side` says which half the type takes — the art was generated with the left
    third empty, but the eye plate reads better with the words on the right. */
-const CANDIDATES = [
+const ARYABHATA_CANDIDATES = [
   { id: 'defiant-turns', art: 'defiant-r1', pos: '62% 38%', side: 'left', head: 'turns' },
   { id: 'defiant-hook', art: 'defiant-r1', pos: '62% 38%', side: 'left', head: 'hook' },
   { id: 'defiant-before', art: 'defiant-r1', pos: '62% 38%', side: 'left', head: 'before' },
@@ -103,6 +108,64 @@ const CANDIDATES = [
   { id: 'BEST-defiant', art: 'defiant-r1', pos: '62% 38%', side: 'left', head: 'turnsCop' },
   { id: 'BEST-gaze', art: 'gaze-r1', pos: '58% 40%', side: 'left', head: 'turnsCop' },
 ];
+
+/* Where each plate's subject sits, so the 16:9 crop does not take the top of a head off.
+   The four concepts are the same for every episode, so these are too. */
+const PLATES = [
+  { art: 'defiant', pos: '62% 38%' },
+  { art: 'hold', pos: '50% 42%' },
+  { art: 'gaze', pos: '58% 40%' },
+  { art: 'eye', pos: '58% 50%' },
+];
+
+/**
+ * Cross this episode's authored headlines with the four plates.
+ *
+ * Three headlines against four pictures is twelve candidates, which is as many as can
+ * usefully be compared on one contact sheet; the top headline also gets the quiet
+ * treatment on the two strongest plates, so the choice between loud and elegant is
+ * available rather than assumed.
+ */
+function fromPackaging(meta) {
+  const opts = (meta.options?.thumb_headlines || []).filter((h) => h.lines?.length);
+  if (!opts.length) return null;
+  const kicker = meta.thumb?.kicker || '';
+  const heads = {};
+  const cands = [];
+
+  opts.slice(0, 3).forEach((h, i) => {
+    const lines = h.lines.map((s) => String(s).toUpperCase());
+    const key = `h${i + 1}`;
+    heads[`${key}Loud`] = { kicker, l1: lines[0], l2: lines[1] || '', l3: lines[2] || null, loud: true };
+    /* The quiet treatment cannot hold three lines at its size, and the second line is set
+       in gold — a headline whose second line is a preposition reads as an error. */
+    heads[key] = {
+      kicker,
+      l1: lines.slice(0, -1).join(' ') || lines[0],
+      l2: lines[lines.length - 1],
+      foot: 'BHĀRATĪYA ITIHĀSA',
+      tight: lines.join(' ').length > 22,
+    };
+    for (const p of PLATES) {
+      cands.push({ id: `LOUD-${p.art}-${key}`, art: `${p.art}-r1`, pos: p.pos, side: 'left', head: `${key}Loud` });
+    }
+    if (i === 0) {
+      for (const p of PLATES.slice(0, 2)) {
+        cands.push({ id: `quiet-${p.art}-${key}`, art: `${p.art}-r1`, pos: p.pos, side: 'left', head: key });
+      }
+    }
+  });
+  return { heads, cands };
+}
+
+const meta = await readFile(path.join(EP, 'publish.json'), 'utf8').then(JSON.parse).catch(() => ({}));
+const authored = SLUG === 'aryabhata' ? null : fromPackaging(meta);
+if (!authored && SLUG !== 'aryabhata') {
+  console.error(`no thumbnail headlines for ${SLUG} — run: node tools/pack.mjs --slug ${SLUG}`);
+  process.exit(1);
+}
+const HEADLINES = authored?.heads || ARYABHATA_HEADLINES;
+const CANDIDATES = authored?.cands || ARYABHATA_CANDIDATES;
 
 const chosen = ONLY ? CANDIDATES.filter((c) => c.id === ONLY) : CANDIDATES;
 if (!chosen.length) {

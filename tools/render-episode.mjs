@@ -55,7 +55,10 @@ const OUT = path.resolve(arg('out', `dist/episode-${SLUG}-${CUT}.mp4`));
 const REUSE = has('reuse');
 
 const EP = path.join('episodes', SLUG);
-const TMP = path.resolve('dist', `.ep-${CUT}`);
+/* Keyed by slug as well as cut. When it was the cut alone, rendering two episodes on the
+   same cut shared one scratch directory, so --reuse would splice one episode's body under
+   another's titles. */
+const TMP = path.resolve('dist', `.ep-${SLUG}-${CUT}`);
 const W = Math.round(1920 * SCALE);
 const H = Math.round(1080 * SCALE);
 

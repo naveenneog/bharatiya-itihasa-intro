@@ -12,7 +12,13 @@
    that the spliced title sequence introduces. Nothing is transcribed by hand, so a
    change to a panel's narration cannot leave the captions a second out.
 
+   With --master it also collects the video itself and the title sequence, so the folder
+   is everything the upload needs and nothing has to be fetched from somewhere else at
+   the moment of publishing.
+
      node tools/publish.mjs --cut cut-e-framed --intro dist/v7-gupta-stinger.mp4
+     node tools/publish.mjs --slug zero --master dist/zero-v1-cut-e-framed.mp4 \
+       --out dist/upload-zero-v1
 */
 import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
 import { existsSync, statSync } from 'node:fs';
@@ -29,8 +35,9 @@ const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : arg
 const SLUG = arg('slug', 'aryabhata');
 const CUT = arg('cut', 'cut-e-framed');
 const INTRO = arg('intro', 'dist/v7-gupta-stinger.mp4');
+const MASTER = arg('master', null);
 const EP = path.join('episodes', SLUG);
-const OUT = path.join('dist', `publish-${SLUG}`);
+const OUT = arg('out', path.join('dist', `publish-${SLUG}`));
 
 const ep = JSON.parse(await readFile(path.join(EP, 'episode.json'), 'utf8'));
 const meta = JSON.parse(await readFile(path.join(EP, 'publish.json'), 'utf8'));
@@ -205,12 +212,60 @@ if (thumbBytes > 2 * 1024 * 1024) {
   throw new Error(`thumbnail is ${(thumbBytes / 1024 / 1024).toFixed(1)} MB — YouTube's limit is 2 MB`);
 }
 
+// ── the video, and the sequence in front of it ───────────────────────────
+/* Collected rather than referenced. An upload folder that points at a master somewhere
+   else is one `dist` clean away from being a folder of text files. */
+const collected = [];
+if (MASTER) {
+  if (!existsSync(MASTER)) throw new Error(`--master ${MASTER} does not exist`);
+  await copyFile(MASTER, path.join(OUT, `${SLUG}.mp4`));
+  collected.push([`${SLUG}.mp4`, statSync(MASTER).size]);
+}
+if (existsSync(INTRO)) {
+  await copyFile(INTRO, path.join(OUT, `${SLUG}-intro.mp4`));
+  collected.push([`${SLUG}-intro.mp4`, statSync(INTRO).size]);
+}
+
+// ── the checklist ────────────────────────────────────────────────────────
+/* What goes where, in the order YouTube's upload form asks for it. Written into the
+   folder rather than remembered, because the cost of pasting the description into the
+   title field is a published video with a broken title. */
+const mb = (b) => `${(b / 1024 / 1024).toFixed(1)} MB`;
+const upload = [
+  `# ${meta.title || ep.title}`,
+  '',
+  `Cut ${CUT} · runtime ${clock(runtime)} · titles ${introLen.toFixed(1)}s at ${clock(spliceAt)}`,
+  '',
+  '## Upload',
+  '',
+  `1. Video          ${SLUG}.mp4`,
+  `2. Title          see title.txt (alternatives in ${path.relative('.', path.join(EP, 'publish.json'))})`,
+  `3. Description    description.txt — paste whole, chapters are already in it`,
+  `4. Thumbnail      ${SLUG}-thumb.jpg`,
+  `5. Subtitles      ${SLUG}.en.srt (English, manual)`,
+  `6. Tags           tags.txt`,
+  '',
+  '## Check before publishing',
+  '',
+  '- [ ] The first chapter reads 0:00 in the description box.',
+  '- [ ] The thumbnail is legible in the mobile preview, not just the desktop one.',
+  '- [ ] The title and the thumbnail say two different things.',
+  '- [ ] Captions are set to English, not auto-generated.',
+  '',
+  '## In this folder',
+  '',
+  ...collected.map(([f, b]) => `  ${f.padEnd(28)} ${mb(b)}`),
+].join('\n');
+await writeFile(path.join(OUT, 'UPLOAD.md'), `${upload}\n`);
+await writeFile(path.join(OUT, 'title.txt'), `${meta.title || ep.title}\n`);
+
 // ── report ───────────────────────────────────────────────────────────────
 const last = cues[cues.length - 1];
-console.log(`${SLUG} / ${CUT}`);
+console.log(`${SLUG} / ${CUT} -> ${OUT}/`);
 console.log(`  runtime      ${clock(runtime)}  (body ${clock(acc)} + titles ${introLen.toFixed(1)}s at ${clock(spliceAt)})`);
 console.log(`  captions     ${cues.length} cues, last ends ${clock(last.b)} -> ${SLUG}.en.srt`);
 console.log(`  chapters     ${kept.length} kept${dropped ? `, ${dropped} dropped for the 10s rule` : ''} -> chapters.txt`);
 console.log(`  description  ${description.split('\n').length} lines -> description.txt`);
 console.log(`  thumbnail    ${cand} -> ${SLUG}-thumb.jpg (${(thumbBytes / 1024).toFixed(0)} KB)`);
+for (const [f, b] of collected) console.log(`  video        ${f} (${mb(b)})`);
 console.log(`\n${chapters}`);

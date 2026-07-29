@@ -534,14 +534,113 @@ the click-through rate will be.
 > actually delivered at **0:00** in the cold open. Replaced with **hook spacing** — the
 > honest question for a narrated piece is how long the viewer goes with nothing new.
 
+## The skill — where the method is preserved
+
+**Source of truth:** `C:\Users\navg\DailyApps\dailyapps-skills\ink-and-light\` — a git repo with a
+GitHub remote (`naveenneog/dailyapps-skills`) and a pre-commit gate that validates every skill.
+
+`C:\Users\navg\.copilot\skills\ink-and-light\` is an **installed copy**. Edit the repo, then copy
+outward. It was written there first, which meant the whole method lived in one unversioned folder.
+
+```
+ink-and-light/SKILL.md                       the method, §0-14
+ink-and-light/references/era-system.md       seeding, fact-checking, parallel generation
+ink-and-light/references/episode-factory.md  the stages, the two versions, the upload contract
+ink-and-light/references/youtube.md          retention, loudness, captions, thumbnails, measured
+ink-and-light/references/bugs.md             26 failures already paid for
+```
+
+Commit `48360da`. Not yet pushed.
+
+---
+
+## The factory — `tools/factory.mjs`
+
+Twelve stages, story in, two uploadable folders out.
+
+```
+node tools/factory.mjs --story <key> --slug <slug> --era <era> --plan
+node tools/factory.mjs --slug zero --era gupta
+node tools/factory.mjs --slug zero --from render     # resume
+node tools/factory.mjs --slug zero --until intro     # stop early
+node tools/factory.mjs --slug zero --only pack --force
+node tools/factory.mjs --slug zero --draft           # 40s, half scale, 12fps
+```
+
+`episode → voice → rebuild → subject → pack → thumb-art → thumbs → intro-build → intro →
+render ×2 → publish ×2 → score ×2`
+
+Every stage declares what it produces, so a stage whose output exists is skipped and a dead run
+resumes. A failed stage **stops the run** — a master built from a failed narration stage looks fine
+and says the wrong thing. A stage that reports success without writing its output also stops it.
+
+**The two versions differ only in the caption:** v1 `cut-e-framed` (settle), v2 `cut-h-card` (card).
+Everything upstream is generated once and shared, so the comparison is of that and nothing else.
+
+### New tools
+
+- **`tools/pack.mjs`** — writes `publish.json` from the narration: 5 ranked titles, hook, 8-12
+  chapters, tags, 5 ranked thumbnail headlines, each marked `none|mild|overclaim`. Chapters are
+  timed in the **cut's** order (cut E opens on `cover`, the third stored panel) and checked against
+  YouTube's 10 s rule with an 18 s margin. On the zero episode it corrected 2 chapters that would
+  have been silently dropped at upload.
+- **`tools/subject.mjs`** — writes `thumb-art/subject.json`: who the thumbnail is of, the object
+  behind them, and the object they hold. The `held` field is the one that decides whether the
+  thumbnail works; it is constrained to a strong simple silhouette over the most literal object.
+  First pass returned a birch-bark manuscript (a brown smear at feed size); the rule was tightened
+  and it returned a glowing stone disc, which *is* the zero.
+- **`tools/source.mjs`** — resolves `--era <id>` or a version id into one beat-shaped object, so
+  `build-version.mjs` and `render-master.mjs` read both roots instead of eras needing forks.
+
+### Bugs found and fixed building it
+
+1. **`speak.mjs` defaulted `--story` to aryabhata.** `--slug zero` audited *Aryabhata's* narration
+   and wrote the fixes into the zero episode. Now derived from `episode.json.id`.
+2. **`render-episode.mjs` scratch dir keyed on the cut alone.** Two episodes on one cut shared
+   `dist/.ep-<cut>`, so `--reuse` would splice one body under another's titles. Now `.ep-<slug>-<cut>`.
+3. **`render-master.mjs` ignored `picks.json`** while `build-version.mjs` honoured it — the master
+   could be composited from a clip the page never showed.
+4. **`thumbnail.mjs` had hardcoded headlines.** The zero episode's first thumbnails read "THE EARTH
+   TURNS". Now built from that episode's own `publish.json`; the Aryabhata table is kept verbatim so
+   ep01 still rebuilds exactly.
+5. **The caption named every speaker "Aryabhata".** Now `ep.figure`.
+6. **A backtick in a comment inside the page template literal** broke the string —
+   `SyntaxError: Unexpected identifier`. Same trap as the CSS-comment backtick, second time.
+7. **`.cap-card #capwrap{padding-top:14%}`** is right for the bled cut and pure offset in the framed
+   cut, where `#capwrap` is already a full-height centred grid. It put v2's caption ~7% below every
+   other treatment — a confound in an experiment whose point is that only the caption differs.
+8. **`beatsFor()` filtered silently** when a cut named a beat the sequence lacked, shipping a
+   one-beat stinger. Now a hard error.
+
+---
+
+## Era system state
+
+**18 eras seeded, all 180 beats fact-checked, all 180 stills generated, zero failures**
+(~29 s/still at 4 concurrent, ~34 min for the last 170).
+
+| | |
+|---|---|
+| stills | 18/18 eras complete |
+| clips | gupta only (10) — the other 17 are the next spend |
+| picks | gupta only |
+
+`era.json` gained an optional `stinger` (two beat ids). Absent, it is derived as beat 1 + beat 3 —
+and `saveEra()` refuses to persist a derived value, so changing the rule later still applies.
+
+---
+
 ## Still to do
 
-1. **Give the body the intro's rhythm** — pacing is the lowest-scoring fixable bar.
-2. **Break the three 15 s+ panels** into two visual moves each.
-3. Fix the 2.1 s number-token caption dwell (sweep the highlight across the token).
-4. Consider a 1440p delivery so YouTube gives the video a VP9 encode.
-5. Port the year fix into `voice.py` once that project is free, then delete the override.
-6. Re-check whether `repairWords()` still earns its place once years are fixed upstream.
+1. **Generate era clips** — 170 jobs at ~72 s each. The one remaining big spend.
+2. **Round 2 stills** (`--rounds 2`) so each beat has two candidates, then `picks.json` per era.
+3. **Give the body the intro's rhythm** — pacing is the lowest-scoring fixable bar.
+4. **Break the three 15 s+ panels** into two visual moves each.
+5. Fix the 2.1 s number-token caption dwell (sweep the highlight across the token).
+6. Consider a 1440p delivery so YouTube gives the video a VP9 encode.
+7. Port the year fix into `voice.py` once that project is free, then delete the override.
+8. Re-check whether `repairWords()` still earns its place once years are fixed upstream.
+9. Push `dailyapps-skills` (committed, not pushed).
 
 ---
 

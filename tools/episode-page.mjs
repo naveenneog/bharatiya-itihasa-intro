@@ -276,6 +276,12 @@ export const episodePage = (ep, cut) => `<!doctype html>
      it lives or dies on the phrasing. Words outside the live phrase are not merely dimmed
      but removed from the flow, or the block still reads as a wall. */
   .cap-card #capwrap{padding-top:14%}
+  /* ...but not in the framed cut, where #capwrap is already a full-height centred grid.
+     There the padding is pure offset: it pushed the card to about 57% of frame height
+     while every other treatment sat on the optical centre, so the two versions differed
+     by vertical position as well as by caption — which is exactly the confound the
+     experiment exists to avoid. */
+  .cap-card .framed #capwrap{padding-top:0}
   .cap-card #cap{font-size:clamp(22px,3.4vw,64px);line-height:1.14;max-width:18ch;
     min-height:2.3em;display:flex;flex-wrap:wrap;gap:0 .28em;align-content:center;
     justify-content:center;color:rgba(183,166,132,.34)}
