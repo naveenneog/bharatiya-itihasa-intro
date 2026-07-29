@@ -161,6 +161,24 @@ export function validateEra(era) {
     if (/\bsingle\b[^.]{0,30}\brim light\b|no fill light|macro probe|f\/2\b|razor-thin|pure black background|\b16:9\b|#0d0b09/i.test(b.prompt)) {
       problems.push(`${where}: restates the shared style — that belongs in tools/ink.mjs only`);
     }
+
+    /* The native-script line is set in Tiro Devanagari Hindi, which has no Tamil, Kannada,
+       Telugu, Malayalam, Gurmukhi or Arabic glyphs. A beat in one of those scripts still
+       renders — the browser silently falls back to a system font — so it does not fail, it
+       just stops being the same typeface as every other card on the channel. One beat of a
+       Chola era shipped in Tamil this way and was only caught by looking at a frame. */
+    const hi = b.era?.hi || '';
+    const other = [['Tamil', /[\u0B80-\u0BFF]/], ['Kannada', /[\u0C80-\u0CFF]/],
+      ['Telugu', /[\u0C00-\u0C7F]/], ['Malayalam', /[\u0D00-\u0D7F]/],
+      ['Gurmukhi', /[\u0A00-\u0A7F]/], ['Bengali', /[\u0980-\u09FF]/],
+      ['Arabic', /[\u0600-\u06FF]/]].find(([, re]) => re.test(hi));
+    if (other) {
+      problems.push(`${where}: the native line is ${other[0]} script — the brand face has no `
+        + `${other[0]} glyphs and will silently fall back to a system font. Use Devanagari.`);
+    }
+    if (hi && !/[\u0900-\u097F]/.test(hi)) {
+      warn.push(`${where}: the native line has no Devanagari in it — "${hi}"`);
+    }
   }
   return { ok: problems.length === 0, problems, warn };
 }
