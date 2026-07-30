@@ -31,9 +31,14 @@ export const TARGET_LRA = 11;   // LU, loudnorm's default range
    the retention scorer uses, so the same episode scored 73 or 78 depending on which side of
    the coin-flip it landed. A comparison between two versions was measuring luck.
 
+   The ceiling is -1.6 rather than -1.2 because alimiter works on sample peak while the
+   measurement is intersample: a signal limited to -1.2 dBFS can still read above -1 dBTP once
+   the reconstruction filter is applied, and a track full of fast broadband transients — page
+   turns — did exactly that, landing at -0.1. The extra 0.4 dB is the overshoot allowance.
+
    `level=disabled` matters: without it alimiter normalises upward as well, which would undo
    the integrated loudness loudnorm just set. */
-export const CEILING = -1.2;
+export const CEILING = -1.6;
 const LIMITER = `alimiter=limit=${CEILING}dB:level=disabled`;
 
 const spec = (extra = '') =>

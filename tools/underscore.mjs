@@ -133,11 +133,14 @@ export function buildUnderscore(panels, total, lift = 0.6, pageTurn = false) {
      is scheduled here, on the panel boundaries, from the same timeline the picture uses —
      rather than as an effect fired near the transition and hoped to line up.
 
-     It sits outside the `lift` scaling every other cue goes through. The bed is deliberately
-     quiet because it plays under speech; this is a foreground sound that has to be heard over
-     the same speech, and scaling it with the bed would bury it. */
+     It sits outside the `lift` scaling every other cue goes through, because the bed is
+     deliberately quiet — it plays under speech — and this has to be heard over the same
+     speech. But "outside the scaling" is not "as loud as you like": at 0.5 it was roughly ten
+     times any bed cue, which pushed voice-to-bed separation from seventeen decibels down to
+     twelve and produced enough intersample overshoot to defeat the limiter. A page turn is a
+     small sound in a real room. */
   if (pageTurn) {
-    for (const p of panels.slice(1)) cues.push({ t: +p.start.toFixed(3), voice: 'page', gain: 0.5, dur: 0.92 });
+    for (const p of panels.slice(1)) cues.push({ t: +p.start.toFixed(3), voice: 'page', gain: 0.2, dur: 0.92 });
   }
 
   cues.sort((a, b) => a.t - b.t);
