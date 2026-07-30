@@ -116,6 +116,12 @@ export function validateFilm(film) {
     if (!s.prompt || s.prompt.length < 40) problems.push(`${where}: prompt is too thin to produce a specific image`);
     if (s.say) spoken++; else silent++;
 
+    /* Sora's longest take is twelve seconds, so a shot longer than about eleven and a half
+       cannot be covered by any clip. It is also, at that length, a panel again — which is the
+       thing this format exists to stop being. */
+    const d = (s.said ?? s.hold ?? 3.2) + (s.tail ?? 0);
+    if (d > 11.5) problems.push(`${where}: ${d.toFixed(1)}s is longer than the longest take, and long enough to be a panel — shorten the line`);
+
     /* The lamp and the material come from ink.mjs. A shot that restates them is the first step
        of the drift the shared language exists to prevent. */
     if (/\bsingle\b[^.]{0,30}\brim light\b|no fill light|macro probe|f\/2\b|razor-thin|pure black background|#0d0b09/i.test(s.prompt)) {

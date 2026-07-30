@@ -78,17 +78,32 @@ await mkdir(path.dirname(OUT), { recursive: true });
    use the middle, where the ink is moving, not the first 2.4 where it has barely left the
    reference frame. */
 const missing = [];
+const short = [];
 for (const s of film.shots) {
   const clip = await clipFor(s.id);
   if (!clip) { missing.push(s.id); continue; }
   s.clip = clip;
   const len = await seconds(path.join(DIR, 'clips', clip));
   s.clipLen = len;
+  /* A take that does not cover its shot is the worst failure this renderer has, because it
+     does not fail. The trim silently yields a short clip, the next xfade's offset lands past
+     the end of its input, the whole chain collapses to a few seconds, and tpad then clones
+     the last frame for the rest of the running time — a six-minute film of one frozen image
+     that encodes cleanly and reports nothing. 29 of 57 shots were in this state. */
+  if (len < s.dur + XF - 0.05) short.push(`${s.id} needs ${(s.dur + XF).toFixed(1)}s, take is ${len.toFixed(1)}s`);
   s.seek = +Math.max(0, (len - (s.dur + XF)) / 2).toFixed(3);
 }
 if (missing.length) {
   console.error(`${missing.length} shot(s) have no clip: ${missing.slice(0, 6).join(', ')}${missing.length > 6 ? ' …' : ''}`);
   console.error(`run: node tools/film-gen.mjs --id ${ID} --what clips --missing`);
+  process.exit(1);
+}
+if (short.length) {
+  console.error(`\n${short.length} take(s) are shorter than the shot they have to cover:\n`);
+  for (const s of short.slice(0, 10)) console.error(`   ${s}`);
+  if (short.length > 10) console.error(`   … and ${short.length - 10} more`);
+  console.error(`\nregenerate them — film-gen picks 4, 8 or 12 seconds from each shot's own length:`);
+  console.error(`  node tools/film-gen.mjs --id ${ID} --what clips --shots ${short.map((s) => s.split(' ')[0]).slice(0, 8).join(',')}`);
   process.exit(1);
 }
 

@@ -114,11 +114,19 @@ async function worker() {
       } else {
         const ref = await stillFor(j.film, j.shot.id);
         if (!ref) throw new Error('no still to build from — generate stills first');
-        /* Eight seconds for every shot regardless of how long it is held. The assembly trims
-           to the shot's own duration and seeks to the middle of the take, where the ink is
-           actually moving rather than still leaving the reference frame. */
+        /* The take has to be long enough to cover the shot plus the crossfade running off its
+           tail. Sora offers 4, 8 or 12 seconds; asking for 8 for everything left 29 of 57
+           shots with a clip shorter than they needed, and a clip that does not cover its shot
+           does not fail — the xfade offset simply exceeds the input, the chain collapses, and
+           the finished film is one frozen frame for six minutes.
+
+           The extra length is never wasted: the assembly seeks to the middle of the take,
+           where the ink is moving, rather than the first frames where it has barely left the
+           reference. */
+        const need = j.shot.dur + 0.4;
+        const secs = need <= 3.6 ? '4' : need <= 7.6 ? '8' : '12';
         try {
-          await genVideo(j.shot.fullPrompt, file, { seconds: '8', size: '1280x720', ref });
+          await genVideo(j.shot.fullPrompt, file, { seconds: secs, size: '1280x720', ref });
         } catch (e) {
           /* Sora's moderation refuses a reference image with a person in it, while
              text-to-video of a person is fine. Every `face` and `hand` shot therefore fails
@@ -130,7 +138,7 @@ async function worker() {
              was reinforcement rather than the only source of it. */
           if (!/moderation_blocked|people-in-user-uploads/i.test(String(e.message))) throw e;
           noref++;
-          await genVideo(j.shot.fullPrompt, file, { seconds: '8', size: '1280x720' });
+          await genVideo(j.shot.fullPrompt, file, { seconds: secs, size: '1280x720' });
         }
         await writeFile(file.replace(/\.mp4$/, '.txt'), j.shot.fullPrompt);
       }
