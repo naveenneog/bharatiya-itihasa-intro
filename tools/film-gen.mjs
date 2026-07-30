@@ -98,6 +98,7 @@ if (!queue.length) { console.log('  nothing to do\n'); process.exit(0); }
 const t0 = Date.now();
 let done = 0;
 let failed = 0;
+let noref = 0;
 let next = 0;
 
 async function worker() {
@@ -116,7 +117,21 @@ async function worker() {
         /* Eight seconds for every shot regardless of how long it is held. The assembly trims
            to the shot's own duration and seeks to the middle of the take, where the ink is
            actually moving rather than still leaving the reference frame. */
-        await genVideo(j.shot.fullPrompt, file, { seconds: '8', size: '1280x720', ref });
+        try {
+          await genVideo(j.shot.fullPrompt, file, { seconds: '8', size: '1280x720', ref });
+        } catch (e) {
+          /* Sora's moderation refuses a reference image with a person in it, while
+             text-to-video of a person is fine. Every `face` and `hand` shot therefore fails
+             on its first attempt, which is a known failure with a known remedy — so it is
+             retried without the reference rather than reported.
+
+             The take loses its style lock, so the prompt has to carry the look alone. It
+             already does: fullPrompt contains the whole visual language, and the reference
+             was reinforcement rather than the only source of it. */
+          if (!/moderation_blocked|people-in-user-uploads/i.test(String(e.message))) throw e;
+          noref++;
+          await genVideo(j.shot.fullPrompt, file, { seconds: '8', size: '1280x720' });
+        }
         await writeFile(file.replace(/\.mp4$/, '.txt'), j.shot.fullPrompt);
       }
       done++;
@@ -132,5 +147,6 @@ async function worker() {
 
 await Promise.all(Array.from({ length: Math.max(1, Math.min(CONC, queue.length)) }, worker));
 console.log(`\n  ${done}/${queue.length} ${WHAT} in ${((Date.now() - t0) / 60000).toFixed(1)} min`
+  + (noref ? `, ${noref} fell back to text-to-video (a person in the reference)` : '')
   + (failed ? `, ${failed} failed — re-run with --missing` : ''));
 process.exit(failed ? 1 : 0);
