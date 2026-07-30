@@ -186,16 +186,24 @@ try {
    between two recordings happened to be. */
 console.log('  arranging narration...');
 const speak = film.shots.filter((s) => s.say && existsSync(path.join(DIR, 'audio', `${s.id}.mp3`)));
-const voiceArgs = [];
-const voiceFilter = [];
-speak.forEach((s, k) => {
-  voiceArgs.push('-i', path.join(DIR, 'audio', `${s.id}.mp3`));
-  voiceFilter.push(`[${k}:a]adelay=${Math.round(s.start * 1000)}|${Math.round(s.start * 1000)},aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[v${k}]`);
-});
 const voice = path.join(TMP, 'voice.wav');
-await ff([...voiceArgs, '-filter_complex',
-  `${voiceFilter.join(';')};${speak.map((_, k) => `[v${k}]`).join('')}amix=inputs=${speak.length}:normalize=0:dropout_transition=0,apad,atrim=0:${total.toFixed(3)}[out]`,
-  '-map', '[out]', '-ar', '48000', '-ac', '2', voice], 'narration arrange');
+if (!speak.length) {
+  /* A film can be entirely silent — the closing movement is. amix with no inputs is not an
+     empty mix, it is a filter graph that does not build, so the silence has to be made
+     explicitly rather than falling out of having nothing to mix. */
+  await ff(['-f', 'lavfi', '-t', String(total), '-i', 'anullsrc=r=48000:cl=stereo',
+    '-ar', '48000', '-ac', '2', voice], 'silent narration');
+} else {
+  const voiceArgs = [];
+  const voiceFilter = [];
+  speak.forEach((s, k) => {
+    voiceArgs.push('-i', path.join(DIR, 'audio', `${s.id}.mp3`));
+    voiceFilter.push(`[${k}:a]adelay=${Math.round(s.start * 1000)}|${Math.round(s.start * 1000)},aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[v${k}]`);
+  });
+  await ff([...voiceArgs, '-filter_complex',
+    `${voiceFilter.join(';')};${speak.map((_, k) => `[v${k}]`).join('')}amix=inputs=${speak.length}:normalize=0:dropout_transition=0,apad,atrim=0:${total.toFixed(3)}[out]`,
+    '-map', '[out]', '-ar', '48000', '-ac', '2', voice], 'narration arrange');
+}
 
 
 /* Duck the bed under the voice and print the separation, because "there is music under it" is

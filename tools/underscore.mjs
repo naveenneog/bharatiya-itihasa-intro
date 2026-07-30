@@ -43,7 +43,7 @@ const PULSED = new Set(['tension', 'action', 'triumph', 'conflict', 'danger', 'u
  * The shape of the cue list was right; only its level was wrong, so the level is a
  * parameter rather than six edited constants.
  */
-export function buildUnderscore(panels, total, lift = 0.6) {
+export function buildUnderscore(panels, total, lift = 0.6, pageTurn = false) {
   const cues = [];
   const cue = (t, voice, opts = {}) => {
     if (t < 0 || t >= total) return;
@@ -128,6 +128,18 @@ export function buildUnderscore(panels, total, lift = 0.6) {
   cue(total - 5.4, 'bansuri', { freq: hz(7), dur: 4.2, gain: 0.06, meend: -0.5, breath: 0.55 });
   cue(total - 2.6, 'strike', { gain: 0.16 });
 
+  /* ── page turns ──────────────────────────────────────────────────────────
+     A page turning silently is a rectangle rotating. The sound is what makes it paper, so it
+     is scheduled here, on the panel boundaries, from the same timeline the picture uses —
+     rather than as an effect fired near the transition and hoped to line up.
+
+     It sits outside the `lift` scaling every other cue goes through. The bed is deliberately
+     quiet because it plays under speech; this is a foreground sound that has to be heard over
+     the same speech, and scaling it with the bed would bury it. */
+  if (pageTurn) {
+    for (const p of panels.slice(1)) cues.push({ t: +p.start.toFixed(3), voice: 'page', gain: 0.5, dur: 0.92 });
+  }
+
   cues.sort((a, b) => a.t - b.t);
-  return { cues, phrases, pulsed };
+  return { cues, phrases, pulsed, turns: pageTurn ? Math.max(0, panels.length - 1) : 0 };
 }

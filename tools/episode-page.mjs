@@ -151,6 +151,20 @@ export const CUTS = [  {
     open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'framed',
     caption: 'flow', shots: true,
   },
+  /* The story is a book being read. Each panel is a leaf that lifts, turns over and falls
+     away to reveal the next, with the sound of it — three noise layers rather than one, so it
+     reads as paper rather than as a swoosh. The film then resolves into abstract ink, which is
+     where the channel's title sequences live, so it ends by dissolving back into its own
+     visual language instead of simply stopping. */
+  {
+    id: 'cut-k-page',
+    name: 'K · Flow + the page turns',
+    pitch: 'Cut I, with each panel turning like a leaf of an old book to reveal the next — '
+      + 'sound included — and closing on abstract ink rather than on the last picture.',
+    intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
+    open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'framed',
+    caption: 'flow', pageTurn: true,
+  },
 ];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -395,6 +409,32 @@ export const episodePage = (ep, cut) => `<!doctype html>
   .scene.shot-in .shotbox{transform:scale(1.34);transform-origin:52% 34%}
   .scene.shot-side .shotbox{transform:scale(1.22);transform-origin:22% 62%}
 
+  /* page turn — the outgoing panel is a leaf of an old book, hinged at its left edge.
+
+     #art gets the perspective, and the leaf rotates about its own spine inside it. The
+     rotation angle, the lift and the shadow sweep are all set from JS as a function of time,
+     so the master lands on exactly what the player would show at that instant.
+
+     The back face is aged paper, not a mirror of the picture. A page's reverse is not its
+     front, and showing the same image flipped is the tell that makes a turn look like a CSS
+     demo rather than a book. */
+  .page-turn #art{perspective:2400px;perspective-origin:38% 50%}
+  .page-turn #art .scene{transform-origin:0% 50%;backface-visibility:hidden}
+  .page-turn #art .scene.turning{
+    transform:translateZ(var(--lift,0px)) rotateY(var(--turn,0deg));
+    box-shadow:0 0 90px 20px rgba(0,0,0,.7);z-index:3}
+  /* the reverse of the leaf: warm paper, seen once the turn passes ninety degrees */
+  .page-turn #art .scene.turning::after{content:"";position:absolute;inset:0;
+    transform:rotateY(180deg);backface-visibility:hidden;
+    background:
+      radial-gradient(120% 90% at 12% 50%,rgba(232,214,178,.20),rgba(120,98,66,.10) 46%,rgba(20,15,10,.55) 100%),
+      linear-gradient(90deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,0) 14%)}
+  /* the shadow the leaf throws on the page it is uncovering, sweeping left to right */
+  .page-turn #art .scene:not(.turning)::after{content:"";position:absolute;inset:0;
+    pointer-events:none;z-index:2;
+    background:linear-gradient(90deg,rgba(0,0,0,.72) 0%,rgba(0,0,0,.34) 8%,rgba(0,0,0,0) 22%);
+    transform:translateX(calc(var(--sweep,0) * 120%));opacity:calc(1 - var(--sweep,0) * .35)}
+
   .cap-stroke #cap .w{position:relative}  .cap-stroke #cap .w.now::after{content:"";position:absolute;left:0;right:0;bottom:-0.16em;    height:2px;background:linear-gradient(90deg,rgba(232,182,74,0),#e8b64a,rgba(232,182,74,0))}
   #speaker{margin:0 auto .5em;text-align:center;font-family:"Marcellus",serif;
     font-size:clamp(9px,.86vw,15px);letter-spacing:.34em;text-transform:uppercase;
@@ -485,7 +525,7 @@ export const episodePage = (ep, cut) => `<!doctype html>
 </div>
 
 <script type="module">
-const CUT = ${JSON.stringify({ intro: cut.intro, card: cut.card, open: openIds(ep.panels, cut), frame: cut.frame, caption: cut.caption || 'settle', shots: !!cut.shots })};
+const CUT = ${JSON.stringify({ intro: cut.intro, card: cut.card, open: openIds(ep.panels, cut), frame: cut.frame, caption: cut.caption || 'settle', shots: !!cut.shots, pageTurn: !!cut.pageTurn })};
 const ep = await (await fetch('../episode.json')).json();
 const P = ep.panels;
 if (CUT.frame === 'framed') document.querySelector('#stage').classList.add('framed');
@@ -494,6 +534,8 @@ if (CUT.frame === 'framed') document.querySelector('#stage').classList.add('fram
    only their CSS differs. That is what makes two versions comparable — they differ by this
    and by nothing else. */
 if (CUT.caption && CUT.caption !== 'settle') document.documentElement.classList.add('cap-' + CUT.caption);
+const PAGETURN = !!CUT.pageTurn;
+if (PAGETURN) document.documentElement.classList.add('page-turn');
 
 /* The cut names which panels play before the titles; everything else follows in the
    source order. Expressing it as ids rather than a count means a cut can open on any
@@ -932,6 +974,46 @@ function panelAt(t) {
   return { n: 0, lt: 0, d: 0, start: 0 };
 }
 
+/* The page turn.
+
+   The outgoing panel is a leaf of an old book, hinged on its left edge. It lifts, rotates up
+   and over, and falls away, revealing the next panel already beneath it.
+
+   Driven by an explicit progress value rather than a CSS transition, because the renderer
+   scrubs to arbitrary times and a time-based ease cannot be scrubbed — the master would land
+   mid-animation wherever the browser happened to be, and disagree with the player.
+
+   Two things sell it as paper rather than as a rotating rectangle. The shadow the turning leaf
+   casts on the page underneath sweeps across as it passes over, so the new page is lit as it
+   is uncovered. And the back of the leaf is a warm aged-paper face rather than a mirror of the
+   picture, because the back of a page is not the front of it. */
+const TURN = 0.92;
+
+function paintTurn(lt, n) {
+  if (!PAGETURN) return;
+  const leaf = art.querySelector('.scene.turning');
+  const under = art.querySelector('.scene:not(.turning)');
+  if (!leaf) { if (under) under.style.setProperty('--sweep', '0'); return; }
+  if (n === 0 || lt >= TURN) { leaf.remove(); if (under) under.style.setProperty('--sweep', '0'); return; }
+
+  const u = Math.max(0, Math.min(1, lt / TURN));
+  /* Smoothstep, not ease-out.
+
+     Ease-out puts almost all the rotation at the front: at a fifth of the way through the leaf
+     was already at eighty-five degrees, which is edge-on and therefore invisible. The turn ran
+     for nine hundred milliseconds and could only be seen for two hundred of them.
+
+     Smoothstep reaches ninety degrees at the halfway point, so the face of the page is visible
+     for the first half of the turn and its back for the second — which is what a page actually
+     does, and what makes the motion legible at all. */
+  const e = u * u * (3 - 2 * u);
+  leaf.style.setProperty('--turn', (e * -178).toFixed(2) + 'deg');
+  /* It lifts off the block before it starts to travel, and the lift decays as it goes over. */
+  leaf.style.setProperty('--lift', (Math.sin(u * Math.PI) * 26).toFixed(2) + 'px');
+  leaf.style.opacity = u > 0.94 ? String((1 - u) / 0.06) : '1';
+  if (under) under.style.setProperty('--sweep', e.toFixed(3));
+}
+
 function seek(t) {
   const { n, lt, d } = panelAt(t);
   const p = P[ORDER[n]];
@@ -940,11 +1022,16 @@ function seek(t) {
     scrubbed = n;
     i = n;
     cancelAnimationFrame(raf);
+    /* The page turn needs the panel it is turning away from, so the outgoing scene is kept
+       and re-parented rather than discarded. Everywhere else it is replaced as before —
+       carrying a second scene around costs a decode for a cut that would never show it. */
+    const prev = PAGETURN ? art.lastElementChild : null;
     art.replaceChildren();
     const scene = buildScene(p, Math.max(4, d + 1.2), n);
     scene.__cuts = shotCuts(p);
     scene.classList.add('on');              // no cross-fade to wait out when scrubbing
     art.appendChild(scene);
+    if (prev && n > 0) { prev.classList.add('turning'); art.appendChild(prev); }
     paintCaption(p);
     where.textContent = \`\${n + 1} / \${ORDER.length}\`;
   }
@@ -958,7 +1045,8 @@ function seek(t) {
   /* The shot is a pure function of the panel-local time, so scrubbing lands on exactly the
      framing the player would be showing. It is recomputed on every seek rather than only on
      a panel change, because a seek within one panel can cross a cut. */
-  paintShots(p, lt * 1000, art.lastElementChild);
+  paintShots(p, lt * 1000, art.querySelector('.scene:not(.turning)'));
+  paintTurn(lt, n);
 
   const done = ORDER.slice(0, n).reduce((a, k) => a + P[k].dur, 0) + lt;
   bar.style.width = (100 * done / ep.runtime).toFixed(2) + '%';

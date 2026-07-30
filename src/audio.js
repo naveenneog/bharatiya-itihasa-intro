@@ -272,9 +272,65 @@ function bansuri(ctx, dest, when, { freq = 392, dur = 2.6, gain = 0.15, meend = 
   }
 }
 
-const VOICES = { drone, pluck, scratch, riser, strike, tabla, baya, daya, bansuri };
+const VOICES = { drone, pluck, scratch, riser, strike, tabla, baya, daya, bansuri, page };
 
 /** Play one cue on any context. `when` is absolute in that context's clock. */
+/* A page turning in an old book.
+
+   Not one sound but three, which is what makes it read as paper rather than as a generic
+   swoosh. A sheet lifting off the one beneath it releases a short broadband rustle; the page
+   travelling through the air is a filtered sweep that rises as it comes over the top and falls
+   as it goes down; and it lands with a soft low slap as it meets the block of pages.
+
+   The filter sweep is the part that carries it. Held at a fixed frequency the same noise
+   sounds like wind, and the ear places the sound somewhere outdoors instead of six inches from
+   a book.
+
+   `dur` should be the length of the visual turn, so the sound and the picture arrive together
+   rather than the sound being a fixed-length effect fired near it. */
+function page(ctx, dest, when, { gain = 0.5, dur = 0.92 } = {}) {
+  // 1 — the lift: the sheet separating from the one under it
+  const lift = ctx.createBufferSource();
+  lift.buffer = noiseBuffer(ctx, 0.18, 0.7);
+  const lhp = ctx.createBiquadFilter();
+  lhp.type = 'highpass'; lhp.frequency.value = 1800;
+  const lg = ctx.createGain();
+  lg.gain.setValueAtTime(0.0001, when);
+  lg.gain.linearRampToValueAtTime(gain * 0.5, when + 0.03);
+  lg.gain.exponentialRampToValueAtTime(0.0001, when + 0.2);
+  lift.connect(lhp).connect(lg).connect(dest);
+  lift.start(when); lift.stop(when + 0.24);
+
+  // 2 — the travel: paper moving through air, brightest at the top of the arc
+  const air = ctx.createBufferSource();
+  air.buffer = noiseBuffer(ctx, dur, 0.9);
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass'; bp.Q.value = 0.9;
+  bp.frequency.setValueAtTime(900, when);
+  bp.frequency.exponentialRampToValueAtTime(4200, when + dur * 0.46);
+  bp.frequency.exponentialRampToValueAtTime(1100, when + dur * 0.94);
+  const ag = ctx.createGain();
+  ag.gain.setValueAtTime(0.0001, when);
+  ag.gain.linearRampToValueAtTime(gain * 0.42, when + dur * 0.30);
+  ag.gain.linearRampToValueAtTime(gain * 0.62, when + dur * 0.52);
+  ag.gain.exponentialRampToValueAtTime(0.0001, when + dur * 0.98);
+  air.connect(bp).connect(ag).connect(dest);
+  air.start(when); air.stop(when + dur + 0.05);
+
+  // 3 — the settle: the page meeting the block, low and soft
+  const land = ctx.createBufferSource();
+  land.buffer = noiseBuffer(ctx, 0.22, 0.55);
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.5;
+  const dg = ctx.createGain();
+  const at = when + dur * 0.82;
+  dg.gain.setValueAtTime(0.0001, at);
+  dg.gain.linearRampToValueAtTime(gain * 0.36, at + 0.02);
+  dg.gain.exponentialRampToValueAtTime(0.0001, at + 0.2);
+  land.connect(lp).connect(dg).connect(dest);
+  land.start(at); land.stop(at + 0.24);
+}
+
 export function playCue(ctx, dest, cue, when) {
   const v = VOICES[cue.voice];
   if (v) v(ctx, dest, when, cue);

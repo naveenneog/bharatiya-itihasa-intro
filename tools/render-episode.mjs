@@ -45,6 +45,7 @@ const SCALE = Number(arg('scale', 1));
 const PORT = Number(arg('port', 4407));
 const LIMIT = Number(arg('limit', 0));          // seconds of body, for drafts
 const INTRO = arg('intro', 'dist/v7-gupta-ink.mp4');
+const OUTRO = arg('outro', null);
 const LANG = arg('lang', 'en');
 const LIFT = Number(arg('lift', '0.6'));   // bed gain multiplier; tuned by measurement
 const OUT = path.resolve(arg('out', `dist/episode-${SLUG}-${CUT}.mp4`));
@@ -131,8 +132,14 @@ try {
     + `${LIMIT ? ` (rendering first ${duration}s)` : ''}`);
 
   // ── the underscore, through the same synth as the title score ────────────
-  const { cues, phrases, pulsed } = buildUnderscore(tl, fullDuration + 1, LIFT);
-  console.log(`  underscore: ${cues.length} cues, ${phrases.length} flute phrases, ${pulsed} pulsed panel(s), lift ${LIFT}`);
+  /* The cut spec is needed here as well as at the splice, because the page-turn sound is part
+     of the bed — scheduled on the same panel boundaries the picture turns on, rather than
+     dubbed on afterwards and hoped to line up. */
+  const { CUTS: CUTLIST } = await import('./episode-page.mjs');
+  const cutSpecEarly = CUTLIST.find((c) => c.id === CUT);
+  const { cues, phrases, pulsed, turns } = buildUnderscore(tl, fullDuration + 1, LIFT, !!cutSpecEarly?.pageTurn);
+  console.log(`  underscore: ${cues.length} cues, ${phrases.length} flute phrases, ${pulsed} pulsed panel(s), lift ${LIFT}`
+    + (turns ? `, ${turns} page turns` : ''));
   const bedWav = path.join(TMP, 'bed.wav');
   const b64 = await page.evaluate(async ({ c, d }) => {
     const { renderWav } = await import('/src/audio.js');
@@ -286,6 +293,23 @@ try {
       '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-ac', '2', intro], 'intro conform');
     parts.push(intro, body);
+  }
+
+  /* The closing movement, if there is one. The film should not end on its last picture — it
+     dissolves back into ink and gold, which is the language the channel's title sequences are
+     made of, so the piece resolves into the brand rather than stopping.
+
+     Conformed exactly as the intro is, because the concat demuxer copies streams: a segment
+     that differs in resolution, frame rate or sample rate does not get converted, it corrupts
+     the join. */
+  if (OUTRO) {
+    if (!existsSync(path.resolve(OUTRO))) throw new Error(`--outro ${OUTRO} does not exist`);
+    const outro = path.join(TMP, 'outro.mp4');
+    await ff(['-i', path.resolve(OUTRO), '-vf', `scale=${W}:${H}:flags=lanczos,fps=${FPS},setsar=1`,
+      '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-ac', '2', outro], 'outro conform');
+    parts.push(outro);
+    console.log(`  outro: ${(await seconds(outro)).toFixed(1)}s appended`);
   }
 
   const joinList = path.join(TMP, 'join.txt');
