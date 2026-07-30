@@ -40,6 +40,19 @@ export const RIGHT =
   'The subject is composed in the right two-thirds of the frame. The entire left third is empty black '
   + 'water and nothing else — no object, no highlight, no tendril enters it.';
 
+/** Full frame, for a shot that carries no type. The title sequence always reserves the left
+    third for its cards; a film only does so on the shots that actually have a card, and
+    reserving it everywhere would waste a third of every frame in the piece. */
+export const FULL =
+  'The subject is composed for the full frame, centred or slightly off-centre, filling it with '
+  + 'confidence. There is no reserved empty margin.';
+
+/** Very close. The single most under-used framing in this language: the material is ink and
+    gold in water, and it rewards being looked at from four inches away. */
+export const MACRO =
+  'Extreme close framing — the subject fills the frame edge to edge, closer than feels comfortable, '
+  + 'so its surface and texture are the whole picture.';
+
 /** Type is added by the page, never by the image model. */
 export const NOTYPE =
   'Absolutely no text, no letters, no writing, no numbers, no captions, no watermark, no signature anywhere in the image.';
