@@ -145,7 +145,8 @@ Never ask for a legible letter, digit or word. Never ask for a specific numeral.
 - "say" — one sentence, at most about 22 words. It will be spoken aloud at roughly 1.85 words
   per second, so a 16-word line runs about 8.5 seconds. That rate is measured from this
   narrator, not assumed — an earlier estimate of 2.6 ran a five-minute film thirty percent
-  long. NEVER write a numeral: write "six twenty-eight", not "628". Null for a silent shot.
+  long. NEVER write a numeral IN "say": write "six twenty-eight", not "628". Null for a silent
+  shot.
 - "hold" — for a SILENT shot, exactly how long it holds, 1.2 to 4.0. For a speaking shot,
   your estimate; the real length is measured from the recorded audio later and replaces it.
 - "tail" — the pause AFTER this shot, 0 to 1.6. This is your main rhythm control. Use 0 to
@@ -154,6 +155,14 @@ Never ask for a legible letter, digit or word. Never ask for a specific numeral.
   carries a "type" card, which needs the left third empty.
 - "type" — optional. At most SIX cards in the whole film, at the movement boundaries. A card
   is two or three words plus a date. Not a caption of the shot.
+
+  **Cards are READ, not spoken, so they use FIGURES.** "c. 628 CE", "876 CE", "6th-7th century
+  CE". The no-numerals rule above exists because a speech synthesiser reads a bare integer as a
+  quantity; it applies to "say" and to nothing else. A card that reads "about six twenty-eight
+  CE" on screen looks like a mistake, because it is one.
+
+  The "when" field must be an actual date. "Across centuries" and "Walking back in time" are
+  not dates and belong in the narration if they belong anywhere.
 
 ## Rhythm — this is what the film is judged on
 
