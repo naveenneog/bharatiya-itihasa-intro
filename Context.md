@@ -534,6 +534,78 @@ the click-through rate will be.
 > actually delivered at **0:00** in the cold open. Replaced with **hook spacing** — the
 > honest question for a narrated piece is how long the viewer goes with nothing new.
 
+## Films — the rebuild
+
+`films/` is the answer to "if you could start over, how would you build it". The episodes are
+built the only way their source data allows — one narration line, one picture, thirteen
+seconds, repeat — and everything flat about them is downstream of that. **The shot list is
+written first and the narration is synthesised per shot afterwards**, so silence becomes a
+decision instead of an accident of the audio.
+
+| | shots | runtime | silent | separation | spine |
+|---|---|---|---|---|---|
+| `zero-ascent` | 57 | 6:32 | 16 | 16.1 dB | chronological, accelerating |
+| `zero-objection` | 54 | 6:43 | 14 | 17.1 dB | an argument, ending on division by zero |
+| `zero-reverse` | 52 | 5:54 | 20 | 16.6 dB | opens on now, peels back to a dot on bark |
+
+All three −14.1 LUFS, −1.4 dBTP. Upload folders at `dist/gupta/zero_*/`.
+
+```
+node tools/write-film.mjs --spine ascent --id zero-ascent
+node tools/reshoot.mjs   --all          # what the camera sees, edit locked
+node tools/degibber.mjs  --all          # prompts that would draw fake writing
+node tools/fix-cards.mjs --all          # cards are read, so they use figures
+node tools/shorten.mjs   --all          # lines that outgrew the longest take
+node tools/film-voice.mjs --all --missing
+node tools/film-gen.mjs  --all --what stills --missing --conc 4
+node tools/film-gen.mjs  --all --what clips  --missing --conc 2
+node tools/undercut.mjs  --all          # takes too short to cover their shot
+node tools/film-render.mjs --id zero-ascent --lift 0.4
+node tools/film-publish.mjs --all
+```
+
+### What the format buys
+
+- **Silence is authored.** `validateFilm` refuses a film with fewer than one silent shot in
+  eight, because without held beats it is a voiceover with pictures.
+- **The scrim belongs to the card, not the film.** It fades in with each card and out again,
+  so the half of the frames carrying no type are undimmed.
+- **No burnt-in captions.** The picture carries it; type appears only on the six or seven
+  cards at the movement boundaries. Silent shots produce no caption cue either — the screen is
+  quiet on purpose and a caption there would be inventing something to read.
+
+### Bugs this cost, all of them silent
+
+1. **A take that does not cover its shot does not fail.** 29 of 57 shots were longer than
+   their 8s take; the trim yielded short clips, every xfade offset landed past the end of its
+   input, the chain collapsed, and `tpad` cloned one frame for six minutes. It encoded
+   cleanly, hit −14.1 LUFS and passed every assertion. **Only looking at frames caught it.**
+   The renderer now measures every take against its shot and refuses to build.
+2. **Sora offers 4, 8 or 12 seconds** — so a shot over ~11.5 s is unbuildable, *and* is a
+   panel again. `validateFilm` refuses it; that caught 25 lines of 18–25 words.
+3. **Beautiful and monotonous.** The first still pass was five identical ink-in-water shots in
+   eight. Timing cannot articulate anything without contrast. Shots now carry a `kind` and the
+   distribution is enforced *and verified* — abstract went from dominant to 5 of 57.
+4. **A third of the prompts would have drawn fake writing.** "Worn and indistinct" reduces
+   gibberish and does not stop it. The only rule that holds: **never mention writing**. Where
+   the mark carries meaning, ask for geometry — a dot, a ring, a circle with a void. Those
+   render perfectly and in this film they *are* the subject.
+5. **Cards are read, not spoken.** The no-numerals rule exists for the synthesiser; applied to
+   cards it produced "about six twenty-eight CE" on screen.
+6. **The same mix setting means different things in different formats.** A film has far more
+   silence than an episode, so the bed is audible in the gaps: lift 0.55 measured 17 dB on an
+   episode and 13.8 dB here. 0.4 puts it in band.
+7. **Sora refuses a reference image containing a person**, while accepting text-to-video of
+   one. Every `face` and `hand` shot fails first time; it is retried without the reference
+   automatically and counted separately.
+
+### Measured
+
+The narrator speaks at **1.85 words/second**, not the 2.6 I first told the author — which ran
+all three films 30% long.
+
+---
+
 ## The skill — where the method is preserved
 
 **Source of truth:** `C:\Users\navg\DailyApps\dailyapps-skills\ink-and-light\` — a git repo with a
