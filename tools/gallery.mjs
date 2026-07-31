@@ -52,6 +52,7 @@ const SECTIONS = [
       ['zero-v2-cut-h-card.mp4', 'v2 · card', 'A few words at a time, set large.'],
       ['zero-v3-cut-i-flow.mp4', 'v3 · flow', 'The caption scrolls so the spoken word never leaves the centre line. The eye never has to search.'],
       ['zero-v4-cut-j-shots.mp4', 'v4 · flow + cuts', 'As v3, and the picture cuts to a new framing on the speaker\u2019s own pauses.'],
+      ['zero-v5-cut-k-page.mp4', 'v5 · flow + the page turns', 'As v3, and each panel turns like a leaf of an old book to reveal the next \u2014 with the sound of it. Closes on abstract ink rather than on the last picture.'],
     ],
   },
   {

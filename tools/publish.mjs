@@ -35,6 +35,7 @@ const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : arg
 const SLUG = arg('slug', 'aryabhata');
 const CUT = arg('cut', 'cut-e-framed');
 const INTRO = arg('intro', 'dist/v7-gupta-stinger.mp4');
+const OUTRO = arg('outro', null);
 const MASTER = arg('master', null);
 const EP = path.join('episodes', SLUG);
 const OUT = arg('out', path.join('dist', `publish-${SLUG}`));
@@ -66,6 +67,15 @@ const timed = order.map((p) => {
   return { ...p, bodyStart, start: bodyStart + (bodyStart >= spliceAt - 1e-6 ? introLen : 0) };
 });
 const runtime = acc + introLen;
+
+/* A closing movement, if the cut has one. It carries no narration and no chapter of its own
+   until it is given one here — but it is a minute of the video, and a runtime that ignores it
+   is wrong in the one file a person reads before uploading. */
+const outroLen = OUTRO && existsSync(path.resolve(OUTRO))
+  ? Number((await execFileP('ffprobe', ['-v', 'error', '-show_entries', 'format=duration',
+    '-of', 'default=nw=1:nk=1', path.resolve(OUTRO)])).stdout.trim())
+  : 0;
+const fullRuntime = runtime + outroLen;
 
 // ── captions ─────────────────────────────────────────────────────────────
 /* Word timings are per panel and in milliseconds from that panel's own audio. Grouped
@@ -161,6 +171,11 @@ for (const m of marks) {
 }
 if (kept.length < 3) throw new Error(`only ${kept.length} chapters survive the 10s rule — add marks to publish.json`);
 const dropped = marks.length - kept.length;
+
+/* The closing movement gets its own mark. It is a minute of picture with nothing said over
+   it, and a chapter list whose last entry is four minutes from the end tells a viewer the
+   video finishes earlier than it does. */
+if (outroLen >= 12) kept.push({ at: runtime, name: 'The dot, resolved' });
 
 const chapters = kept.map((m) => `${clock(m.at)} ${m.name}`).join('\n');
 await writeFile(path.join(OUT, 'chapters.txt'), chapters + '\n');
@@ -291,7 +306,7 @@ const mb = (b) => `${(b / 1024 / 1024).toFixed(1)} MB`;
 const upload = [
   `# ${meta.title || ep.title}`,
   '',
-  `Cut ${CUT} · runtime ${clock(runtime)} · titles ${introLen.toFixed(1)}s at ${clock(spliceAt)}`,
+  `Cut ${CUT} · runtime ${clock(fullRuntime)} · titles ${introLen.toFixed(1)}s at ${clock(spliceAt)}`,
   '',
   '## Upload',
   '',
@@ -328,7 +343,8 @@ await writeFile(path.join(OUT, 'title.txt'), `${meta.title || ep.title}\n`);
 // ── report ───────────────────────────────────────────────────────────────
 const last = cues[cues.length - 1];
 console.log(`${SLUG} / ${CUT} -> ${OUT}/`);
-console.log(`  runtime      ${clock(runtime)}  (body ${clock(acc)} + titles ${introLen.toFixed(1)}s at ${clock(spliceAt)})`);
+console.log(`  runtime      ${clock(fullRuntime)}  (body ${clock(acc)} + titles ${introLen.toFixed(1)}s at ${clock(spliceAt)}`
+  + `${outroLen ? ` + close ${outroLen.toFixed(1)}s` : ''})`);
 console.log(`  captions     ${cues.length} cues, last ends ${clock(last.b)} -> ${SLUG}.en.srt`);
 console.log(`  chapters     ${kept.length} kept${dropped ? `, ${dropped} dropped for the 10s rule` : ''} -> chapters.txt`);
 console.log(`  description  ${description.split('\n').length} lines -> description.txt`);
