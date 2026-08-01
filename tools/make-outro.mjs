@@ -17,7 +17,7 @@
      node tools/make-outro.mjs --slug zero
      node tools/film-render.mjs --id zero-outro --lift 0.5
 */
-import { mkdir, writeFile, readdir, rm } from 'node:fs/promises';
+import { mkdir, writeFile, readdir, readFile, rm } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
@@ -28,19 +28,20 @@ const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
 
 const SLUG = arg('slug', 'zero');
+const ERA = arg('era', 'gupta');
 
 /* What each story closes on.
 
    Per story, because the closing type is the *content* of the episode restated, not a channel
-   sign-off — a shared one would be decoration. `take` is which abstract shot the movement is
-   held on: a story about a circle ends on a circle.
+   sign-off — a shared one would be decoration.
 
-   The lines are quotations, so they are held to what the source actually says. Brahmagupta's
-   are from the Brāhmasphuṭasiddhānta, 628 CE, chapter 18, where the rules for working with
-   zero and with negative quantities — his "fortunes" and "debts" — are set out for the first
-   time anywhere. He also wrote that zero divided by zero is zero, which is wrong; it is left
-   off rather than put on screen without the narration that would place it, because a card
-   with no voice over it is read as fact. */
+   `episodes/<slug>/closer.json`, written by tools/closer.mjs from the episode's own narration,
+   is preferred when it exists. This table is the hand-written fallback, and it holds the one
+   set of lines I could write without deriving them: Brahmagupta's, from the Brāhmasphuṭasiddhānta,
+   628 CE, chapter 18, where the rules for working with zero and with negative quantities — his
+   "fortunes" and "debts" — are set out for the first time anywhere. He also wrote that zero
+   divided by zero is zero, which is wrong; it is left off rather than put on screen without the
+   narration that would place it, because a card with no voice over it is read as fact. */
 const CLOSERS = {
   zero: {
     take: ['zero-objection', '530-lasting-question'],
@@ -54,12 +55,27 @@ const CLOSERS = {
   },
 };
 
-const closer = CLOSERS[SLUG];
+/* The image the close is held on.
+
+   The three films exist only for the first episode, so a story with no film of its own falls
+   back to its era's own abstract beats — the same ink and light language, generated from the
+   same prompts, already on disk for all nineteen eras. Without this every story after the
+   first would have had to wait on a film that is never going to be made for it. */
+
+const fromFile = await readFile(path.join('episodes', SLUG, 'closer.json'), 'utf8')
+  .then(JSON.parse).catch(() => null);
+const ep = await readFile(path.join('episodes', SLUG, 'episode.json'), 'utf8')
+  .then(JSON.parse).catch(() => null);
+const closer = fromFile
+  ? { take: CLOSERS[SLUG]?.take || null, cards: fromFile.cards }
+  : CLOSERS[SLUG];
+
 if (!closer) {
-  console.error(`no closing movement defined for --slug ${SLUG}`);
-  console.error(`known: ${Object.keys(CLOSERS).join(', ')}`);
+  console.error(`no closing movement for --slug ${SLUG}`);
+  console.error('run tools/closer.mjs --slug ' + SLUG + ' first, or add an entry to CLOSERS');
   process.exit(1);
 }
+console.log(`${SLUG}: closing cards from ${fromFile ? 'closer.json' : 'the CLOSERS table'}`);
 
 const ID = `${SLUG}-outro`;
 const OUT = path.join(ROOT, ID);
@@ -79,9 +95,36 @@ async function newest(film, shot) {
   return best ? path.join(dir, best) : null;
 }
 
-const [film, shot] = closer.take;
-const src = await newest(film, shot);
-if (!src) { console.error(`missing take: ${film}/${shot}`); process.exit(1); }
+/* The longest abstract beat an era has, and its id.
+
+   Longest because the close is one held image and the type has to be read over it: an eight
+   second take retimed is seventeen seconds, a twelve second one is twenty-six, and the
+   difference is whether four lines can breathe. */
+async function eraTake(era) {
+  const dir = path.join('eras', era, 'clips');
+  const files = (await readdir(dir).catch(() => [])).filter((f) => f.endsWith('.mp4'));
+  if (!files.length) return null;
+  let best = null; let longest = 0;
+  for (const f of files) {
+    const p = path.join(dir, f);
+    const { stdout } = await execFileP('ffprobe', ['-v', 'error', '-show_entries', 'format=duration',
+      '-of', 'default=nw=1:nk=1', p]).catch(() => ({ stdout: '0' }));
+    const d = Number(stdout.trim()) || 0;
+    if (d > longest) { longest = d; best = p; }
+  }
+  return best;
+}
+
+const src = closer.take
+  ? await newest(closer.take[0], closer.take[1])
+  : await eraTake(ERA);
+if (!src) {
+  console.error(closer.take
+    ? `missing take: ${closer.take.join('/')}`
+    : `no abstract clips in eras/${ERA}/clips — generate the era first`);
+  process.exit(1);
+}
+console.log(`  held on ${src}`);
 
 const { stdout } = await execFileP('ffprobe', ['-v', 'error', '-show_entries', 'format=duration',
   '-of', 'default=nw=1:nk=1', src]);
@@ -93,9 +136,15 @@ const srcDur = Number(stdout.trim());
    take Sora makes is twelve. Rather than cut back to three lines or run a second clip — which
    is the montage this is replacing — the one take is retimed. Abstract ink at two thirds speed
    does not read as slow motion; it reads as held. Audio is dropped: the take carries none, and
-   the bed is synthesised later against the shot's own length. */
-const SLOW = 1.5;
-const clip = path.join(OUT, 'clips', '010-lasting-question-r1.mp4');
+   the bed is synthesised later against the shot's own length.
+
+   The factor is chosen from the take rather than fixed, because era beats are eight seconds
+   and film shots are twelve, and a fixed 1.5x gives one of them a close half as long as the
+   other's for no reason a viewer could name. */
+const SHOT_ID = '010-close';
+const WANT = 17.5;
+const SLOW = Math.min(2.4, Math.max(1.2, +(WANT / srcDur).toFixed(2)));
+const clip = path.join(OUT, 'clips', `${SHOT_ID}-r1.mp4`);
 await execFileP('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', '-i', src,
   '-filter:v', `setpts=${SLOW}*PTS`, '-an', '-c:v', 'libx264', '-preset', 'slow', '-crf', '16',
   '-pix_fmt', 'yuv420p', clip]);
@@ -122,22 +171,22 @@ const cards = closer.cards.map((c, k) => ({
 }));
 
 const shots = [{
-  id: '010-lasting-question',
+  id: SHOT_ID,
   say: null,
   hold: +held.toFixed(3),
   tail: 0,
   place: 'full',
   kind: 'event',
   cards,
-  prompt: `reused take from ${film}/${shot}, retimed to ${SLOW}x — the circle, held, `
-    + 'while the rules the episode is about are read rather than heard',
+  prompt: `reused take from ${src.replace(/\\/g, '/')}, retimed to ${SLOW}x — held, while what `
+    + 'the episode found is read rather than heard',
 }];
 
 await writeFile(path.join(OUT, 'film.json'), `${JSON.stringify({
   id: ID,
-  title: 'The Dot That Became Zero',
+  title: ep?.title || SLUG,
   spine: 'outro',
-  logline: 'The film dissolves back into ink, and the rules are read.',
+  logline: 'The film dissolves back into ink, and what it found is read.',
   shots,
 }, null, 2)}\n`);
 

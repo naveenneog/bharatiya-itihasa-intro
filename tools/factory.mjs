@@ -54,22 +54,38 @@ if (!STORY) {
   process.exit(1);
 }
 
-/* The two versions. Identical but for the caption treatment.
+/* The version this produces.
 
-   E is the approved look: the whole line present, the spoken word lit. H sets the caption
-   large and short, a few words at a time — the mechanic that holds attention on a phone,
-   in this channel's typography rather than the neon it usually arrives in. */
-const VERSIONS = [
-  { id: 'v1', cut: 'cut-e-framed', what: 'settle — the line is present, the spoken word is lit' },
-  { id: 'v2', cut: 'cut-h-card', what: 'card — a few words at a time, set large' },
-  { id: 'v3', cut: 'cut-i-flow', what: 'flow — the caption scrolls so the spoken word never moves' },
-];
+   It was three, differing only in the caption, because the point was to learn which caption
+   treatment holds. That question has been answered by looking at them: the book — the framed
+   layout with the crease at the caption boundary, the recto turning over to reveal the next
+   panel — with v1's settled caption under it. A scrolling caption beneath a turning page is a
+   second thing moving, and two competing motions read as instability rather than as either
+   effect.
+
+   The others are still cuts and still render; `--versions v1,v2,v3` brings them back for a
+   story where the comparison is worth another two hours. */
+const ALL_VERSIONS = {
+  book: { id: 'book', cut: 'cut-k-page', what: 'the book — settled caption, the page turns' },
+  v1: { id: 'v1', cut: 'cut-e-framed', what: 'settle — the line is present, the spoken word is lit' },
+  v2: { id: 'v2', cut: 'cut-h-card', what: 'card — a few words at a time, set large' },
+  v3: { id: 'v3', cut: 'cut-i-flow', what: 'flow — the caption scrolls so the spoken word never moves' },
+};
+const VERSIONS = (arg('versions', 'book')).split(',').map((s) => s.trim()).filter(Boolean)
+  .map((k) => {
+    if (!ALL_VERSIONS[k]) {
+      console.error(`no version "${k}" — one of: ${Object.keys(ALL_VERSIONS).join(', ')}`);
+      process.exit(1);
+    }
+    return ALL_VERSIONS[k];
+  });
 
 const EP = path.join('episodes', SLUG);
 /* One stinger per episode, not one per era. The era's default beats are a reasonable
    era-level answer and a bad episode-level one — every episode of a series would open on
    the same two objects, and for one of them those objects belong to a different story. */
 const INTRO = path.join('dist', `${ERA}-${SLUG}-stinger.mp4`);
+const OUTRO = path.join('dist', `${SLUG}-outro.mp4`);
 const BUILDDIR = `build-stinger-${SLUG}`;
 const THUMBS = path.join('dist', `thumbs-${SLUG}`);
 const master = (v) => path.join('dist', `${SLUG}-${v.id}-${v.cut}.mp4`);
@@ -166,12 +182,29 @@ const STAGES = [
       '--beats', beats(), '--build', BUILDDIR, '--score', '--out', INTRO],
   },
   {
+    id: 'closer',
+    what: 'the four closing lines and their source, from the episode\'s own narration',
+    makes: () => path.join(EP, 'closer.json'),
+    run: () => ['tools/closer.mjs', '--slug', SLUG],
+  },
+  {
+    id: 'outro-build',
+    what: 'assemble the closing movement — one held abstract take, the lines over it',
+    run: () => ['tools/make-outro.mjs', '--slug', SLUG, '--era', ERA],
+  },
+  {
+    id: 'outro',
+    what: 'render the close with its bed and the wordmark',
+    makes: () => OUTRO,
+    run: () => ['tools/film-render.mjs', '--id', `${SLUG}-outro`, '--lift', '0.5'],
+  },
+  {
     id: 'render',
     what: 'render the master — frame capture, mix, loudness',
     each: true,
     makes: (v) => master(v),
     run: (v) => ['tools/render-episode.mjs', '--slug', SLUG, '--cut', v.cut,
-      '--intro', INTRO, '--out', master(v), ...draftArgs],
+      '--intro', INTRO, '--outro', OUTRO, '--out', master(v), ...draftArgs],
   },
   {
     id: 'publish',
@@ -179,7 +212,14 @@ const STAGES = [
     each: true,
     makes: (v) => path.join(upload(v), 'UPLOAD.md'),
     run: (v) => ['tools/publish.mjs', '--slug', SLUG, '--cut', v.cut, '--intro', INTRO,
-      '--master', master(v), '--out', upload(v)],
+      '--outro', OUTRO, '--master', master(v), '--out', upload(v)],
+  },
+  {
+    id: 'short',
+    what: 'the vertical cut — the claims, over ink and light, under a minute',
+    makes: () => path.join('dist', ERA, `${SLUG}_short`, 'UPLOAD.md'),
+    run: () => ['tools/short.mjs', '--slug', SLUG, '--era', ERA,
+      '--out', path.join('dist', ERA, `${SLUG}_short`)],
   },
   {
     id: 'score',
@@ -213,7 +253,7 @@ for (const [i, s] of STAGES.entries()) {
 const label = (j) => `${j.stage.id}${j.v ? ` ${j.v.id}` : ''}`;
 
 console.log(`\n  ${SLUG}  <-  ${STORY}   era: ${ERA}${DRAFT ? '   [draft]' : ''}`);
-console.log(`  two versions, differing only in the caption:`);
+console.log(`  ${VERSIONS.length} version(s):`);
 for (const v of VERSIONS) console.log(`    ${v.id}  ${v.cut.padEnd(14)} ${v.what}`);
 console.log('');
 for (const j of jobs) {

@@ -35,7 +35,7 @@ const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : arg
 const has = (k) => argv.includes(`--${k}`);
 
 const VALUE_FLAGS = new Set(['what', 'conc', 'rounds', 'seconds', 'beats', 'beat', 'era']);
-const BOOL_FLAGS = new Set(['dry', 'missing', 'all']);
+const BOOL_FLAGS = new Set(['dry', 'missing', 'all', 'vertical']);
 const consumed = new Set();
 argv.forEach((a, i) => { if (a.startsWith('--') && VALUE_FLAGS.has(a.slice(2))) consumed.add(i + 1); });
 const targets = argv.filter((a, i) => !a.startsWith('--') && !consumed.has(i));
@@ -55,6 +55,19 @@ if (unknown.length) {
 }
 
 const WHAT = arg('what', 'stills');
+/* Portrait clips, for the vertical cut.
+
+   Sora will make 720x1280 as readily as 1280x720, and a Short built by cropping a landscape
+   take keeps a 405-pixel-wide slice of it and upscales that by two and two thirds — soft, in
+   a channel whose whole argument is the surface of the image. Generating the era's own beats
+   in portrait once gives every story in that era a vertical bed in the real language, for one
+   batch rather than one per story.
+
+   They live beside the landscape ones rather than replacing them: same prompts, same picks,
+   different frame. */
+const VERTICAL = has('vertical');
+const CLIPDIR = VERTICAL ? 'clips-v' : 'clips';
+const CLIPSIZE = VERTICAL ? '720x1280' : '1280x720';
 const ROUNDS = Number(arg('rounds', '1'));
 const SECONDS = arg('seconds', '8');
 const DRY = has('dry');
@@ -122,7 +135,7 @@ let queue = jobs;
 if (ONLY_MISSING) {
   const keep = [];
   for (const j of jobs) {
-    const sub = j.kind === 'stills' ? 'stills' : 'clips';
+    const sub = j.kind === 'stills' ? 'stills' : CLIPDIR;
     const ext = j.kind === 'stills' ? 'png' : 'mp4';
     const { existing } = await nextRev(j.dir, sub, j.beat.id, ext);
     if (existing === 0) keep.push(j);
@@ -156,7 +169,7 @@ async function worker() {
   for (;;) {
     const j = work.shift();
     if (!j) return;
-    const sub = j.kind === 'stills' ? 'stills' : 'clips';
+    const sub = j.kind === 'stills' ? 'stills' : CLIPDIR;
     const ext = j.kind === 'stills' ? 'png' : 'mp4';
     const { out } = await nextRev(j.dir, sub, j.beat.id, ext);
     const label = `${j.era}/${j.beat.id}`;
@@ -165,11 +178,11 @@ async function worker() {
         await genImage(j.beat.fullPrompt, out, { size: '1536x1024', quality: 'high' });
         await writeFile(out.replace(/\.png$/, '.txt'), j.beat.fullPrompt);
       } else {
-        /* The still is 1536x1024 (3:2) and the clip is 1280x720 (16:9). genVideo
-           centre-crops and scales the reference to the exact requested size, because sora
-           rejects any mismatch — see fitRef in azure.mjs. This comment used to assert that
-           without it being true, and every clip here failed with a 400. */
-        await genVideo(j.beat.fullPrompt, out, { seconds: SECONDS, size: '1280x720', ref: j.still });
+        /* The still is 1536x1024 (3:2) and the clip is 1280x720 landscape or 720x1280
+           portrait. genVideo centre-crops and scales the reference to the exact requested
+           size, because sora rejects any mismatch — see fitRef in azure.mjs. This comment
+           used to assert that without it being true, and every clip here failed with a 400. */
+        await genVideo(j.beat.fullPrompt, out, { seconds: SECONDS, size: CLIPSIZE, ref: j.still });
         await writeFile(out.replace(/\.mp4$/, '.txt'), j.beat.fullPrompt);
       }
       done++;
