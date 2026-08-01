@@ -23,7 +23,7 @@
      node tools/render-episode.mjs --cut cut-e-framed --intro dist/v7-gupta-ink.mp4
      node tools/render-episode.mjs --cut cut-e-framed --limit 40 --scale 0.5   # draft
 */
-import { mkdir, rm, writeFile, readdir, readFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile, readdir, readFile, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -77,6 +77,37 @@ async function seconds(file) {
 const BODY = path.join(TMP, 'body.mp4');
 const TLFILE = path.join(TMP, 'timeline.json');
 const canReuse = REUSE && existsSync(BODY) && existsSync(TLFILE);
+
+/* Is the episode still built from the current upstream narration?
+
+   build-episode is the only thing that samples the source project, and it is easy to go a
+   week without re-running it. That is what happened between v4 and v5 of the first episode:
+   upstream had regenerated the whole voice track, v1–v4 were cut against the old one and v5
+   against the new, and the version set — whose entire purpose is to differ by exactly one
+   thing — silently differed by two. Both renders were correct. Nothing failed.
+
+   Forty minutes is too long to spend finding this out afterwards, so it is checked before
+   the first frame. A warning rather than an error: re-rendering four earlier versions to
+   match is a decision about the experiment, not something a renderer should make. */
+{
+  const ep = JSON.parse(await readFile(path.join(EP, 'episode.json'), 'utf8'));
+  const src = ep.source;
+  if (!src) {
+    console.warn('  ! this episode predates upstream stamping — re-run build-episode.mjs to date it');
+  } else {
+    let newest = 0;
+    for (const f of await readdir(src.dir).catch(() => [])) {
+      const s = await stat(path.join(src.dir, f)).catch(() => null);
+      if (s?.mtimeMs > newest) newest = s.mtimeMs;
+    }
+    if (newest > src.newestMs + 1000) {
+      console.warn(`\n  ! STALE: upstream narration changed ${new Date(newest).toISOString().slice(0, 10)},`
+        + ` after this episode was built (${new Date(src.builtAt).toISOString().slice(0, 10)}).`);
+      console.warn('    Run tools/build-episode.mjs before rendering, and re-render any earlier');
+      console.warn('    versions you mean to compare this one against.\n');
+    }
+  }
+}
 
 if (!canReuse) {
   await rm(TMP, { recursive: true, force: true });

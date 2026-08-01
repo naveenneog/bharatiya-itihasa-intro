@@ -17,9 +17,43 @@
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** Cards, in shot order, with the index of the shot each belongs to. */
-export const cardsOf = (film) => film.shots
-  .map((s, i) => (s.type ? { i, id: s.id, start: s.start, dur: s.dur, ...s.type } : null))
-  .filter(Boolean);
+/* The cards a film shows, with their own windows.
+
+   A shot used to own at most one card, keyed by its index, and both the player and the
+   compositor read the timing off the shot. A closing movement needs the opposite: one held
+   image with several lines of text over it. Keyed to the shot, a second line meant a second
+   shot, which meant a second clip and a visible cut through what is meant to be one
+   continuous picture.
+
+   The compositor already gives every card an independent pair of fades from its own start
+   and duration, so the only thing that had to change is letting a shot own more than one.
+   `at` is measured from the shot's start; `hold` is how long the line stays. */
+export const cardsOf = (film) => film.shots.flatMap((s, i) => {
+  if (Array.isArray(s.cards) && s.cards.length) {
+    return s.cards.map((c, k) => ({
+      i,
+      id: `${s.id}-${k}`,
+      start: +(s.start + (c.at ?? 0)).toFixed(3),
+      dur: c.hold ?? 3.0,
+      en: c.en,
+      when: c.when || null,
+      /* A line in a sequence with no date on it is a quotation, and a quotation is read
+         rather than announced: it belongs in the reading face at reading size, not in the
+         letter-spaced display capitals a title card uses. A card that carries a date is a
+         citation and keeps the title treatment. */
+      quote: !c.when,
+    }));
+  }
+  return s.type ? [{ i, id: s.id, start: s.start, dur: s.dur, ...s.type }] : [];
+});
+
+/* Where the scrim is up: one window per shot that carries type, not one per card.
+
+   Built per card, a sequence of lines on a single shot faded the scrim out and back in
+   between every one of them, which reads as the picture pulsing. */
+export const scrimsOf = (film) => film.shots
+  .filter((s) => s.type || (Array.isArray(s.cards) && s.cards.length))
+  .map((s) => ({ start: s.start, dur: s.dur }));
 
 export const filmPage = (film) => `<!doctype html>
 <html lang="en">
@@ -73,6 +107,15 @@ export const filmPage = (film) => `<!doctype html>
     font-variant-numeric:lining-nums;font-feature-settings:"lnum" 1;
     font-size:clamp(12px,1.02vw,19px);letter-spacing:.24em;color:var(--saffron)}
   .card-rule{margin-top:1em;width:3.6vw;height:1px;background:var(--faint)}
+  /* A quotation, not a title. Marcellus letter-spaced to .30em is a caption on a monument;
+     a sentence somebody wrote is set in the reading face, at reading size, with the spacing
+     a sentence has. The column is widened for it, because a rule broken over three lines
+     stops being a rule and becomes a paragraph. */
+  #type:has(.card.quote){width:44%}
+  .card.quote .card-en{font-family:"Cormorant Garamond",Georgia,serif;
+    font-size:clamp(19px,2.30vw,44px);letter-spacing:.02em;line-height:1.32;
+    color:var(--ink-hi)}
+  .card.quote .card-rule{margin-top:.86em;width:2.2vw}
 
   /* wordmark — the film ends on the channel, not on a shot */
   #wm{position:absolute;inset:0;display:grid;place-content:center;text-align:center;
@@ -125,7 +168,7 @@ ${film.shots.map((s, i) => `    <video data-i="${i}" src="../clips/${s.clip}" mu
   <div id="scrim"></div>
   <div id="wm-bg"></div>
   <div id="type">
-${cardsOf(film).map((c) => `    <div class="card" data-i="${c.i}">
+${cardsOf(film).map((c) => `    <div class="card${c.quote ? ' quote' : ''}" data-start="${c.start}" data-dur="${c.dur}">
       <div class="card-en">${esc(c.en)}</div>${c.when ? `
       <div class="card-when">${esc(c.when)}</div>` : ''}
       <div class="card-rule"></div>
@@ -143,7 +186,7 @@ ${cardsOf(film).map((c) => `    <div class="card" data-i="${c.i}">
   </div>
 </div>
 <script type="module">
-const SHOTS = ${JSON.stringify(film.shots.map((s) => ({ id: s.id, start: s.start, dur: s.dur, seek: s.seek, card: !!s.type, say: !!s.say })))};
+const SHOTS = ${JSON.stringify(film.shots.map((s) => ({ id: s.id, start: s.start, dur: s.dur, seek: s.seek, card: !!(s.type || (Array.isArray(s.cards) && s.cards.length)), say: !!s.say })))};
 const TAIL = ${film.tail ?? 4.6};
 const RUNTIME = ${film.runtime};
 const vids = [...document.querySelectorAll('#film video')];
@@ -183,9 +226,11 @@ function run() {
     at(s.start + s.dur + 0.34, () => { v.classList.remove('on'); v.pause(); });
   });
   cards.forEach((c) => {
-    const s = SHOTS[Number(c.dataset.i)];
-    at(s.start + 0.30, () => c.classList.add('on'));
-    at(s.start + s.dur - 0.42, () => c.classList.remove('on'));
+    /* Off the card's own window, not the shot's — several cards can share one shot. */
+    const st = Number(c.dataset.start);
+    const du = Number(c.dataset.dur);
+    at(st + 0.30, () => c.classList.add('on'));
+    at(st + du - 0.42, () => c.classList.remove('on'));
   });
   at(RUNTIME - 0.5, () => { wmBg.classList.add('on'); vids[vids.length - 1].classList.remove('on'); });
   at(RUNTIME + 0.2, () => wm.classList.add('on'));

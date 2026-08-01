@@ -140,7 +140,7 @@ export function buildUnderscore(panels, total, lift = 0.6, pageTurn = false) {
      twelve and produced enough intersample overshoot to defeat the limiter. A page turn is a
      small sound in a real room. */
   if (pageTurn) {
-    for (const p of panels.slice(1)) cues.push({ t: +p.start.toFixed(3), voice: 'page', gain: 0.2, dur: 0.92 });
+    for (const p of panels.slice(1)) cues.push({ t: +p.start.toFixed(3), voice: 'page', gain: 0.2, dur: 1.25 });
   }
 
   cues.sort((a, b) => a.t - b.t);

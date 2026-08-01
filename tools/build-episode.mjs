@@ -12,7 +12,7 @@
      node tools/build-episode.mjs
      node tools/build-episode.mjs --story aryabhata_turns_the_earth --slug aryabhata
 */
-import { mkdir, readFile, writeFile, copyFile, rm, stat } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile, copyFile, rm, stat } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
@@ -23,10 +23,40 @@ const argv = process.argv.slice(2);
 const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : d; };
 
 const SRC = flag('src', 'C:/Users/navg/DailyApps/IndianHistory');
-const STORY = flag('story', 'aryabhata_turns_the_earth');
 const SLUG = flag('slug', 'aryabhata');
 const OUT = path.join('episodes', SLUG);
 const MAXW = 1280;                       // art is 1024-1536px square-ish; 1280 is plenty at 1080p
+
+/* Which upstream story this slug is, and the refusal to guess.
+
+   `--story` and `--slug` were two independently defaulting flags. Passing only `--slug zero`
+   changed where the episode was written and left the story at its default, so Aryabhata's
+   script was built into Brahmagupta's episode: same pictures, entirely different narration,
+   twenty-seven of twenty-nine panels replaced. It rendered, scored, and published. I read the
+   48-second change as a re-recorded voice track and wrote a section of the context document
+   explaining a drift that was not happening.
+
+   This is the *second* tool to make this exact mistake — see bugs.md §1, where speak.mjs
+   --slug zero read Aryabhata's lines for the same reason. Defaults that only make sense
+   together must not be settable apart.
+
+   An episode already on disk records the story it was built from, so a rebuild does not need
+   to be told twice, and being told something different is an error rather than an instruction. */
+const existing = await readFile(path.join(OUT, 'episode.json'), 'utf8')
+  .then(JSON.parse).catch(() => null);
+const asked = flag('story', null);
+const STORY = asked || existing?.id || (SLUG === 'aryabhata' ? 'aryabhata_turns_the_earth' : null);
+
+if (!STORY) {
+  console.error(`no story for --slug ${SLUG}: pass --story <upstream_id> the first time it is built`);
+  process.exit(1);
+}
+if (existing && existing.id && existing.id !== STORY && !argv.includes('--restory')) {
+  console.error(`episodes/${SLUG} was built from "${existing.id}" and you asked for "${STORY}".`);
+  console.error('One of the two is wrong. Pass --restory only if you mean to replace the story.');
+  process.exit(1);
+}
+console.log(`${SLUG} <- ${STORY}`);
 
 const srcJson = path.join(SRC, 'app', 'data', `${STORY}.player.json`);
 const story = JSON.parse(await readFile(srcJson, 'utf8'));
@@ -248,6 +278,24 @@ if (hook?.dur) {
   });
 }
 
+/* The upstream sample this build was taken from.
+
+   build-episode is the only thing that reads the source project, and nothing used to
+   record when it last did. Between rendering v4 and v5 of one episode, upstream had
+   regenerated the whole voice track nine days earlier: v1–v4 were cut against a 293.8 s
+   narration and v5 against a 342.5 s one, twenty-seven of twenty-nine panels different.
+   Both were correct builds. The set was no longer a comparison of caption treatments.
+
+   Stamping the newest mtime seen lets every downstream tool ask whether the sample it is
+   about to spend forty minutes rendering is still the current one. */
+const audioDir = path.join(SRC, 'app', path.dirname(path.dirname(
+  (story.panels.find((p) => p.audio?.en)?.audio?.en || '').replace(/^assets\//, 'assets/'))));
+let newestMs = 0;
+for (const f of await readdir(audioDir).catch(() => [])) {
+  const s = await stat(path.join(audioDir, f)).catch(() => null);
+  if (s?.mtimeMs > newestMs) newestMs = s.mtimeMs;
+}
+
 const episode = {
   id: story.id,
   slug: SLUG,
@@ -259,6 +307,7 @@ const episode = {
   hero: story.hero,
   langs: story.langs || ['en', 'hi'],
   runtime: +total.toFixed(1),
+  source: { dir: audioDir.replace(/\\/g, '/'), newestMs, builtAt: Date.now() },
   panels,
 };
 episode.runtime = +panels.reduce((a, p) => a + p.dur, 0).toFixed(1);

@@ -22,7 +22,7 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import { launch } from '../scripts/browser.mjs';
 import { loadFilm, ROOT } from './films.mjs';
-import { filmPage, cardsOf } from './film-page.mjs';
+import { filmPage, cardsOf, scrimsOf } from './film-page.mjs';
 import { buildUnderscore } from './underscore.mjs';
 import { normaliseTo, assertLoudness, measure } from './loudness.mjs';
 
@@ -116,6 +116,7 @@ await mkdir(build, { recursive: true });
 await writeFile(path.join(build, 'index.html'), filmPage({ ...film, tail: TAIL }));
 
 const cards = cardsOf(film);
+const scrims = scrimsOf(film);
 const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
 const stop = () => { try { server.kill(); } catch { /* already gone */ } };
 process.on('exit', stop);
@@ -239,7 +240,7 @@ const iScrim = n; const iVig = n + 1; const iGrain = n + 2; const iWm = n + 3; c
 
 /* The scrim is part of a card, not part of the film, so it fades in and out with each one
    rather than sitting over every frame. Half the shots are undimmed because of this. */
-f.push(`[${iScrim}:v]scale=${W}:${H},format=rgba${cards.map((c) =>
+f.push(`[${iScrim}:v]scale=${W}:${H},format=rgba${scrims.map((c) =>
   `,fade=t=in:st=${(c.start).toFixed(3)}:d=0.5:alpha=1,fade=t=out:st=${(c.start + c.dur - 0.45).toFixed(3)}:d=0.5:alpha=1`).join('')}[scrim]`);
 f.push('[pic][scrim]overlay=format=auto[c0]');
 

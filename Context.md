@@ -702,7 +702,51 @@ and `saveEra()` refuses to persist a derived value, so changing the rule later s
 
 ---
 
-## The four versions
+## The wrong story was built into the episode (caught 31 Jul, by the user)
+
+`build-episode.mjs` had **two independently defaulting flags**: `--story` (upstream id) and
+`--slug` (output directory). Running `build-episode.mjs --slug zero` — no `--story` —
+changed where the episode was written and left the story at its default, so **Aryabhata's
+script was built into Brahmagupta's episode**. Same artwork, entirely different narration.
+
+It rendered. It scored. Nothing failed:
+
+| | | |
+|---|---|---|
+| `episodes/zero` should be | `the_dot_that_became_zero` | Brahmagupta, Bhinmal, 628 CE |
+| what got built | `aryabhata_turns_the_earth` | Aryabhata, Kusumapura, 499 CE |
+| result | 27 of 29 panels replaced | +48.6 s |
+
+**And I misdiagnosed it.** I measured the 48.6 s change, confirmed the upstream file really
+was newer, concluded the source project had re-recorded its voice track, and wrote a
+section of this document explaining a drift that was not happening. Every number in that
+analysis was correct and the conclusion was wrong. The user caught it from one frame: the
+map said *Kusumapura* under a story about *Bhinmal*.
+
+**This is the second tool to make this exact mistake.** See "Bugs found and fixed" §1 —
+`speak.mjs --slug zero` read Aryabhata's lines for the same reason. Fixing the instance did
+not fix the class.
+
+### The fix
+
+Defaults that only make sense together must not be settable apart. `build-episode.mjs` now:
+
+- takes the story from **the existing `episodes/<slug>/episode.json`** when `--story` is
+  omitted — an episode on disk already records which story it is, so a rebuild does not
+  need to be told twice;
+- **hard errors** if a slug has no story and none was given;
+- **hard errors** if `--story` disagrees with what the slug was built from, unless
+  `--restory` is passed;
+- prints `slug <- story` as its first line, so the wiring is visible in every log.
+
+### The general rule
+
+**A flag that narrows *where* output goes must never leave *what* is processed at a
+default.** If two flags are only meaningful together, either derive one from the other or
+refuse to run.
+
+---
+
 
 Each differs from the next by exactly one thing, so a comparison between any two is a
 comparison of that thing.
@@ -713,9 +757,145 @@ comparison of that thing.
 | v2 | `cut-h-card` | **card** — a few words at a time, set large |
 | v3 | `cut-i-flow` | **flow** — the caption scrolls so the spoken word never leaves the centre line |
 | v4 | `cut-j-shots` | flow **+ the picture cuts** on the speaker's pauses |
+| v5 | `cut-k-page` | flow **+ the frame is an open book and the page turns** |
 
 `dist/<era>/<slug>_<version>/` — video, intro, thumbnail, SRT, chapters, description, tags,
 title, `UPLOAD.md`, and `ab/` with three thumbnails, five titles and five headlines.
+
+### v5 — the book page turn
+
+The framed layout already had a book's geometry: caption column left, picture right,
+boundary at 38%. Calling that boundary a **crease** and hinging the picture there makes a
+panel change a page turn — the recto lifts, sweeps across the crease, closes over the
+words, and lands as the new verso while the next picture is revealed under it.
+
+**38% is one number in five places**: `#capwrap` width, `img.sharp` left,
+`transform-origin`, the crease seam, the paper's `left`. If any drifts, it stops being a
+book.
+
+`TURN = 1.25` s rotation + `SETTLE = 0.22` s during which the landed leaf dissolves into
+the left page while the new words come up through it. All of it a pure function of panel
+local time, because the renderer scrubs.
+
+**Judge it with `tools/turnsheet.mjs`, never from a master.**
+
+```
+node tools/turnsheet.mjs --slug zero --cut cut-k-page --panel 3 --steps 14 --scale 0.6
+```
+
+Scrubs the player to instants inside one turn, writes full-size frames plus a contact
+sheet, and reads `--turn/--lift/--leaf/--shade/--reveal` back **off the live element** so
+the log cannot drift from what is drawn. A turn is thirty frames buried in six minutes; a
+master costs forty minutes a look, and a downscaled contact sheet of a draft is how most of
+the following survived several passes.
+
+#### Nine wrong versions, all of which encoded cleanly
+
+1. **Hinged at the frame's edge.** Rotates *away* from the words. A rectangle, not a page.
+2. **`backface-visibility:hidden` on the leaf hid its children too** — including the paper
+   reverse, the one thing that must appear at 90°. Use `transform-style:preserve-3d` on the
+   container and put the backface rules on the children.
+3. **`.shotbox` flattens the 3D space.** The sharp picture sits inside it, so the image's
+   backface was resolved in the shotbox's own unrotated plane, which always faces the
+   viewer — past 90° the leaf showed the picture **mirrored, place-name and all**. The rule
+   belongs on whatever sits *directly* in the leaf's 3D space (`.scene.turning > *`).
+4. **The backface test is not trustworthy at exactly 180°.** With the rule in the right
+   place, an opaque paper and the depth sorted, the mirrored picture still came back for
+   the frames the page lay flat. `--face` switches the two sides from the clock at the
+   midpoint — smoothstep is symmetric, so the leaf is edge-on there and neither is visible.
+5. **`translateZ` is written in the rotated element's own space**, which reverses at −180°.
+   `+2px` — "in front" everywhere else — put the paper two pixels *behind* the picture
+   exactly where it had to be in front. Written *after* the flip it lands in the same wrong
+   place. One mistake, three disguises.
+6. **A page's back is opaque.** Gradients alone maxed at alpha .40 and the picture showed
+   through. Solid base under the sheen.
+7. **The leaf lands mirrored, so only its first 61% is ever on screen.** A sheen at 96% —
+   the natural choice for a page lit from the right — lands off-frame left, and the whole
+   second half of the turn is an unlit black rectangle. Place the light where it will land.
+8. **The caption must not be swapped when the turn starts.** Repainting on the panel change
+   put the *new* words on the left page on frame one and then blanked them for the whole
+   turn: the page spent 1.25 s closing over an empty leaf. The left page belongs to the
+   panel being turned *away from* until the leaf lands. Derived from the time (`capKey`),
+   not remembered, because the renderer scrubs.
+9. **`#capwrap` (z4) outranked `#art` (z auto)**, so the leaf — z6 *inside* the stacking
+   context `#art` creates the moment it is given a `perspective` — swept **underneath** the
+   words. Raising `#art` to z5 then required pulling the blurred plate back to the recto
+   (`.page-turn #art img.plate{left:38%;width:62%}`), or it buried the caption at rest.
+   That turned out to be the better picture anyway: the leaf now *is* a full page.
+
+Plus: **ease-out makes the turn invisible** (85° in the first fifth — edge-on; a 920 ms
+turn visible for 200 ms). Smoothstep `u*u*(3-2*u)` hits 90° at the midpoint.
+
+And: **a page and the page it becomes must be lit the same way**, or the dissolve is a
+visible shift. The leaf's numbers re-expressed against the verso's narrower box — the leaf
+is 62% of the frame wide and lands on a 38% page, so its `22%` is the verso's `64%` and its
+`120%` radius is `196%`. Both darkest in the gutter, which is also physically right.
+
+And: **the outgoing leaf keeps its own clock.** The per-frame `animation-delay` scrub was
+handing it the new panel's local time, so the outgoing picture snapped back to the start of
+its pan on the very frame it began to lift.
+
+### The captions settle, they do not flow
+
+v5 was built on `cut-i-flow`, whose caption scrolls so the spoken word never leaves the
+centre line. Under a turning page that is a **second thing moving**, and two competing
+motions read as instability rather than as either effect. `cut-k-page` now uses v1's
+`settle` — the whole line present, the spoken word lit — so the only thing travelling is
+the page.
+
+### The split panel was the one kind that turned wrongly
+
+`split` is three pictures side by side. Every other kind fills the frame with a blurred
+blow-up of its own art; this one had **no plate**, so nothing held it to the recto. In the
+framed cut it bled across the crease and sat under the caption; in the page-turn cut the
+third of it lying left of the 38% hinge swung *backwards* while the rest swung forward.
+
+Two fixes, both needed:
+
+- the three slices go in a `.splitrow` **inside** the scene, so the scene stays the
+  full-frame rectangle the hinge, the paper and the backface rules are all written against;
+- it gets a plate, taken from its first slice.
+
+Then a third: `.framed #art img{object-fit:contain}` means nothing is cropped, so square
+slices in a full-height column letterbox to a third of the height and leave two thirds
+black. The row is sized to its own content — *n* columns of square art is an *n*:1 band —
+and centred, `row.style.aspectRatio = p.slices.length + '/1'`.
+
+### The close — one image, and what he actually wrote
+
+`tools/make-outro.mjs` used to assemble five abstract takes over 33 s. Five shots in a row
+say less than one image held long enough to be looked at. It is now:
+
+- **one** take (`zero-objection/530-lasting-question` — a held gold circle, which for this
+  story is the subject), retimed to 1.5× → 17.5 s;
+- **Brahmagupta's own rules** over it as silent type, no narration;
+- the wordmark. 22.1 s total, −14.7 LUFS, −1.5 dBTP.
+
+```
+A fortune minus zero is a fortune.
+A debt minus zero is a debt.
+Zero minus zero is zero.
+Zero multiplied by zero is zero.
+BRĀHMASPHUṬASIDDHĀNTA · 628 CE
+```
+
+He also wrote that **zero divided by zero is zero**, which is wrong. It is left off rather
+than shown without the narration that would place it: **a card with no voice over it is read
+as fact.**
+
+Per story, in the `CLOSERS` table — the closing type is the episode's content restated, so
+a shared sign-off would be decoration. Adding a story is a data edit.
+
+**What had to change to allow it:** cards were keyed to shots, so a second line meant a
+second shot, which meant a second clip and a visible cut through one continuous image. A
+shot may now own a `cards` array with per-line `at`/`hold`; the compositor already gave
+every card independent fades from its own start and duration, so nothing downstream changed.
+The **scrim** window is built per *shot*, not per card — per card it faded out and back in
+between every line and the picture appeared to pulse. Sequence cards without a date are set
+in the reading face (a quotation is not a title); cards with a date keep the display
+treatment. And the retimed length is **probed from the encoded file**, not multiplied —
+`setpts` lands on a whole frame and came out 150 ms short, which is enough for the renderer
+to refuse to build.
 
 ### The cold open — `tools/hook.mjs`
 

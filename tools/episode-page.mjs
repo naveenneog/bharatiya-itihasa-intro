@@ -158,12 +158,19 @@ export const CUTS = [  {
      visual language instead of simply stopping. */
   {
     id: 'cut-k-page',
-    name: 'K · Flow + the page turns',
-    pitch: 'Cut I, with each panel turning like a leaf of an old book to reveal the next — '
-      + 'sound included — and closing on abstract ink rather than on the last picture.',
+    name: 'K · The book, with v1 captions',
+    pitch: 'The framed cut with v1\'s settled caption — the whole line present, the spoken word '
+      + 'lit — and each panel turning like a leaf of an old book to reveal the next, sound '
+      + 'included, closing on abstract ink rather than on the last picture.',
     intro: { src: '../../../dist/v7-gupta-stinger.mp4' },
     open: ['hook', 'cover'], openMode: 'first', card: false, frame: 'framed',
-    caption: 'flow', pageTurn: true,
+    /* Settle, not flow.
+
+       Flow scrolls the whole caption so the spoken word stays on the centre line, which is
+       a second thing moving in a frame whose picture is already turning over. Two competing
+       motions read as instability rather than as either effect. The settled caption holds
+       still and lights word by word, so the only thing travelling is the page. */
+    caption: 'settle', pageTurn: true,
   },
 ];
 
@@ -281,7 +288,22 @@ export const episodePage = (ep, cut) => `<!doctype html>
     to{transform:translateX(var(--tx,0%)) scale(var(--ts2,1.03)) rotate(var(--tr,0deg))}}
   .scene img.char{object-fit:contain;animation:charmove linear forwards;
     filter:drop-shadow(0 18px 34px rgba(0,0,0,.72))}
-  .scene.split{display:flex;gap:2px}
+  /* A split panel is three pictures side by side. Unlike every other kind it has no plate, so
+     nothing was holding it to the recto: it was the one panel that bled across the crease and
+     sat under the caption in the framed cut, and in the page-turn cut it was the one panel
+     that turned wrongly — the leaf hinges at 38%, and the third of the picture lying to the
+     left of the hinge swings backwards while the rest swings forward.
+
+     The row is a box inside the scene rather than the scene itself, so the scene stays the
+     full-frame rectangle every other kind is and the hinge, the paper and the backface rules
+     all keep working off one geometry. */
+  .scene.split .splitrow{position:absolute;inset:0;display:flex;gap:2px}
+  /* In the framed cut nothing is cropped, so a square slice letterboxes inside a column that
+     is nearly three times as tall as it is wide and two thirds of the page is empty. The row
+     is therefore sized to its own slices — n columns of square art is an n:1 band — and
+     centred, with the blurred plate behind it doing what it does on every other panel. */
+  .framed #art .scene.split .splitrow{left:38%;width:62%;top:50%;bottom:auto;
+    transform:translateY(-50%)}
   .scene.split .sl{position:relative;flex:1;overflow:hidden}
   .scene.split .sl img{position:absolute;inset:0;opacity:1;transition:none}
   .scene.split .sl b{position:absolute;left:6%;right:6%;bottom:34%;z-index:2;display:block;
@@ -409,31 +431,131 @@ export const episodePage = (ep, cut) => `<!doctype html>
   .scene.shot-in .shotbox{transform:scale(1.34);transform-origin:52% 34%}
   .scene.shot-side .shotbox{transform:scale(1.22);transform-origin:22% 62%}
 
-  /* page turn — the outgoing panel is a leaf of an old book, hinged at its left edge.
+  /* page turn — the frame is an open book.
 
-     #art gets the perspective, and the leaf rotates about its own spine inside it. The
-     rotation angle, the lift and the shadow sweep are all set from JS as a function of time,
-     so the master lands on exactly what the player would show at that instant.
+     The caption column is the left leaf, the picture is the right leaf, and the crease runs
+     between them at 38% — which is exactly where #capwrap ends and img.sharp begins. When the
+     story moves on, the picture page lifts off the right leaf, sweeps across the crease and
+     closes over the words; the new words then appear on the leaf it has landed on.
 
-     The back face is aged paper, not a mirror of the picture. A page's reverse is not its
-     front, and showing the same image flipped is the tell that makes a turn look like a CSS
-     demo rather than a book. */
-  .page-turn #art{perspective:2400px;perspective-origin:38% 50%}
-  .page-turn #art .scene{transform-origin:0% 50%;backface-visibility:hidden}
+     The hinge is therefore at 38%, not at the frame's left edge. Hinged at the edge the page
+     rotated away from the words instead of over them, which is a rotating rectangle rather
+     than a book.
+
+     The leaf is wider than the left page it lands on, so past about 150 degrees it reaches
+     beyond the frame. #stage already clips, so the overhang goes off-screen rather than being
+     scaled to fit — a page that shrinks as it turns is the other way this effect gives itself
+     away.
+
+     Angle, lift and shadow are all set from JS as a function of time, because the renderer
+     scrubs to arbitrary instants and a time-based ease cannot be scrubbed. */
+
+  /* #art has to sit above the caption for any of this to work.
+
+     #capwrap carries z-index 4 and #art carried none, so the leaf — z-index 6 inside a
+     stacking context #art creates for itself the moment it is given a perspective — was
+     still painted underneath the words. The page swept *below* the text it was supposed to
+     be closing over, which was invisible only because the words had been blanked for the
+     whole turn. Raising #art puts the leaf over the left page; the plate is pulled back to
+     the recto below so the words are not buried by it at rest. */
+  .page-turn #art{perspective:2200px;perspective-origin:38% 50%;z-index:5}
+  .page-turn #film{z-index:6}
+  /* The plate is the recto. Bleeding it across the whole frame made the left side a blurred
+     blow-up of the picture, which is a background, not a page — and with #art now above the
+     caption it would have covered the words outright. Held to the right of the crease it
+     fills the printed page edge to edge, which is also what gives the leaf something to be:
+     before this the thing that turned was a picture floating on black. */
+  .page-turn #art img.plate{left:38%;width:62%}
+  .page-turn #art .scene::after{left:38%}
+  /* Pages are darker in the gutter. */
+  .page-turn #art .scene::before{left:38%;width:auto;right:0;
+    background:linear-gradient(90deg,rgba(13,11,9,.9) 0%,rgba(13,11,9,0) 11%)}
+  /* The verso. Lit exactly as the leaf's own back is lit, because that is what it becomes:
+     the page lands, dissolves into this, and if the two disagree about where the light
+     falls the handover is a visible shift rather than nothing at all. A landed page is
+     brightest away from the spine and darkest in the gutter, which is also the way round a
+     real one is lit — the first version had it backwards, brightening toward the crease.
+
+     The numbers are the leaf's own, re-expressed against a narrower box: the leaf is 62% of
+     the frame wide and lands mirrored on a 38% page, so its 22% falls at 64% here and its
+     120% radius at 196%. */
+  .page-turn #stage::before{content:"";position:absolute;left:0;top:0;bottom:0;width:38%;
+    pointer-events:none;
+    background:
+      radial-gradient(196% 100% at 64% 44%,rgba(240,224,192,.30),rgba(126,102,68,.13) 44%,rgba(20,15,10,0) 100%),
+      linear-gradient(270deg,rgba(0,0,0,.66) 0%,rgba(0,0,0,0) 21%)}
+  /* preserve-3d, not backface-visibility, on the leaf itself.
+
+     Hiding the container's back face hid *everything inside it* the moment the turn passed
+     ninety degrees — including the paper reverse, which is the one thing that is supposed to
+     appear at exactly that point. The container stays visible and keeps its own 3D space; the
+     picture layers hide their backs, and the paper hides its front, so the two swap over at
+     the halfway mark the way the two sides of a sheet do. */
+  .page-turn #art .scene{transform-origin:38% 50%;transform-style:preserve-3d}
   .page-turn #art .scene.turning{
     transform:translateZ(var(--lift,0px)) rotateY(var(--turn,0deg));
-    box-shadow:0 0 90px 20px rgba(0,0,0,.7);z-index:3}
-  /* the reverse of the leaf: warm paper, seen once the turn passes ninety degrees */
-  .page-turn #art .scene.turning::after{content:"";position:absolute;inset:0;
-    transform:rotateY(180deg);backface-visibility:hidden;
+    opacity:var(--leaf,1);transition:none;
+    z-index:6}
+  /* Every direct child of the leaf, not the images.
+
+     .shotbox is a plain div with no transform-style of its own, so it flattens everything
+     under it: the sharp picture's hidden back face was being decided in the shotbox's own
+     plane, which never rotates and therefore always faces the viewer. Past ninety degrees
+     the leaf went on showing the picture — mirrored, place-name and all — instead of its
+     reverse. The rule belongs on whatever sits directly in the leaf's 3D space.
+
+     And it is not trusted on its own. With the rule in the right place the picture still
+     came back for the frames the page lay flat at a hundred and eighty degrees, whatever
+     depth the paper was given; which face a flattened subtree presents at the exact
+     half-turn is not something to stake the shot on. --face switches the two sides at the
+     midpoint from the clock instead, where the leaf is edge-on and neither can be seen. */
+  .page-turn #art .scene.turning > *{backface-visibility:hidden;opacity:var(--face,1)}
+  .page-turn #art .scene.turning::after{backface-visibility:hidden;opacity:var(--face,1)}
+  /* The reverse of the leaf: unprinted page. A page's back is not its front, and showing
+     the picture mirrored is the tell.
+
+     translateZ is *negative*, and it comes before the flip.
+
+     The offset is written in the leaf's own space, and the leaf ends the turn rotated a
+     hundred and eighty degrees — which reverses that space's z axis against the world. A
+     positive offset, the one that means "in front" everywhere else, therefore put the paper
+     two pixels *behind* the picture exactly where it had to be in front of it: at a hundred
+     and eighty degrees Chromium resolves the degenerate backface test in favour of the
+     front, and the whole mirrored map came back for the frames the page lay flat. Written
+     after the flip instead of before it, the translate is applied in the already-reversed
+     frame and lands in the same wrong place. This is the same mistake in three disguises.
+
+     The light is at 22%, not 96%. The leaf lands flipped, so its far edge ends up off-frame
+     to the left and only its first sixty-one per cent is ever seen — with the sheen at the
+     far end, every frame of the second half of the turn was an unlit black rectangle, which
+     is to say the turn was visible for only half its length for the second time. The gutter
+     shadow runs the same way round for the same reason.
+
+     And it is opaque. Written as gradients alone it was a wash with a maximum alpha of .40,
+     so the picture on the other side of the leaf showed straight through it. Paper is not
+     translucent. */
+  .page-turn #art .scene.turning::before{content:"";position:absolute;left:38%;right:0;top:0;bottom:0;
+    z-index:9;transform:translateZ(-2px) rotateY(180deg);backface-visibility:hidden;
+    opacity:calc(1 - var(--face,1));
     background:
-      radial-gradient(120% 90% at 12% 50%,rgba(232,214,178,.20),rgba(120,98,66,.10) 46%,rgba(20,15,10,.55) 100%),
-      linear-gradient(90deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,0) 14%)}
-  /* the shadow the leaf throws on the page it is uncovering, sweeping left to right */
-  .page-turn #art .scene:not(.turning)::after{content:"";position:absolute;inset:0;
-    pointer-events:none;z-index:2;
-    background:linear-gradient(90deg,rgba(0,0,0,.72) 0%,rgba(0,0,0,.34) 8%,rgba(0,0,0,0) 22%);
-    transform:translateX(calc(var(--sweep,0) * 120%));opacity:calc(1 - var(--sweep,0) * .35)}
+      radial-gradient(120% 100% at 22% 44%,rgba(240,224,192,.30),rgba(126,102,68,.13) 44%,rgba(20,15,10,0) 100%),
+      linear-gradient(90deg,rgba(0,0,0,.66) 0%,rgba(0,0,0,0) 13%),
+      linear-gradient(180deg,var(--paper),var(--paper));
+    box-shadow:0 0 80px 18px rgba(0,0,0,.6)}
+  /* The crease. One soft dark seam where the two leaves meet, so the frame reads as a spread
+     rather than as a caption beside a picture. Above #art, because the plate now runs right
+     up to it and would otherwise cover the half of the seam that falls on the recto. */
+  .page-turn #stage::after{content:"";position:absolute;left:38%;top:0;bottom:0;width:2.2%;
+    transform:translateX(-50%);z-index:5;pointer-events:none;
+    background:linear-gradient(90deg,rgba(0,0,0,0),rgba(0,0,0,.55) 46%,rgba(0,0,0,.55) 54%,rgba(0,0,0,0));
+    mix-blend-mode:multiply}
+  /* The shadow the travelling leaf throws on the words it is closing over. */
+  .page-turn #capwrap{position:absolute}
+  .page-turn #capwrap::after{content:"";position:absolute;inset:0;z-index:5;pointer-events:none;
+    background:linear-gradient(270deg,rgba(0,0,0,.8) 0%,rgba(0,0,0,.4) 34%,rgba(0,0,0,0) 76%);
+    opacity:var(--shade,0)}
+  /* The new words are not there until the page that carries them has landed. */
+  .page-turn #cap,.page-turn #speaker{opacity:var(--reveal,1)}
 
   .cap-stroke #cap .w{position:relative}  .cap-stroke #cap .w.now::after{content:"";position:absolute;left:0;right:0;bottom:-0.16em;    height:2px;background:linear-gradient(90deg,rgba(232,182,74,0),#e8b64a,rgba(232,182,74,0))}
   #speaker{margin:0 auto .5em;text-align:center;font-family:"Marcellus",serif;
@@ -813,6 +935,18 @@ function buildScene(p, secs, pos) {
   }
 
   if (p.kind === 'split' && p.slices?.length) {
+    /* The plate a split panel never had. Every other kind fills the frame with a blurred
+       blow-up of its own art; without one the split sat as a band on bare black, which is
+       what made it look like a different film for four seconds. The first slice stands in
+       for the panel, because there is no single image to take. */
+    if (p.slices[0]?.img) el.appendChild(img(p.slices[0].img, 'plate'));
+    const row = document.createElement('div');
+    row.className = 'splitrow';
+    /* The art is composed square, so n columns of it is an n:1 band. Written from the data
+       rather than fixed at 3:1, because a two- or four-slice panel is legal. Concatenated
+       rather than interpolated: this whole page is itself a template literal, and a nested
+       one has to be escaped twice to survive it. */
+    row.style.aspectRatio = p.slices.length + '/1';
     for (const s of p.slices) {
       const d = document.createElement('div');
       d.className = 'sl';
@@ -820,8 +954,9 @@ function buildScene(p, secs, pos) {
       const b = document.createElement('b');
       b.textContent = s.slogan?.[lang] || s.slogan?.en || '';
       d.appendChild(b);
-      el.appendChild(d);
+      row.appendChild(d);
     }
+    el.appendChild(row);
     return el;
   }
 
@@ -844,6 +979,7 @@ function show(n) {
   setTimeout(() => { [...art.children].slice(0, -1).forEach((el) => el.remove()); }, 1000);
 
   paintCaption(p);
+  capKey = p.id;
   const src = p.audio[lang] || p.audio.en;
   audio = new Audio(src);
   audio.play().catch(() => {});
@@ -961,6 +1097,9 @@ if (EXPORT) document.documentElement.classList.add('export');
 
 const DURATION = ORDER.reduce((a, k) => a + P[k].dur, 0);
 let scrubbed = -1;
+/* Which panel's words #capwrap is currently holding. Tracked separately from the panel on
+   screen because during a page turn the two are deliberately different. */
+let capKey = null;
 
 function panelAt(t) {
   let acc = 0;
@@ -976,42 +1115,66 @@ function panelAt(t) {
 
 /* The page turn.
 
-   The outgoing panel is a leaf of an old book, hinged on its left edge. It lifts, rotates up
-   and over, and falls away, revealing the next panel already beneath it.
+   The frame is an open book: words on the left leaf, picture on the right, crease between
+   them. When the story moves on, the picture page lifts, sweeps across the crease, closes over
+   the words, and the new words appear on the leaf it lands on.
 
-   Driven by an explicit progress value rather than a CSS transition, because the renderer
-   scrubs to arbitrary times and a time-based ease cannot be scrubbed — the master would land
-   mid-animation wherever the browser happened to be, and disagree with the player.
+   Three things are driven from here, all as pure functions of the panel-local time, because
+   the renderer scrubs to arbitrary instants and a time-based CSS ease cannot be scrubbed —
+   the master would land wherever the browser happened to be and disagree with the player.
 
-   Two things sell it as paper rather than as a rotating rectangle. The shadow the turning leaf
-   casts on the page underneath sweeps across as it passes over, so the new page is lit as it
-   is uncovered. And the back of the leaf is a warm aged-paper face rather than a mirror of the
-   picture, because the back of a page is not the front of it. */
-const TURN = 0.92;
+     --turn    the angle, 0 to -180 about the crease
+     --shade   the shadow the travelling leaf throws on the words it is closing over
+     --reveal  the new words, which are not there until the page carrying them has landed */
+const TURN = 1.25;
+/* The settle. The leaf reaches the left page a fraction before the words do: it lies there
+   for a beat and dissolves into the page while the new ink comes up through it. Removed on
+   the frame it landed, it popped — its back carries a sheen and a drop shadow the bare page
+   does not, so the page did not so much settle as disappear. */
+const SETTLE = 0.22;
 
 function paintTurn(lt, n) {
   if (!PAGETURN) return;
   const leaf = art.querySelector('.scene.turning');
-  const under = art.querySelector('.scene:not(.turning)');
-  if (!leaf) { if (under) under.style.setProperty('--sweep', '0'); return; }
-  if (n === 0 || lt >= TURN) { leaf.remove(); if (under) under.style.setProperty('--sweep', '0'); return; }
+  const wrap = document.getElementById('capwrap');
+  const set = (el, k, v) => { if (el) el.style.setProperty(k, v); };
+  if (n === 0 || lt >= TURN + SETTLE) {
+    if (leaf) leaf.remove();
+    set(wrap, '--shade', '0'); set(wrap, '--reveal', '1');
+    return;
+  }
+  if (!leaf) return;
 
   const u = Math.max(0, Math.min(1, lt / TURN));
   /* Smoothstep, not ease-out.
 
-     Ease-out puts almost all the rotation at the front: at a fifth of the way through the leaf
+     Ease-out puts almost all the rotation at the front: a fifth of the way through, the leaf
      was already at eighty-five degrees, which is edge-on and therefore invisible. The turn ran
      for nine hundred milliseconds and could only be seen for two hundred of them.
 
      Smoothstep reaches ninety degrees at the halfway point, so the face of the page is visible
-     for the first half of the turn and its back for the second — which is what a page actually
-     does, and what makes the motion legible at all. */
+     for the first half of the turn and its back for the second — which is what a page does,
+     and what makes the motion legible at all. */
   const e = u * u * (3 - 2 * u);
-  leaf.style.setProperty('--turn', (e * -178).toFixed(2) + 'deg');
-  /* It lifts off the block before it starts to travel, and the lift decays as it goes over. */
-  leaf.style.setProperty('--lift', (Math.sin(u * Math.PI) * 26).toFixed(2) + 'px');
-  leaf.style.opacity = u > 0.94 ? String((1 - u) / 0.06) : '1';
-  if (under) under.style.setProperty('--sweep', e.toFixed(3));
+  leaf.style.setProperty('--turn', (e * -180).toFixed(2) + 'deg');
+  /* Which side of the sheet is facing us. Smoothstep is symmetric, so the leaf passes
+     ninety degrees at exactly the halfway point — edge-on, projected to nothing, which is
+     the one instant where the two faces can be exchanged without either being seen. */
+  leaf.style.setProperty('--face', u < 0.5 ? '1' : '0');
+  /* It lifts off the block before it travels and settles back as it lands. */
+  leaf.style.setProperty('--lift', (Math.sin(u * Math.PI) * 34).toFixed(2) + 'px');
+
+  const s = Math.max(0, (lt - TURN) / SETTLE);
+  leaf.style.setProperty('--leaf', (1 - s).toFixed(3));
+  if (!wrap) return;
+  /* The shadow the page throws ahead of itself on the words it is closing over: it arrives
+     with the leaf and stays until the leaf has gone. */
+  set(wrap, '--shade', lt < TURN ? Math.min(1, u * 2.4).toFixed(3) : '0');
+  /* Full through the turn, because until the leaf lands these are still the *old* words and
+     they are what the page is closing over — blanking them at the start of the turn is what
+     made the page come down on an empty leaf. They are swapped for the new ones underneath
+     the landed page, and those come up through the settle. */
+  set(wrap, '--reveal', lt < TURN ? '1' : Math.min(1, s).toFixed(3));
 }
 
 function seek(t) {
@@ -1032,16 +1195,34 @@ function seek(t) {
     scene.classList.add('on');              // no cross-fade to wait out when scrubbing
     art.appendChild(scene);
     if (prev && n > 0) { prev.classList.add('turning'); art.appendChild(prev); }
-    paintCaption(p);
     where.textContent = \`\${n + 1} / \${ORDER.length}\`;
   }
 
+  /* Which panel's words the left page is holding.
+
+     Through a page turn the left page still belongs to the panel being turned away from:
+     those are the words the leaf is closing over. Repainting the caption the moment the
+     panel index changed swapped them in on the first frame of the turn and then hid them,
+     so the page spent a second and a quarter closing over an empty leaf.
+
+     Derived from the time rather than remembered, because the renderer scrubs to arbitrary
+     instants and anything held in a variable would depend on how it got there. */
+  const turning = PAGETURN && n > 0 && lt < TURN;
+  const capP = turning ? P[ORDER[n - 1]] : p;
+  if (capKey !== capP.id) { capKey = capP.id; paintCaption(capP); }
+
+  const leafEl = art.querySelector('.scene.turning');
   for (const el of art.querySelectorAll('img')) {
     el.style.animationPlayState = 'paused';
-    el.style.animationDelay = (-lt).toFixed(3) + 's';
+    /* The leaf is still running the panel it came from, so it keeps that panel's clock.
+       Given the new panel's local time it snapped back to the start of its own pan on the
+       very frame it began to lift, which is a jump the eye catches even at a second and a
+       quarter. */
+    const local = leafEl && leafEl.contains(el) ? P[ORDER[n - 1]].dur + lt : lt;
+    el.style.animationDelay = (-local).toFixed(3) + 's';
   }
 
-  paintWords(p, lt * 1000);
+  paintWords(capP, turning ? capP.dur * 1000 : lt * 1000);
   /* The shot is a pure function of the panel-local time, so scrubbing lands on exactly the
      framing the player would be showing. It is recomputed on every seek rather than only on
      a panel change, because a seek within one panel can cross a cut. */
