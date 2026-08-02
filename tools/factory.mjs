@@ -215,6 +215,18 @@ const STAGES = [
       '--outro', OUTRO, '--master', master(v), '--out', upload(v)],
   },
   {
+    id: 'short-script',
+    what: 'the seven claims the vertical cut says',
+    makes: () => path.join(EP, 'short.json'),
+    run: () => ['tools/short.mjs', '--slug', SLUG, '--era', ERA, '--script-only'],
+  },
+  {
+    id: 'short-shots',
+    what: 'seven takes of this story\'s own, so two Shorts are not the same film',
+    makes: () => path.join(EP, 'short-shots.json'),
+    run: () => ['tools/short-shots.mjs', '--slug', SLUG],
+  },
+  {
     id: 'short',
     what: 'the vertical cut — the claims, over ink and light, under a minute',
     makes: () => path.join('dist', ERA, `${SLUG}_short`, 'UPLOAD.md'),

@@ -40,6 +40,22 @@ export const RIGHT =
   'The subject is composed in the right two-thirds of the frame. The entire left third is empty black '
   + 'water and nothing else — no object, no highlight, no tendril enters it.';
 
+/** The frame a vertical cut needs.
+ *
+ * Not the 16:9 frame with different numbers: a 9:16 picture that is composed like a
+ * landscape one puts its subject where the type goes. The Short sets its words across the
+ * upper half, so the subject is held low and the top is left as empty water — the same
+ * reservation RIGHT makes, turned ninety degrees. */
+export const FRAME_TALL =
+  'Vertical 9:16 portrait composition for a phone screen. Deep near-black background (#0d0b09). '
+  + 'Rich warm gold (#e8b64a), aged ivory (#f6ecd8) and deep saffron (#e07b2a) are the only colours. '
+  + 'Nothing modern, nothing western, no people.';
+
+/** Where a vertical subject sits. */
+export const LOWER =
+  'The subject is composed in the lower two-thirds of the tall frame. The entire top third is empty '
+  + 'black water and nothing else — no object, no highlight, no tendril enters it.';
+
 /** Full frame, for a shot that carries no type. The title sequence always reserves the left
     third for its cards; a film only does so on the shots that actually have a card, and
     reserving it everywhere would waste a third of every frame in the piece. */

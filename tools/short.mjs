@@ -261,13 +261,32 @@ const plates = {};
 await browser.close();
 
 // ── 5. the picture ───────────────────────────────────────────────────────
-/* The era's own beats, in portrait. Cut one per line, in order, wrapping if the era has
-   fewer clips than the short has lines — the abstract vocabulary repeats across a channel
-   by design, and a viewer sees one Short at a time. */
-const vdir = path.join('eras', ERA, 'clips-v');
-const clips = (await readdir(vdir).catch(() => [])).filter((f) => f.endsWith('.mp4')).sort();
-if (!clips.length) {
-  console.error(`no portrait clips in ${vdir} — run: node tools/gen-era.mjs ${ERA} --what clips --vertical`);
+/* The story's own takes, not the era's.
+
+   Every Short used to play over the era's ten abstract beats. It looks right once, and then
+   two in a row are the same film with different words over them — a viewer who saw one
+   episode's Short has already seen the next one's. The sameness is the channel's asset at the
+   level of style and its liability at the level of shot.
+
+   Each Short now has seven takes of its own, one per claim, generated from that story's
+   subjects (tools/short-shots.mjs). The era's beats remain as a fallback so a Short can still
+   be cut before those exist — but it is a fallback, and it says so. */
+const ownDir = path.join(EP, 'short-clips');
+const own = (await readdir(ownDir).catch(() => [])).filter((f) => f.endsWith('.mp4')).sort();
+const eraDir = path.join('eras', ERA, 'clips-v');
+const eraClips = (await readdir(eraDir).catch(() => [])).filter((f) => f.endsWith('.mp4')).sort();
+
+let vdir; let clips;
+if (own.length >= beats.length) {
+  vdir = ownDir; clips = own;
+  console.log(`  picture: ${own.length} takes of this story's own`);
+} else if (eraClips.length) {
+  vdir = eraDir; clips = eraClips;
+  console.warn(`  ! picture: falling back to ${ERA}'s shared beats — every Short in this era will`);
+  console.warn(`    look the same. Run: node tools/short-shots.mjs --slug ${SLUG}`);
+} else {
+  console.error(`no portrait clips for ${SLUG} or ${ERA}`);
+  console.error(`  run: node tools/short-shots.mjs --slug ${SLUG}`);
   process.exit(1);
 }
 const picture = path.join(TMP, 'picture.mp4');
