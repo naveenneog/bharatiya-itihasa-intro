@@ -2,21 +2,32 @@
 
 Recovery document. If the conversation context is lost, this file plus the git log is enough to
 resume cold. Method for the intro itself lives in the **`ink-and-light` skill**
-(`C:\Users\navg\.copilot\skills\ink-and-light\SKILL.md`) — this file is *project state*.
+(`C:\Users\navg\DailyApps\dailyapps-skills\ink-and-light\SKILL.md`) — this file is *project state*.
 
-Last updated: 2026-07-28.
+Last updated: 2026-08-02.
 
 ---
 
-## What this repo is
+## Read this first — the shape of things as of 2 Aug 2026
 
-`C:\Users\navg\DailyApps\ItihasaIntro` — a title sequence for the user's **Bhāratīya Itihāsa /
-IndianHistory** project, built in a **separate repo so the Indian Tales repos are never touched**
-(a standing constraint; verified repeatedly — `IndianTales`, `indian-tales`, `indian-tales-app`
-have had 0 files modified throughout).
+Five things changed structurally and none of them are visible from the file tree alone.
 
-`IndianHistory` *is* touched by the user's own content pipeline constantly. **This repo only ever
-reads from it.** Do not write there.
+1. **This is five git repositories now, not one.** `bharatiya-itihasa-intro` is a ~1 MB public
+   code repo; `episodes/`, `films/`, `eras/`, `versions/` and `artifacts/` are private submodules.
+   Clone with `--recurse-submodules`. See "The repositories".
+2. **Episodes exist in two languages.** `episodes/zero` is English, `episodes/zero-hi` is Hindi,
+   and they are *different timelines* — Hindi narration runs 6.5 min where English runs 5.5. See
+   "Hindi is a second timeline".
+3. **Nothing generated is deleted.** `tools/keep.mjs` archives instead. Do not add an `rm` of a
+   frame directory, a plate directory or probe output. See "Keeping what was generated".
+4. **Sora runs across two deployments** with a self-tuning per-lane concurrency. See "Sora
+   capacity".
+5. **Finished videos are uploaded by the local yt-agent**, never by driving a browser. See
+   "Publishing to YouTube".
+
+Standing constraints, unchanged and repeatedly verified:
+`C:\Users\navg\DailyApps\IndianHistory` is **read from and never written to**, and the Indian
+Tales repos are never touched at all.
 
 ---
 
@@ -35,7 +46,12 @@ reads from it.** Do not write there.
 | ep01 | the Aryabhata episode as an actual film, cut E, **5:39**, −14.2 LUFS, −1.4 dBTP | `dist/ep01-aryabhata-youtube.mp4` | **shippable**; years fixed, thumbnail picked |
 
 `dist/` is **gitignored** — masters are regenerable from the committed stills, clips and tools.
-Stills, clips and thumbnail plates **are** committed (generative output is not reproducible).
+Stills, clips and thumbnail plates **are** committed (generative output is not reproducible) —
+since 2 Aug they live in the `episodes/`, `films/`, `eras/` and `versions/` **submodules** rather
+than in the code repo. Push them with `node tools/push-assets.mjs`.
+
+Commit hashes below predate the history rewrite of 2 Aug and no longer resolve in the code repo;
+they are still valid in the mirror backup at `ItihasaIntro-backup-20260802-144558.git`.
 
 Commits: `73f85f6` v2 · `a8d92bc` v3 · `e856cdd` v4 · `7e7d6bf` v5 · `4a6d48a` episode integration ·
 `dcb2185` YouTube review + skill · `096f2bc` Gupta sequence + episode renderer ·
@@ -961,17 +977,353 @@ picture now cuts two or three times per panel, and the metric cannot see it.
 
 ---
 
+## Changelog — 2 Aug 2026
+
+Six pieces of work in one long session. Each has a section below; this is the index.
+
+| what | why it mattered | where |
+|---|---|---|
+| Sora fleet across two deployments | capacity was hardcoded at a number that was true once | `tools/azure.mjs`, `tools/sora-probe.mjs`, `tools/fleet.test.mjs` |
+| Hindi as a second timeline | the channel is bilingual from here on | `tools/build-episode.mjs --lang`, `tools/lang.mjs` |
+| Keeping what was generated | tools were deleting irreproducible work as hygiene | `tools/keep.mjs` |
+| Five repositories | 5.56 GiB packed; GitHub refuses a first push that size | `.gitmodules`, `tools/push-assets.mjs` |
+| Story-specific opens and closes | 11 of 12 outros were byte-identical | `tools/outro-shot.mjs`, `tools/stinger.mjs` |
+| Shorts state facts, and keep their stills | user direction, both scoped forward only | `tools/short.mjs`, `tools/short-shots.mjs` |
+
+---
+
+## The repositories
+
+`git clone --recurse-submodules https://github.com/naveenneog/bharatiya-itihasa-intro.git`
+
+| path | repo | visibility | holds |
+|---|---|---|---|
+| *(root)* | `bharatiya-itihasa-intro` | public | tools, scripts, src, vendor — ~1 MB, 55 commits |
+| `episodes/` | `…-intro-episodes` | private | art, narration, thumbnails, Short and outro takes + stills |
+| `films/` | `…-intro-films` | private | film stills and Sora takes |
+| `eras/` | `…-intro-eras` | private | era title-sequence stills and takes |
+| `versions/` | `…-intro-versions` | private | title-sequence version stills and takes |
+| `artifacts/` | `…-intro-artifacts` | private | kept frames, contact sheets, plates, probe takes, superseded renders |
+
+This mirrors how `IndianHistory` is arranged (code repo + `app/assets` submodule pointing at
+`bharatiya-itihasa-masters`), which is what the split was modelled on.
+
+The original single-repo history is preserved at
+`C:\Users\navg\DailyApps\ItihasaIntro-backup-20260802-144558.git` (a mirror clone, 5.71 GB).
+It is the only copy of the pre-split history. Do not delete it without asking.
+
+**Push generated assets with `node tools/push-assets.mjs`.** It commits each dirty submodule,
+pushes it, and then records the new commit ids in the parent — that last step is the one that is
+easy to forget and the one that matters, because a submodule pushed but not recorded is invisible
+to a fresh clone.
+
+### What pushing 7.5 GB taught
+
+- **GitHub answers a push of roughly two gigabytes with HTTP 500 and then prints
+  `Everything up-to-date`.** A loop that reads the last line of git's output therefore records a
+  successful push of nothing. Every push is now verified against `git ls-remote`, not against
+  what git said it did. This cost two rounds of "the films repo is pushed" that were false.
+- **A pack of many small objects fails the same way with the bytes well inside the limit.**
+  Batching by accumulated size alone still failed at 16,328 frames. Bound on **count and bytes**.
+- **Git reports a new directory as one untracked entry**, so size-batching the entries git prints
+  puts a 7 GB tree in one batch and the limit never binds. Expand directories to files first.
+- **A bare `.git` copied into a working tree has no index**, so every file reads as modified and
+  `checkout` aborts. `git reset --mixed HEAD` populates it without touching the tree.
+- `safe.bareRepository=explicit` is set globally here; operating on a bare repo needs `GIT_DIR`.
+
+---
+
+## Sora capacity — measured, not declared
+
+```powershell
+node tools/sora-probe.mjs              # one job per live deployment
+node tools/sora-probe.mjs --burst 3    # three at once per lane, to find the cap
+npm run test:fleet                     # 16 assertions, no network
+```
+
+The account has **three** Sora deployments and only two are usable: `sora` is provisioned,
+listed, and `Disabled`, on model version `2025-05-02`. `sora-2` and `sora-2b` are both
+`2025-12-08`. **A deployment list is not an availability list** — check `provisioningState` and
+model version.
+
+Each deployment enforces its own running-task cap, so `genVideo` dispatches across a fleet of
+lanes, each finding its ceiling by AIMD and remembering it in `dist/.sora-conc.json` (gitignored).
+The cap is **2 per deployment** — the same number that used to be hardcoded, which is the point:
+the value was never the problem, the inability to tell "2 is the cap" from "2 was the cap once"
+was.
+
+Measured, same job (seven 8-second portrait takes):
+
+| | span | evidence |
+|---|---|---|
+| one lane | 346 s | completions land in clean **pairs** |
+| two lanes | 291 s | **three** completions inside ten seconds |
+
+The finishing *pattern* is the evidence, not the total — a total improves for many reasons, but
+three completions inside ten seconds against a cap of two can only mean more than two ran.
+
+Three things worth keeping:
+
+- **Two kinds of 429 want opposite responses.** "Too many running tasks" is relieved the instant
+  the fleet shrinks; a token-rate limit is relieved only by waiting. Both were sleeping a flat
+  45 s, and a burst of six spent more time asleep in the retry branch than generating. The same
+  burst went **330 s → 209 s** on that one change.
+- **Then that fix caused a bug.** Cheaper retries burned the fixed ten-attempt budget faster and
+  killed two clips out of seven. Concurrency 429s now draw on their own budget (40 waits) because
+  backpressure is not failure.
+- **Halving overshoots a small ceiling.** 6 → 3 → 1 undershot in two steps, both taken before any
+  job had finished. Backing off by a third converges 6 → 4 → 3 → 2 and stops on the truth.
+
+A caller must pass `model: null` to let the fleet choose. `gen-clips.mjs` defaulted `--model` to
+`'sora-2'`, which after the fleet landed would have pinned every clip to one lane and quietly
+undone the whole change — the defaulting-flag class again.
+
+---
+
+## Hindi is a second timeline
+
+```powershell
+node tools/build-episode.mjs --story <id> --slug zero --lang hi   # -> episodes/zero-hi/
+node tools/build-episode.mjs --slug zero-hi                        # the same thing
+```
+
+The upstream project ships Hindi **text and audio** for every line and **no Hindi word timings**.
+The Hindi voice it chose, `hi-IN-Dhruv:MAI-Voice-2`, returns none from the synthesiser either —
+that architecture emits no word boundaries at all, while the ordinary `hi-IN` neural voices
+(`AaravNeural`, `MadhurNeural`, `SwaraNeural`) return one per written token, exactly. Measured
+with `tools/hi-probe.mjs`, not assumed.
+
+**The user chose to keep the better voice and accept whole-line Hindi captions.** So Hindi is a
+deliberate treatment, not a degraded one: the line is shown entire in Tiro Devanagari Hindi, lit,
+rising slightly as it arrives — and the rise is driven from `paintWords` with everything else,
+because a CSS animation on a class change has no defined position under the renderer's seek.
+
+A sweep faked from invented timings was rejected on principle: it would light the wrong word and
+look exactly like a version that worked.
+
+Hindi gets its **own episode folder** because the timeline differs — 6.5 min against English's
+5.5, line by line. Taking durations from English and playing Hindi over them is how a dub goes out
+of sync with its own pictures. `episode.json` records `lang`; every downstream tool takes the
+folder as its `--slug`, and `--slug zero-hi` and `--slug zero --lang hi` mean the same thing while
+a contradiction between them is refused.
+
+`tools/lang.mjs` holds the language profile and the Hindi register instruction. It is read from
+the episode rather than passed, because packaging, cold open, closing cards and the vertical cut
+are four separate generators and a language given to three of them produces a Hindi voice under
+an English title.
+
+**Hindi exposed a flaw that was always there.** The verso gutter shadow reaches 21% in from the
+crease and the caption column had 3.2%, so the last word of every full line sat under a ~40% veil.
+English hid it — only unspoken words were affected and they brighten as the voice reaches them.
+Hindi is lit all the way along, so it was permanent. Both languages now get a gutter margin
+(`padding: 0 7.2% 0 4.6%` on `.framed #capwrap`), tied by comment to the 21% it clears.
+
+**State:** `zero-hi` is built, packaged, and has closing cards and a closing take. Hook, Short and
+master render are not done. The Hindi rollout across the era has not started.
+
+---
+
+## Keeping what was generated
+
+The user's instruction, verbatim: *"Please persist the stills and all artifacts you are
+generating don't delete intermediate images and videos. Keep them saperate."* And later, on why:
+*"The Stills was beautiful thats why I asked to keep them."*
+
+`tools/keep.mjs`:
+
+```js
+stash(dir, label)    // move it into artifacts/<label>/<stamp>/ instead of deleting
+recycle(dir, label)  // stash, then hand back an empty directory at the same path
+runDir(label)        // an output directory stamped with its run, so nothing overwrites
+```
+
+Wired into `render-episode` (frames), `render-master` (plates), `make-outro` (superseded takes),
+`short` (type frames), `turnsheet`, `capsheet`, `sora-probe`. `--drop-frames` still exists on
+`render-episode` if disk gets short.
+
+Every generated asset keeps its **prompt in a `.txt` beside it**. A generated asset whose prompt
+was not kept cannot be varied, corrected or explained later — only replaced.
+
+**Stills are generated and kept for every take.** This was not true until 2 Aug: both
+`short-shots.mjs` and `outro-shot.mjs` went straight from text to video on the reasoning that
+"a reference would cost a still per shot for no editorial gain". That was wrong twice — the still
+is a finished piece of art in its own right, and animating an approved still holds the take far
+closer to the brief than a text prompt does.
+
+| | still | take |
+|---|---|---|
+| close | `episodes/<slug>/outro-stills/<id>-rN.png` 1536×1024 | `outro-clips/<id>-rN.mp4` |
+| Short | `episodes/<slug>/short-stills/NN-<id>-r1.png` 1024×1536 | `short-clips/NN-<id>-r1.mp4` |
+
+Portrait stills for the Shorts deliberately: a 9:16 crop of a 3:2 still keeps a narrow strip and
+upscales it, the same softness that made cropped landscape footage unusable. Costs ~2 min more
+per shot.
+
+The nine Shorts that already existed were made text-to-video and have no stills. **The user said
+explicitly not to regenerate them.**
+
+---
+
+## Story-specific opens and closes
+
+The user's report: *"Don't just reuse the same Dinara video for all the videos, Use Story
+specific, Intro, outro."* Both faults were the same shape — **a rule that reads as sound
+editorial guidance and, applied across a series, collapses to a constant.**
+
+**The close.** `make-outro` fell back to "the era's longest abstract beat", which is one
+deterministic answer for a whole era: **eleven of twelve Gupta outros were byte-identical**, and
+only `zero` escaped because it has a real film. `tools/outro-shot.mjs` now writes one closing
+subject from the episode's own closing cards and generates a 12-second take — Aryabhata ends on
+an eclipse wave crossing a turning world, Faxian on an empty begging bowl filling with gold dust,
+Kalidasa on a cloud unfurling into a river's curve. Thirteen distinct takes. The era fallback
+still exists and now **warns loudly**.
+
+**The open.** The stinger prompt asked for "the widest or most familiar beat of the era", which
+has exactly one right answer, so `01-dinara` opened **all thirteen** episodes. Telling the model
+to "prefer an unused beat" did not fix it — it still chose the same one eight times. The model now
+returns a **subject beat plus three ranked openers** and the spread is decided in code.
+
+**What must not repeat is the pair, not the opener.** Balancing openers alone gave
+`chandragupta-i` and `chandragupta-ii` the identical fifteen seconds. Now 13 of 13 pairs are
+distinct and `01-dinara` opens four.
+
+Two bugs found doing it:
+
+- **The era-order sort was unconditional and silently outranked the rule it served.** The
+  sequence accelerates, so the pair was sorted into era order; but the subject must play *last*.
+  The model chose to open the zero episode on the Huns — Brahmagupta wrote in the post-Gupta
+  north-west, and its reasoning said exactly that — and the sort turned it into an episode that
+  opened on zero and ended on an invasion. Only the manual path sorts now.
+- **The model returns ids without their numeric prefix** often enough to matter (`kavya` for
+  `08-kavya`), which failed validation and lost sushruta's whole choice. The prefix is ours, not
+  the model's; bare names resolve, ambiguity is still an error.
+
+---
+
+## Shorts state facts, not a story
+
+The user's direction: *"Going forward We might want to just tell Facts, Not like a story this
+only applies to shorts format only and for next generation which is still not started."*
+
+The long-form book cut **keeps its narrative**. Only the 9:16 Short changed, and only for Shorts
+not already scripted — `short.mjs` caches `short.json`, so the nine existing scripts are
+untouched by design.
+
+The shape was an arc (hook → ground → turn → proof → proof → reach → payoff). It is now **seven
+standalone facts**: strongest first, each true on its own, none depending on the line before.
+The reasoning is in the prompt — a Short is watched in a scroll, often from the middle, often
+twice; facts survive that and a narrative does not.
+
+**The connective rule is enforced, not requested**, because narrative is the natural way to write
+history and the model drifts straight back to it. A line may not open on `and, so, then, but, yet,
+because, after, this, that, which, meaning, leading, thus, hence, later, soon, now`, and after the
+first line may not open on a pronoun. First attempt on sushruta produced *"He spoke of one hundred
+and twenty instruments…"* — rejected, fed back, corrected on the retry. `short.mjs` now makes up
+to **three attempts, handing the specific failures back**, rather than failing an unattended run
+over a fixable sentence.
+
+---
+
+## Publishing to YouTube
+
+Standing instruction from the user: **upload via the local yt-agent, never by driving a browser.**
+
+```powershell
+powershell -File C:\Users\navg\DailyApps\yt-agent\start-agent.ps1     # idempotent
+node C:\Users\navg\DailyApps\yt-agent\submit.mjs `
+  --video "C:\ABS\final.mp4" --title "<=100 chars" --desc-file "C:\ABS\desc.txt" `
+  --visibility public --thumbnail "C:\ABS\thumb-a-1280x720.png" `
+  --title-variants "Alternate title B" --thumbnail-variants "C:\ABS\thumb-b-1280x720.png" `
+  --wait --timeout 900
+```
+
+Exit `0` done → report `youtube_url`; `ab:true` A/B running; `thumbnail_limited:true` daily cap,
+add tomorrow. Exit `1` failed (`SIGNED_OUT` → sign in once in the Edge profile). Exit `3` timeout,
+still processing. `--title-variants` / `--thumbnail-variants` are optional (≤2 each; variant A is
+the video's own). The B thumbnail must be a genuinely different hook, not a recolour.
+
+**Only one process at a time may drive `C:\Users\navg\.copilot\playwright-youtube-profile`.**
+Serialise uploads; never run a batch of them in parallel.
+
+Nothing has been uploaded yet.
+
+---
+
+## Do not edit tools while a batch runner is going
+
+`series.mjs` spawns a fresh `node` per stage, so it picks up whatever is on disk at that instant —
+including a half-written file. Editing `closer.mjs` mid-run failed `skandagupta`, `sushruta` and
+`zero` at the `closer` stage; all three passed immediately on re-run. **Stop the runner before
+touching `tools/`.** The failures look like real failures in the ledger and are not.
+
+---
+
+## The tools added on 2 Aug
+
+| tool | what it does |
+|---|---|
+| `tools/keep.mjs` | archive instead of delete; `stash`, `recycle`, `runDir` |
+| `tools/lang.mjs` | the language an episode is in, read from the episode; Hindi register instruction |
+| `tools/outro-shot.mjs` | this story's own closing still + 12 s take, from its closing cards |
+| `tools/push-assets.mjs` | commit + push each asset submodule in size- and count-bounded batches, then record the pointers in the parent |
+| `tools/sora-probe.mjs` | fire real jobs at each deployment to find the concurrency cap |
+| `tools/fleet.test.mjs` | 16 assertions on lane dispatch, pinning and the back-off law, no network |
+| `tools/capsheet.mjs` | one full-size frame per panel for judging typography; reads the font and geometry back off the page |
+| `tools/hi-probe.mjs` | which Hindi voices return word boundaries |
+| `tools/hi-align.mjs` | forced alignment of existing Hindi audio — does not work here, kept as a record |
+
+Existing tools changed: `azure.mjs` (fleet), `build-episode.mjs` (`--lang`), `episode-page.mjs`
+(Hindi caption, gutter margin), `stinger.mjs` (opener spread, pair uniqueness), `make-outro.mjs`
+(own take first, loud fallback), `short.mjs` (facts, retries), `short-shots.mjs` (stills),
+`pack.mjs` / `hook.mjs` / `closer.mjs` (language-aware), `factory.mjs` (`outro-shot` stage),
+`render-episode.mjs` / `render-master.mjs` (archive rather than delete), `gen-clips.mjs` /
+`gen-era.mjs` / `film-gen.mjs` (fleet-aware concurrency).
+
+---
+
 ## Still to do
 
-1. **Generate era clips** — 170 jobs at ~72 s each. The one remaining big spend.
-2. **Round 2 stills** (`--rounds 2`) so each beat has two candidates, then `picks.json` per era.
-3. **Give the body the intro's rhythm** — pacing is the lowest-scoring fixable bar.
-4. **Break the three 15 s+ panels** into two visual moves each.
-5. Fix the 2.1 s number-token caption dwell (sweep the highlight across the token).
-6. Consider a 1440p delivery so YouTube gives the video a VP9 encode.
-7. Port the year fix into `voice.py` once that project is free, then delete the override.
-8. Re-check whether `repairWords()` still earns its place once years are fixed upstream.
-9. Push `dailyapps-skills` (committed, not pushed).
+### In flight right now
+
+**`node tools/series.mjs --era gupta` is running** (shell `gupta`, started ~21:00 on 2 Aug).
+13 stories, ~13–15 min each, so roughly three hours. Ledger at `dist/gupta/series.json`.
+
+Everything rendered was **archived as superseded first** — 42 files, 2.9 GB, in
+`artifacts/superseded/20260802-205919/` — because every stinger pair and every closing take
+changed, and the factory skips a stage whose output exists. Without that invalidation the run
+would have "succeeded" while shipping the old intros and outros. If the run is interrupted,
+re-running is safe: stages are cached and a failure does not stop the era.
+
+**Do not edit `tools/` until it finishes.** See the section above for why.
+
+When it completes: check the ledger, then `node tools/push-assets.mjs` to get the new takes,
+stills and frames onto GitHub.
+
+### Next, in rough order
+
+1. **Hindi rollout.** `zero-hi` proves the chain as far as packaging and closing cards. Still
+   needed: Hindi hook, Hindi Short, a Hindi master render, and then the other twelve stories.
+   `series.mjs` builds one language; it needs a `--lang` pass.
+2. **Upload something.** Nothing has gone to YouTube yet. The yt-agent recipe is above.
+3. **Decide on story-specific intro footage.** Stinger *pairs* are now unique, but all thirteen
+   still draw on the ten shared era beats. Generating an opening beat per story the way the close
+   now works would change the era-signature design deliberately — the user has not been asked.
+4. **Re-run `retention.mjs`** on the new masters. Scores were zero 77, nalanda 81; `hooks` and
+   `rehook` remain narration-shaped and low.
+5. `megasthenes` is excluded from Gupta (c. 300 BCE in a CE era) and belongs to a Maurya series.
+   Other eras may hold similar misfilings — the check is `eraMismatch` in `series.mjs`.
+6. **Round 2 stills** (`--rounds 2`) and `picks.json` for the 17 non-Gupta eras.
+7. **Give the body the intro's rhythm** — pacing is the lowest-scoring fixable bar.
+8. **Break the three 15 s+ panels** into two visual moves each.
+9. Fix the 2.1 s number-token caption dwell (sweep the highlight across the token).
+10. Consider a 1440p delivery so YouTube gives the video a VP9 encode.
+11. Port the year fix into `voice.py` once that project is free, then delete the override.
+12. Re-check whether `repairWords()` still earns its place once years are fixed upstream.
+13. Push `dailyapps-skills` — 3 commits, gate PASS, not pushed.
+14. `tools/hi-align.mjs` investigated forced alignment of the existing Hindi audio and failed:
+    the STT websocket will not connect on this resource (`StatusCode: 1006`) while TTS works.
+    It is kept as a record of the path tried. If STT is ever reachable, Hindi could have the
+    MAI voice *and* true word timings.
 
 ---
 
@@ -1044,11 +1396,12 @@ The recipe, now proven end to end:
 
 ## Standing user preferences observed
 
-- **Never delete generated assets. Keep every version. Clean up only after explicit approval.**
-  Stated directly: *"Keep in memory to keep all versions, don't cleanup the assets. Only after
-  approval, you do that."* Frames are the one exception the user has not objected to — they are a
-  deterministic function of the page and the schedule, and there are thousands of them; everything
-  else (stems, takes, plates, candidates, masters) stays.
+- **Never delete generated assets. Keep every version.** Stated twice, and hardened after the
+  second time: *"Please persist the stills and all artifacts you are generating don't delete
+  intermediate images and videos. Keep them saperate."* — *"The Stills was beautiful thats why I
+  asked to keep them."* Frames are **no longer** an exception; `tools/keep.mjs` archives them.
+  Do not add an `rm` of anything generated.
+- **Every generated asset keeps its prompt** in a `.txt` beside it.
 - Keep **every version intact** for later review; never overwrite generative output.
 - Wants to **see and approve** options rather than be given one answer.
 - Uses Overdrive for work that is meant to be seen — decide and commit, no hedging, verify by
@@ -1056,3 +1409,33 @@ The recipe, now proven end to end:
 - Do not disturb the Indian Tales repos.
 - **IndianHistory is read-only from here**, and it is often mid-run generating other stories —
   fixes that belong upstream get built here as overrides plus a port-back note.
+- **Both languages from here on.** English and Hindi; the Hindi narration already exists upstream.
+- **Shorts state facts, not a story.** Scoped to the 9:16 format only; the long-form cut keeps its
+  narrative. Applies to Shorts not yet scripted.
+- **Every story gets its own intro and outro footage.** Reusing one era beat across a series was
+  called out by name (*"the same Dinara video"*).
+- **Uploads go through the local yt-agent, never a browser**, and only one at a time.
+- **Repos follow the IndianHistory shape**: a small public code repo, heavy assets in private
+  submodules, cloned recursively.
+
+---
+
+## The reflex worth keeping
+
+Almost every expensive failure in this project has been the same thing: **a result that looks
+correct.** Not a crash — a video of the right length, a push that says `Everything up-to-date`,
+a caption that renders, a stinger that plays, a `29 KB` Short that encoded without error.
+
+The habit that catches them:
+
+- **Verify against the thing itself, not against what the tool said it did.** `git ls-remote`,
+  not git's last line. The pixels, not the DOM. The encoded file's duration, not the arithmetic.
+- **When a measurement changes by more than you can explain, check identity before modelling
+  change.** A 48.6 s "narration drift" was a different story entirely.
+- **A rule that is sound for one item can collapse to a constant across a series.** "The widest
+  beat of the era", "the era's longest abstract take" — both correct, both produced thirteen
+  identical results.
+- **What a stage declares it makes must be what the next stage reads**, or a resumed run skips it
+  and fails later, after the expensive part.
+- **Instructions the model will drift across must be enforced in code**, not asked for. Preferring
+  an unused beat, not opening a line on a connective — both ignored until checked.
