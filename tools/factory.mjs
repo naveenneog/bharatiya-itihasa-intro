@@ -188,6 +188,12 @@ const STAGES = [
     run: () => ['tools/closer.mjs', '--slug', SLUG],
   },
   {
+    id: 'outro-shot',
+    what: 'this story\'s own closing image, so two episodes do not end on the same one',
+    makes: () => path.join(EP, 'outro-shot.json'),
+    run: () => ['tools/outro-shot.mjs', '--slug', SLUG],
+  },
+  {
     id: 'outro-build',
     what: 'assemble the closing movement — one held abstract take, the lines over it',
     run: () => ['tools/make-outro.mjs', '--slug', SLUG, '--era', ERA],
