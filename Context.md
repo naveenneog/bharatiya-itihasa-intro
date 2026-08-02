@@ -1256,6 +1256,41 @@ including a half-written file. Editing `closer.mjs` mid-run failed `skandagupta`
 `zero` at the `closer` stage; all three passed immediately on re-run. **Stop the runner before
 touching `tools/`.** The failures look like real failures in the ledger and are not.
 
+`series.mjs` itself is the exception — node has already loaded it, so editing it does not affect
+a run in progress, only the next one.
+
+---
+
+## Two things that make an unattended run hard to debug
+
+**The runner was swallowing stderr.** `p.stderr.on('data', keep)` captured the child's error
+output into a string, used it to regex out the name of the failing stage, and threw the rest
+away. Four stories failed at `outro` in one run and there was nothing anywhere saying why. Fixed
+2 Aug: stderr passes through, and the last 4,000 characters of a failed run are written to
+`dist/<era>/<slug>.fail.log` with the ledger pointing at it. **An unattended run is read hours
+later, when the scrollback is gone — the ledger has to hand over the evidence, not just the
+verdict.**
+
+**Orphaned `serve.mjs` processes hold ports for days.** Several tools spawn
+`scripts/serve.mjs` on a **fixed** port (`film-render.mjs` 4431, `turnsheet.mjs` 4419,
+`capsheet.mjs` 4463, `render-episode.mjs` its own) with `stdio: 'ignore'`. If the port is already
+held the server **dies silently** and only the later `page.goto` fails, with
+`ERR_CONNECTION_REFUSED` — a symptom that looks nothing like its cause. Processes from 21 July,
+26 July and 31 July were still listening when this was found, including a `turnsheet` stuck for
+two days.
+
+Check before a long run:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
+  Where-Object { $_.CommandLine -match 'serve\.mjs|turnsheet|capsheet' } |
+  ForEach-Object { "{0} {1}" -f $_.ProcessId, $_.CommandLine }
+```
+
+**Worth fixing properly:** pick a free port instead of a fixed one, and check the server is
+actually listening before navigating. Not done — it needs an edit to every tool that spawns a
+server, and the series was running.
+
 ---
 
 ## The tools added on 2 Aug
