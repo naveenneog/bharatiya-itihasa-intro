@@ -11,13 +11,14 @@
 import { rm, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { genVideo, SORA_LANES, soraFleet } from './azure.mjs';
+import { runDir } from './keep.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
 
 const LANES = (arg('lanes', '') || SORA_LANES.join(',')).split(',').map((s) => s.trim()).filter(Boolean);
 const BURST = Number(arg('burst', 1));
-const OUT = path.join('dist', '.sora-probe');
+const OUT = arg('out', null) || runDir(`sora-probe/${LANES.join('+')}`);
 const PROMPT = 'A single smooth river stone rests on wet black slate, one hard rim light from '
   + 'the upper right, faint gold dust drifting past it. Static camera.';
 
@@ -64,4 +65,4 @@ for (const lane of LANES) {
     + (times.length ? `, ${times[0]}-${times[times.length - 1]}s` : ''));
 }
 console.log(`\n  ${((Date.now() - t0) / 1000).toFixed(0)}s total`);
-await rm(OUT, { recursive: true, force: true });
+console.log(`  takes kept at ${OUT}/`);

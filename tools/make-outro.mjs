@@ -21,6 +21,7 @@ import { mkdir, writeFile, readdir, readFile, rm } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
+import { recycle } from './keep.mjs';
 import { ROOT } from './films.mjs';
 
 const execFileP = promisify(execFile);
@@ -80,9 +81,11 @@ console.log(`${SLUG}: closing cards from ${fromFile ? 'closer.json' : 'the CLOSE
 const ID = `${SLUG}-outro`;
 const OUT = path.join(ROOT, ID);
 /* The clips directory is rebuilt rather than added to: it used to hold five takes, and a
-   stale one left beside the new single take is a shot the renderer would happily find. */
-await rm(path.join(OUT, 'clips'), { recursive: true, force: true });
-await mkdir(path.join(OUT, 'clips'), { recursive: true });
+   stale one left beside the new single take is a shot the renderer would happily find. The
+   old takes are archived rather than removed — they were generated at real cost and the
+   reason for rebuilding is a change of edit, not a fault in the footage. */
+const kept = await recycle(path.join(OUT, 'clips'), `outro-clips/${SLUG}`);
+if (kept) console.log(`  previous take(s) kept at ${kept}`);
 
 async function newest(film, shot) {
   const dir = path.join(ROOT, film, 'clips');

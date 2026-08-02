@@ -20,6 +20,7 @@ import { mkdir, rm, readdir, writeFile } from 'node:fs/promises';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
+import { stash } from './keep.mjs';
 import { launch } from '../scripts/browser.mjs';
 import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
 import { MASTER_AF } from './score.mjs';
@@ -211,7 +212,7 @@ try {
   await new Promise((r) => setTimeout(r, 700));
 
   const plateDir = path.join(ROOT, dir.id, BUILD, 'plates');
-  await rm(plateDir, { recursive: true, force: true });
+  await stash(plateDir, `plates/${dir.id}`);
   console.log('  capturing plates from the page...');
   const plates = await renderPlates(sched, plateDir);
 

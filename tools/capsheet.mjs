@@ -10,9 +10,10 @@
      node tools/capsheet.mjs --slug zero-hi --panels 1,4,9,14 --scale 0.5
 */
 import { spawn } from 'node:child_process';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { launch } from '../scripts/browser.mjs';
+import { runDir } from './keep.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
@@ -23,11 +24,10 @@ const N = Number(arg('n', '8'));
 const PANELS = (arg('panels', '') || '').split(',').map((s) => s.trim()).filter(Boolean).map(Number);
 const SCALE = Number(arg('scale', '0.5'));
 const AT = Number(arg('at', '0.55'));   // where inside a panel to sample, as a fraction
-const OUT = arg('out', path.join('dist', `_cap-${SLUG}-${CUT}`));
+const OUT = arg('out', null) || runDir(`capsheet/${SLUG}-${CUT}`);
 const PORT = Number(arg('port', '4463'));
 const W = 1920; const H = 1080;
 
-await rm(OUT, { recursive: true, force: true });
 await mkdir(OUT, { recursive: true });
 
 const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });

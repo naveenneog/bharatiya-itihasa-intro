@@ -26,8 +26,10 @@ import { existsSync } from 'node:fs';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
+import { stash, recycle } from './keep.mjs';
 import { launch } from '../scripts/browser.mjs';
 import { chatJson } from './llm.mjs';
+import { langOf, lineOf } from './lang.mjs';
 import { synth, seconds as mp3Seconds, foldToWritten } from './voice.mjs';
 import { speakYears } from './years.mjs';
 import { shortPage } from './short-page.mjs';
@@ -59,6 +61,7 @@ const ff = (args, label) => execFileP('ffmpeg', ['-y', '-hide_banner', '-logleve
 });
 
 const ep = JSON.parse(await readFile(path.join(EP, 'episode.json'), 'utf8'));
+const LANG = langOf(ep);
 const meta = await readFile(path.join(EP, 'publish.json'), 'utf8').then(JSON.parse).catch(() => ({}));
 
 // ── 1. the script ────────────────────────────────────────────────────────
@@ -102,12 +105,13 @@ beat, drawn from the content ("THE CLAIM", "BHINMAL, 628", "THE RULE"). Not the 
 
 Return JSON only:
 {"lines":[{"text":"...","kick":"...","beat":"hook"}, ... 7 of them],
- "why": "one sentence on why this chain holds"}`;
+ "why": "one sentence on why this chain holds"}
+${LANG.instruction}`;
 
 let script = await readFile(SCRIPT, 'utf8').then(JSON.parse).catch(() => null);
 if (script && has('rescript')) script = null;
 if (!script) {
-  const narration = ep.panels.map((p) => p.text?.en).filter(Boolean).join('\n');
+  const narration = ep.panels.map((p) => lineOf(p, LANG)).filter(Boolean).join('\n');
   const user = `Episode: ${ep.title}\nFigure: ${ep.figure || '(none)'}\nEra: ${ep.era || ''}\n\nNARRATION\n${narration}`;
   const got = await chatJson(SYSTEM, user, { maxTokens: 3000 });
   const lines = Array.isArray(got.lines) ? got.lines : [];
@@ -153,7 +157,7 @@ for (const [i, l] of script.lines.entries()) {
      rather than here. */
   const { text: spoken } = speakYears(written);
   if (!existsSync(mp3) || has('revoice')) {
-    const { audio, words } = await synth(spoken, { role: 'narrator', mood: i === 0 ? 'suspense' : 'calm' });
+    const { audio, words } = await synth(spoken, { role: 'narrator', mood: i === 0 ? 'suspense' : 'calm', lang: LANG.code });
     await writeFile(mp3, audio);
     await writeFile(mp3.replace(/\.mp3$/, '.json'), JSON.stringify(foldToWritten(written, spoken, words)));
   }
@@ -172,7 +176,7 @@ console.log(`  narration ${runtime.toFixed(1)}s + ${TAIL}s close = ${total.toFix
 if (runtime + TAIL > 59) console.warn('  ! over 59s — YouTube will not treat this as a Short');
 
 // ── 3. the page, and the type as frames ──────────────────────────────────
-await rm(TMP, { recursive: true, force: true });
+await recycle(TMP, `short-frames/${SLUG}`);
 await mkdir(path.join(TMP, 'type'), { recursive: true });
 const build = path.join(EP, 'short-build');
 await mkdir(build, { recursive: true });

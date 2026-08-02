@@ -24,6 +24,7 @@
      node tools/render-episode.mjs --cut cut-e-framed --limit 40 --scale 0.5   # draft
 */
 import { mkdir, rm, writeFile, readdir, readFile, stat } from 'node:fs/promises';
+import { stash, recycle } from './keep.mjs';
 import { existsSync } from 'node:fs';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -110,8 +111,10 @@ const canReuse = REUSE && existsSync(BODY) && existsSync(TLFILE);
 }
 
 if (!canReuse) {
-  await rm(TMP, { recursive: true, force: true });
-  await mkdir(TMP, { recursive: true });
+  /* The frames are the most expensive thing this tool makes and were being removed twice —
+     here before a render and again after encoding. Archived instead. */
+  const kept = await recycle(TMP, `frames/${SLUG}-${CUT}`);
+  if (kept) console.log(`  previous frames kept at ${kept}`);
 }
 await mkdir(path.dirname(OUT), { recursive: true });
 
@@ -276,10 +279,17 @@ try {
     '-c:a', 'aac', '-b:a', '256k', '-shortest', BODY,
   ], 'body encode');
   console.log(`  body encoded (${(await seconds(BODY)).toFixed(1)}s)`);
-  /* Frames are the one thing worth discarding — they are a deterministic function of the
-     page and the schedule, thousands of files, and hundreds of megabytes. Everything that
-     is expensive or not reproducible (stems, bed, narration concat) stays. */
-  if (!has('keep-frames')) await rm(frames, { recursive: true, force: true });
+  /* Frames used to be discarded here on the grounds that they are a deterministic function of
+     the page and the schedule. They are — but only of the page *as it was*, and the page is
+     edited constantly. The frame that shows a caption sitting in the gutter shadow cannot be
+     regenerated once the CSS that produced it has been fixed, which is exactly when someone
+     wants to look at it. They are archived, not deleted; --drop-frames if disk is short. */
+  if (has('drop-frames')) {
+    await rm(frames, { recursive: true, force: true });
+  } else {
+    const kept = await stash(frames, `frames/${SLUG}-${CUT}`);
+    if (kept) console.log(`  frames kept at ${kept}`);
+  }
   }
 
   /* Where the titles go: after the panels the cut names as its cold open. Resolved through

@@ -18,6 +18,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
+import { runDir } from './keep.mjs';
 import { launch } from '../scripts/browser.mjs';
 
 const execFileP = promisify(execFile);
@@ -35,12 +36,11 @@ const TURN = Number(arg('turn', 1.25));
    a second and dissolves while the new words come up through it. Sampling only as far as
    the rotation is how a landed page that popped went unseen. */
 const SPAN = Number(arg('span', TURN + 0.35));
-const OUT = path.resolve(arg('out', `dist/_turn-${SLUG}-${CUT}-p${PANEL}`));
+const OUT = path.resolve(arg('out', null) || runDir(`turnsheet/${SLUG}-${CUT}-p${PANEL}`));
 
 const W = Math.round(1920 * SCALE);
 const H = Math.round(1080 * SCALE);
 
-await rm(OUT, { recursive: true, force: true });
 await mkdir(OUT, { recursive: true });
 
 const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });

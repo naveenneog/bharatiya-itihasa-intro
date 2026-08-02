@@ -24,6 +24,7 @@
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { chatJson } from './llm.mjs';
+import { langOf, lineOf } from './lang.mjs';
 import { CUTS, openIndices } from './episode-page.mjs';
 
 const argv = process.argv.slice(2);
@@ -43,6 +44,7 @@ if (!SLUG) { console.error('usage: node tools/pack.mjs --slug <episode-slug>'); 
 const EP = path.join('episodes', SLUG);
 const OUT = path.join(EP, 'publish.json');
 const ep = JSON.parse(await readFile(path.join(EP, 'episode.json'), 'utf8'));
+const LANG = langOf(ep);
 const cut = CUTS.find((c) => c.id === CUT);
 if (!cut) { console.error(`unknown cut ${CUT}`); process.exit(1); }
 
@@ -68,7 +70,7 @@ const transcript = order.map((p) => {
   at[p.id] = t;
   const mm = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   t += p.dur;
-  return `[${p.id} @ ${mm}] ${p.text.en}`;
+  return `[${p.id} @ ${mm}] ${lineOf(p, LANG)}`;
 }).join('\n');
 
 const SYSTEM = `You write packaging for a YouTube history channel, "Bhāratīya Itihāsa".
@@ -112,7 +114,8 @@ Rules:
   must be the very first panel id in the transcript. Consecutive chapters must be at least
   {{MINGAP}} seconds apart in the running times shown — YouTube silently ignores a chapter
   list with any gap under 10s, so anything tighter is thrown away.
-- Chapter names are 2-5 words, concrete, no colons.`.replace('{{MINGAP}}', String(MINGAP));
+- Chapter names are 2-5 words, concrete, no colons.
+${LANG.instruction}`.replace('{{MINGAP}}', String(MINGAP));
 
 const user = `TITLE: ${ep.title}
 FIGURE: ${ep.figure || '—'}

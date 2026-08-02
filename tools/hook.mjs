@@ -25,6 +25,7 @@
 import { readFile, writeFile, mkdir, stat, copyFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chatJson } from './llm.mjs';
+import { langOf, lineOf } from './lang.mjs';
 import { synth, seconds, foldToWritten } from './voice.mjs';
 import { speakYears } from './years.mjs';
 
@@ -41,6 +42,7 @@ const EP = path.join('episodes', SLUG);
 const OUT = path.join(EP, 'hook');
 const FILE = path.join(OUT, 'hook.json');
 const ep = JSON.parse(await readFile(path.join(EP, 'episode.json'), 'utf8'));
+const LANG = langOf(ep);
 const meta = await readFile(path.join(EP, 'publish.json'), 'utf8').then(JSON.parse).catch(() => ({}));
 
 if (!FORCE && !PICK && await stat(FILE).then(() => true, () => false)) {
@@ -98,7 +100,8 @@ assertion that lands on its last three words.
 
 Vary the five: at least one that leads with a date and place, one that leads with the
 person, one that leads with the object, and one built on a comparison to something the
-viewer already knows. All five must still assert something.`;
+viewer already knows. All five must still assert something.
+${LANG.instruction}`;
 
 const user = `TITLE: ${ep.title}
 FIGURE: ${ep.figure || '—'}
@@ -110,7 +113,7 @@ THUMBNAIL SAYS: ${(meta.thumb?.lines || []).join(' ') || '—'}
 The thumbnail and the title are read before this line is heard. Say a third thing.
 
 NARRATION
-${ep.panels.map((p) => p.text.en).join('\n')}`;
+${ep.panels.map((p) => lineOf(p, LANG)).filter(Boolean).join('\n')}`;
 
 let doc = await readFile(FILE, 'utf8').then(JSON.parse).catch(() => null);
 
@@ -159,7 +162,7 @@ if (DRY) {
 }
 
 console.log(`\nspeaking #${doc.chosen + 1}...`);
-const { audio, words, voice } = await synth(spoken, { role: 'narrator', mood: 'suspense' });
+const { audio, words, voice } = await synth(spoken, { role: 'narrator', mood: 'suspense', lang: LANG.code });
 await writeFile(path.join(OUT, 'hook.mp3'), audio);
 const dur = await seconds(path.join(OUT, 'hook.mp3'));
 

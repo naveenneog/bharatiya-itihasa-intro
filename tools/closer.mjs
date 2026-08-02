@@ -19,6 +19,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { chatJson } from './llm.mjs';
+import { langOf, lineOf } from './lang.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
@@ -39,7 +40,8 @@ if (!has('force')) {
 }
 
 const ep = JSON.parse(await readFile(path.join(EP, 'episode.json'), 'utf8'));
-const narration = ep.panels.map((p) => p.text?.en).filter(Boolean).join('\n');
+const LANG = langOf(ep);
+const narration = ep.panels.map((p) => lineOf(p, LANG)).filter(Boolean).join('\n');
 
 const SYSTEM = `You write the closing type for an episode of a documentary series on Indian history.
 
@@ -76,7 +78,8 @@ Return JSON:
     {"en": "TITLE OF THE SOURCE", "when": "628 CE"}
   ],
   "grounding": ["for each of the first four lines, the phrase from the narration it rests on"]
-}`;
+}
+${LANG.instruction}`;
 
 const user = `Episode: ${ep.title}
 Figure: ${ep.figure || '(none named)'}
