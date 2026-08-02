@@ -371,9 +371,17 @@ console.log('  sheet-feed.png   the decision — 320px, the size it is seen at')
 console.log(`\norder: ${chosen.map((c) => c.id).join(', ')}`);
 
 // ── promote a winner ──────────────────────────────────────────────────────
-if (PICK) {
-  const c = CANDIDATES.find((x) => x.id === PICK);
-  if (!c) { console.error(`\nno candidate ${PICK}`); process.exit(1); }
+/* `--pick first` takes the top-ranked candidate: the highest-rated headline pack.mjs wrote,
+   on the first plate, in the loud treatment. It exists so a series can be produced without a
+   human at every fourteenth stage — the whole run used to stop here, having already spent
+   forty minutes rendering a master it could not publish.
+
+   It is a default, not a judgement. The contact sheet is still written, and re-picking is one
+   command and one re-publish rather than a re-render. */
+const PICKID = PICK === 'first' ? CANDIDATES[0]?.id : PICK;
+if (PICKID) {
+  const c = CANDIDATES.find((x) => x.id === PICKID);
+  if (!c) { console.error(`\nno candidate ${PICKID}`); process.exit(1); }
   const h = HEADLINES[c.head];
   const pubPath = path.join(EP, 'publish.json');
   const pub = JSON.parse(await readFile(pubPath, 'utf8'));
@@ -390,5 +398,10 @@ if (PICK) {
     foot: h.foot || null,
   };
   await writeFile(pubPath, `${JSON.stringify(pub, null, 2)}\n`);
-  console.log(`\npicked ${PICK} -> ${pubPath}`);
+  /* The stage's real output is the pick, not the contact sheet.
+     Keyed on the sheet, a resumed run skipped this stage because the sheet was already there
+     from a run made before there was a pick at all — and then failed at publish, which is the
+     stage that needs it. What a stage `makes` has to be the thing the next stage reads. */
+  await writeFile(path.join(OUT, 'picked.json'), `${JSON.stringify({ candidate: PICKID }, null, 2)}\n`);
+  console.log(`\npicked ${PICKID}${PICK === 'first' ? ' (top-ranked; review sheet-feed.png and --pick to change)' : ''} -> ${pubPath}`);
 }

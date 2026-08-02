@@ -158,9 +158,9 @@ const STAGES = [
   },
   {
     id: 'thumbs',
-    what: 'thumbnail candidates, rendered at feed size as well as full',
-    makes: () => path.join(THUMBS, 'sheet-feed.png'),
-    run: () => ['tools/thumbnail.mjs', '--slug', SLUG],
+    what: 'thumbnail candidates, rendered at feed size as well as full, top one promoted',
+    makes: () => path.join(THUMBS, 'picked.json'),
+    run: () => ['tools/thumbnail.mjs', '--slug', SLUG, '--pick', 'first'],
   },
   {
     id: 'stinger',
@@ -310,5 +310,5 @@ if (failed.length) {
   console.log(`  failed: ${failed.join(', ')}`);
   process.exit(1);
 }
-for (const v of VERSIONS) console.log(`  ${v.id}  ${master(v)}   dist/upload-${SLUG}-${v.id}/`);
+for (const v of VERSIONS) console.log(`  ${v.id}  ${master(v)}   ${upload(v)}/`);
 console.log('');
