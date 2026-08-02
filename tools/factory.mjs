@@ -33,6 +33,8 @@ const ERA = arg('era', 'gupta');
 const PLAN = has('plan');
 const FORCE = has('force');
 const DRAFT = has('draft');
+/* Opt-in. The upload stage is the only irreversible one in the chain. */
+const UPLOAD = has('upload');
 const FROM = arg('from', null);
 const UNTIL = arg('until', null);
 const ONLY = arg('only', null);
@@ -246,6 +248,18 @@ const STAGES = [
     run: (v) => ['tools/retention.mjs', '--slug', SLUG, '--cut', v.cut,
       '--intro', INTRO, '--master', master(v), '--kit', upload(v)],
   },
+  {
+    /* Opt-in, and private. An upload is the only stage here that cannot be undone by running it
+       again, so it is not part of the default chain: a thirteen-story run that published as it
+       went would put an unreviewed series on the channel. upload.mjs is itself idempotent
+       against the master's hash, so a resumed run cannot post a second copy. */
+    id: 'upload',
+    what: 'send the finished folder to YouTube through the local agent, private',
+    each: true,
+    when: () => UPLOAD,
+    run: (v) => ['tools/upload.mjs', '--dir', upload(v), '--ab',
+      '--visibility', arg('visibility', 'private')],
+  },
 ];
 
 // ── planning ─────────────────────────────────────────────────────────────
@@ -261,6 +275,10 @@ for (const [name, i] of [[FROM, from], [UNTIL, until], [ONLY, ONLY ? STAGES.find
 const jobs = [];
 for (const [i, s] of STAGES.entries()) {
   if (ONLY ? s.id !== ONLY : (i < from || i > until)) continue;
+  /* A stage can decline to be in the plan at all, rather than being skipped as already done —
+     the difference matters in the printed plan, where "skip" means the output exists and this
+     means the stage was not asked for. */
+  if (s.when && !s.when()) continue;
   for (const v of (s.each ? VERSIONS : [null])) {
     const out = s.makes?.(v);
     const done = out && existsSync(out) && !FORCE;

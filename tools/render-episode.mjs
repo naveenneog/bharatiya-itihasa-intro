@@ -31,7 +31,7 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import { launch } from '../scripts/browser.mjs';
 import { buildUnderscore } from './underscore.mjs';
-import { normaliseTo, assertLoudness, measure } from './loudness.mjs';
+import { normaliseTo, assertLoudness, trimToTarget, measure } from './loudness.mjs';
 
 const execFileP = promisify(execFile);
 
@@ -368,7 +368,8 @@ try {
     '-show_entries', 'format=duration,size:stream=codec_type,codec_name,width,height,r_frame_rate',
     '-of', 'default=noprint_wrappers=1', OUT]);
   console.log(`\ndone -> ${OUT}\n${stdout.trim()}`);
-  await assertLoudness(OUT);
+  await trimToTarget(OUT);
+await assertLoudness(OUT);
   console.log(problems.length ? `\nPAGE WARNINGS:\n${problems.slice(0, 12).join('\n')}`
     : (canReuse ? '' : '\npage clean — no errors'));
 } finally {

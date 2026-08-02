@@ -28,6 +28,8 @@ const has = (k) => argv.includes(`--${k}`);
 const ERA = arg('era', 'gupta');
 const PLAN = has('plan');
 const FROM = arg('from', null);
+const UPLOAD = has('upload');
+const VISIBILITY = arg('visibility', 'private');
 const ONLY = (arg('only', '') || '').split(',').map((s) => s.trim()).filter(Boolean);
 
 /* The slug a story is published under.
@@ -102,6 +104,10 @@ function run(story) {
   return new Promise((resolve) => {
     const args = ['tools/factory.mjs', '--story', story.id, '--slug', story.slug, '--era', ERA];
     if (FROM) args.push('--from', FROM);
+    /* Passed through rather than assumed. An era run that uploaded by default would publish a
+       whole series unreviewed; upload.mjs defaults to private and refuses a second copy of the
+       same master, so the batch is safe once it has been asked for. */
+    if (UPLOAD) args.push('--upload', '--visibility', VISIBILITY);
     const p = spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let tail = '';
     const keep = (b) => { tail = (tail + b.toString()).slice(-4000); };

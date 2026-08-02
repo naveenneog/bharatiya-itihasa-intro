@@ -24,7 +24,7 @@ import { launch } from '../scripts/browser.mjs';
 import { loadFilm, ROOT } from './films.mjs';
 import { filmPage, cardsOf, scrimsOf } from './film-page.mjs';
 import { buildUnderscore } from './underscore.mjs';
-import { normaliseTo, assertLoudness, measure } from './loudness.mjs';
+import { normaliseTo, assertLoudness, trimToTarget, measure } from './loudness.mjs';
 
 const execFileP = promisify(execFile);
 const argv = process.argv.slice(2);
@@ -285,4 +285,5 @@ await execFileP('ffmpeg', args, { maxBuffer: 1 << 26 });
 const { stdout } = await execFileP('ffprobe', ['-v', 'error',
   '-show_entries', 'format=duration,size:stream=codec_type,width,height', '-of', 'default=nw=1', OUT]);
 console.log(`\ndone -> ${OUT}\n${stdout.trim()}`);
+await trimToTarget(OUT);
 await assertLoudness(OUT);

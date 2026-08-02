@@ -15,6 +15,7 @@
 */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { rename } from 'node:fs/promises';
 
 const execFileP = promisify(execFile);
 
@@ -40,6 +41,10 @@ export const TARGET_LRA = 11;   // LU, loudnorm's default range
    the integrated loudness loudnorm just set. */
 export const CEILING = -1.6;
 const LIMITER = `alimiter=limit=${CEILING}dB:level=disabled`;
+/* The true-peak line the finished master is held to. assertLoudness fails above -0.9 dBTP, so a
+   correction aims a little under it. This is an intersample figure and is not comparable with
+   CEILING, which is alimiter's sample-peak target. */
+export const TP_LIMIT = -1.05;
 
 const spec = (extra = '') =>
   `loudnorm=I=${TARGET_I}:TP=${TARGET_TP}:LRA=${TARGET_LRA}${extra}`;
@@ -85,6 +90,55 @@ export async function normaliseTo(file, label = 'audio') {
   console.log(`  ${label}: ${Number(m.input_i).toFixed(1)} LUFS, peak ${Number(m.input_tp).toFixed(1)} dBTP`
     + ` -> ${TARGET_I} LUFS (${gain > 0 ? '+' : ''}${gain} dB)`);
   return normaliseFilter(m);
+}
+
+/* Nudge a finished file the rest of the way onto target.
+
+   loudnorm in linear mode computes one gain from the *pre-limiter* measurement, and the limiter
+   then shaves the peaks — which also takes some of the loudness the gain was supposed to deliver.
+   The result lands short, and how short depends on the crest factor of the material, so it varies
+   per take and cannot be predicted.
+
+   It went unnoticed while every episode closed on the same era beat: that clip happened to land
+   at -14.9 LUFS, just inside the tolerance. The moment each story got its own closing take the
+   spread showed, and eight of them failed the assertion at around -15.1 — not broken, just short,
+   with half a decibel of unused headroom sitting under the ceiling.
+
+   So: measure what actually came out, and apply the residual bounded by the peak headroom that
+   is genuinely available. If the material is truly against the ceiling this does nothing and the
+   assertion that follows will say so. */
+export async function trimToTarget(file, { tol = 0.4 } = {}) {
+  const m = await measure(file);
+  const i = Number(m.input_i);
+  const tp = Number(m.input_tp);
+  const need = TARGET_I - i;
+  if (!Number.isFinite(need) || Math.abs(need) <= tol) return null;
+
+  /* Headroom is measured against the true-peak limit the assertion actually enforces, not
+     against CEILING. Those are two different scales and mixing them computed zero headroom
+     where there was half a decibel: CEILING is alimiter's *sample* peak target (-1.6 dBFS)
+     while input_tp is an *intersample* true-peak reading (-1.5 dBTP). The first attempt at this
+     fix subtracted one from the other, got -0.1, clamped it to zero, and corrected nothing. */
+  const room = TP_LIMIT - tp;
+  const gain = need > 0 ? Math.min(need, Math.max(0, room)) : need;
+  if (Math.abs(gain) < 0.15) {
+    console.log(`  ${i.toFixed(1)} LUFS, ${need.toFixed(1)} dB short, peak ${tp.toFixed(1)} dBTP`
+      + ' — no headroom to correct into');
+    return null;
+  }
+
+  /* A pure gain, with no limiter. The material has already been through one, and re-limiting is
+     precisely what took the loudness away the first time: the correction would be applied and
+     then immediately shaved off again. A gain no larger than the measured headroom cannot
+     create a peak above the ceiling. */
+  const tmp = `${file}.trim.mp4`;
+  await execFileP('ffmpeg', ['-y', '-v', 'error', '-i', file,
+    '-c:v', 'copy', '-af', `volume=${gain.toFixed(2)}dB`,
+    '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart', tmp], { maxBuffer: 1 << 28 });
+  await rename(tmp, file);
+  console.log(`  corrected ${gain > 0 ? '+' : ''}${gain.toFixed(2)} dB (was ${i.toFixed(1)} LUFS,`
+    + ` ${tp.toFixed(1)} dBTP)`);
+  return gain;
 }
 
 /** Verify a finished file actually landed on target. Throws if it is more than
