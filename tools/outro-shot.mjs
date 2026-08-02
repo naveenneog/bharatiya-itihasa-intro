@@ -17,7 +17,7 @@
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { chatJson } from './llm.mjs';
-import { genVideo, soraFleet, rememberConc } from './azure.mjs';
+import { genImage, genVideo, soraFleet, rememberConc } from './azure.mjs';
 import { INK_STYLE, INK_LIGHT, NOTYPE } from './ink.mjs';
 import { langOf, lineOf } from './lang.mjs';
 
@@ -29,6 +29,7 @@ const SLUG = arg('slug', null);
 if (!SLUG) { console.error('usage: node tools/outro-shot.mjs --slug <slug>'); process.exit(1); }
 const EP = path.join('episodes', SLUG);
 const OUT = path.join(EP, 'outro-clips');
+const STILLS = path.join(EP, 'outro-stills');
 /* Two files, deliberately. The plan is cacheable and cheap; the record is written only once a
    take actually exists on disk. A stage that declares the plan as its output is skipped on a
    resumed run whose generation failed, and make-outro then falls back to the shared era beat —
@@ -142,17 +143,40 @@ if (done.length && !has('force')) {
 
 const take = done.length + 1;
 const out = path.join(OUT, `${plan.id}-r${take}.mp4`);
-console.log(`\n  generating ${SECONDS}s take r${take}...`);
+const still = path.join(STILLS, `${plan.id}-r${take}.png`);
+await mkdir(STILLS, { recursive: true });
+
+/* A still first, kept, and then used as the reference the take is built from.
+
+   Going straight from text to video was cheaper by one image call per shot and it threw away
+   the best thing the pipeline makes. The still is a finished piece of art in its own right —
+   it is what a thumbnail, a chapter card or a poster would be cut from — and generating none
+   meant a run produced nothing but video. It also locks the take: an animated still varies far
+   less from what was asked for than a text prompt does, so the close matches the language. */
+console.log(`\n  still...`);
 const t0 = Date.now();
 try {
-  const r = await genVideo(plan.prompt, out, { seconds: SECONDS, size: '1280x720' });
+  await genImage(plan.prompt, still, { size: '1536x1024', quality: 'high' });
+  await writeFile(still.replace(/\.png$/, '.txt'), `${plan.prompt}\n`);
+  console.log(`  ok  ${((Date.now() - t0) / 1000).toFixed(0)}s -> ${still}`);
+} catch (e) {
+  console.error(`  FAIL still: ${String(e.message || e).slice(0, 300)}`);
+  process.exit(1);
+}
+
+console.log(`  ${SECONDS}s take r${take}, animated from that still...`);
+const t1 = Date.now();
+try {
+  /* The still is 1536x1024 (3:2) and the take is 1280x720; genVideo centre-crops and scales the
+     reference, because sora rejects any mismatch. */
+  const r = await genVideo(plan.prompt, out, { seconds: SECONDS, size: '1280x720', ref: still });
   /* The prompt is written beside the take, always. A generated asset whose prompt was not kept
      cannot be varied, corrected or explained later — only replaced. */
   await writeFile(out.replace(/\.mp4$/, '.txt'), `${plan.prompt}\n`);
-  await writeFile(DONEFILE, `${JSON.stringify({ ...plan, take: out, lane: r.lane, at: new Date().toISOString() }, null, 2)}\n`);
-  console.log(`  ok  ${((Date.now() - t0) / 1000).toFixed(0)}s on ${r.lane} -> ${out}`);
+  await writeFile(DONEFILE, `${JSON.stringify({ ...plan, take: out, still, lane: r.lane, at: new Date().toISOString() }, null, 2)}\n`);
+  console.log(`  ok  ${((Date.now() - t1) / 1000).toFixed(0)}s on ${r.lane} -> ${out}`);
 } catch (e) {
-  console.error(`  FAIL ${String(e.message || e).slice(0, 300)}`);
+  console.error(`  FAIL take: ${String(e.message || e).slice(0, 300)}`);
   process.exit(1);
 }
 await rememberConc();

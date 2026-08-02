@@ -73,23 +73,29 @@ It is under a minute. It plays over abstract footage — ink and gold in black w
 people, no places — so the words carry everything. There is no narrative artwork to lean on.
 
 WHAT IT IS
-A chain of CLAIMS. Each line asserts something the episode established: what was measured,
-written, built, decided or changed. A viewer should be able to repeat any line afterwards.
-It is not a summary and not a trailer; it does not tease and it does not say "the story of".
+A run of FACTS. Not a story, and not a story compressed: no arc, no setup, no build, no
+turn, no payoff. Each line states one thing that is true and can be checked, and each line
+stands on its own. If a viewer saw only line five and nothing else, it would still tell them
+something. Remove any line and the rest are unharmed.
 
-SHAPE — exactly 7 lines:
-  1  hook    the most arresting true claim in the episode. Concrete, specific, surprising.
-             It is the first thing heard and it must be worth the next second.
-  2  ground  who, where, when — the minimum that makes the hook land.
-  3  turn    what changed, or what was done
-  4  proof   the concrete detail that makes it credible: a method, an object, a rule
-  5  proof   a second one, different in kind from the fourth
-  6  reach   what it touched afterwards — the consequence, honestly scoped
-  7  payoff  the line the viewer leaves with. A claim, not a moral.
+This is the opposite of the long-form episode, which is a story and should be. A short is
+watched in a scroll, often from the middle, often twice. Facts survive that; a narrative
+does not — it only works from the beginning, in order, once.
+
+SHAPE — exactly 7 lines, each a separate fact:
+  - Order them by how arresting they are, strongest first. The first line is the only one
+    guaranteed to be heard, so it is the single most surprising true thing in the episode.
+  - After the first, vary the KIND of fact so seven lines are not seven of the same shape:
+    a measurement, an object, a rule, a place and date, a scale or quantity, a first, a
+    consequence, a thing that survives today.
+  - Later lines may be smaller. They may not be vaguer.
 
 HARD RULES
 - Everything must be supported by the narration you are given. Add no facts, dates, names or
   numbers that are not in it. You are selecting and sharpening, not researching.
+- **No connective tissue between lines.** Never begin a line with and, so, then, but, yet,
+  because, after, this, that, which, meaning, leading. No line may depend on the line before
+  it to be understood — including for who "he" or "it" is. Name the subject again if needed.
 - 7 to 15 words per line. The whole thing must be sayable in about 45 seconds.
 - Spell numbers as words: "six twenty-eight", "three hundred years". These are SPOKEN; a
   numeral is read aloud as a quantity and comes out wrong.
@@ -101,24 +107,52 @@ HARD RULES
 
 KICKERS
 Each line gets a two or three word kicker set above it in small capitals — a label for the
-beat, drawn from the content ("THE CLAIM", "BHINMAL, 628", "THE RULE"). Not the line again.
+fact, drawn from the content ("THE RULE", "BHINMAL, 628", "WHAT SURVIVED"). Not the line again.
 
 Return JSON only:
-{"lines":[{"text":"...","kick":"...","beat":"hook"}, ... 7 of them],
- "why": "one sentence on why this chain holds"}
+{"lines":[{"text":"...","kick":"...","beat":"fact"}, ... 7 of them],
+ "why": "one sentence on why these seven facts, and why this one is first"}
 ${LANG.instruction}`;
 
 let script = await readFile(SCRIPT, 'utf8').then(JSON.parse).catch(() => null);
 if (script && has('rescript')) script = null;
 if (!script) {
   const narration = ep.panels.map((p) => lineOf(p, LANG)).filter(Boolean).join('\n');
-  const user = `Episode: ${ep.title}\nFigure: ${ep.figure || '(none)'}\nEra: ${ep.era || ''}\n\nNARRATION\n${narration}`;
-  const got = await chatJson(SYSTEM, user, { maxTokens: 3000 });
-  const lines = Array.isArray(got.lines) ? got.lines : [];
+  const base = `Episode: ${ep.title}\nFigure: ${ep.figure || '(none)'}\nEra: ${ep.era || ''}\n\nNARRATION\n${narration}`;
 
-  /* Checked, not trusted — the same rules the prompt states, enforced. A numeral here is the
-     one that matters most: it is spoken, and the source project's own voice reads "628" as
-     six hundred and twenty-eight. */
+  /* Three attempts, with the failures handed back.
+
+     The rules that matter here are the ones a model drifts across rather than breaks outright —
+     opening a line on "and" or on "he" is the natural way to write history, and asking once
+     produced exactly that. Feeding the specific failures back corrects it, where failing the
+     stage outright would stop an unattended run over a fixable sentence. */
+  let lines = [];
+  let got = {};
+  let problems = [];
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const user = problems.length
+      ? `${base}\n\nYour previous answer broke these rules. Rewrite all seven lines, fixing them:\n`
+        + problems.map((p) => `- ${p}`).join('\n')
+      : base;
+    got = await chatJson(SYSTEM, user, { maxTokens: 3000 });
+    lines = Array.isArray(got.lines) ? got.lines : [];
+    problems = check(lines);
+    if (!problems.length) break;
+    console.log(`  attempt ${attempt}: ${problems.length} problem(s)${attempt < 3 ? ', asking again' : ''}`);
+    for (const p of problems) console.log(`    - ${p}`);
+  }
+  if (problems.length) {
+    console.error(`the short script for ${SLUG} did not pass after 3 attempts`);
+    process.exit(1);
+  }
+  script = { slug: SLUG, title: ep.title, why: got.why || '', lines };
+  await writeFile(SCRIPT, `${JSON.stringify(script, null, 2)}\n`);
+}
+
+/* Checked, not trusted — the same rules the prompt states, enforced. A numeral matters most:
+   it is spoken, and the source project's own voice reads "628" as six hundred and twenty-eight.
+   Returns the failures so they can be handed back rather than only reported. */
+function check(lines) {
   const problems = [];
   if (lines.length !== 7) problems.push(`${lines.length} lines, expected 7`);
   for (const [i, l] of lines.entries()) {
@@ -129,15 +163,21 @@ if (!script) {
     if (/\d/.test(t)) problems.push(`line ${i + 1} contains a numeral — it will be spoken as a quantity: "${t}"`);
     if (/\byou\b|\byour\b/i.test(t)) problems.push(`line ${i + 1} addresses the viewer: "${t}"`);
     if (/\?$|\.\.\.$|…$/.test(t)) problems.push(`line ${i + 1} trails off or asks: "${t}"`);
+    /* The rule that separates a run of facts from a story told in seven parts, and the one a
+       model drifts back across because narrative is the natural way to write history. A line
+       that opens on a connective is not a fact; it is the middle of a sentence about the line
+       before it, and a viewer who scrolled in halfway has already lost it. */
+    const lead = t.split(/\s+/)[0].replace(/[^A-Za-z\u0900-\u097F]/g, '').toLowerCase();
+    if (['and', 'so', 'then', 'but', 'yet', 'because', 'after', 'this', 'that', 'which',
+      'meaning', 'leading', 'thus', 'hence', 'later', 'soon', 'now'].includes(lead)) {
+      problems.push(`line ${i + 1} opens on "${lead}" — it continues the line before instead of standing alone: "${t}"`);
+    }
+    if (i > 0 && /^(he|she|it|they|his|her|its|their)\b/i.test(t)) {
+      problems.push(`line ${i + 1} opens on a pronoun, so it only makes sense after line ${i}: "${t}"`);
+    }
     if (!String(l?.kick || '').trim()) problems.push(`line ${i + 1} has no kicker`);
   }
-  if (problems.length) {
-    console.error(`the short script for ${SLUG} did not pass:`);
-    for (const p of problems) console.error(`  - ${p}`);
-    process.exit(1);
-  }
-  script = { slug: SLUG, title: ep.title, why: got.why || '', lines };
-  await writeFile(SCRIPT, `${JSON.stringify(script, null, 2)}\n`);
+  return problems;
 }
 console.log(`${SLUG} short — 7 lines`);
 for (const l of script.lines) console.log(`  ${String(l.kick).padEnd(18)} ${l.text}`);

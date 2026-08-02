@@ -19,7 +19,7 @@
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { chatJson } from './llm.mjs';
-import { genVideo, soraFleet, rememberConc } from './azure.mjs';
+import { genImage, genVideo, soraFleet, rememberConc } from './azure.mjs';
 import { INK_STYLE, INK_LIGHT, FRAME_TALL, LOWER, NOTYPE } from './ink.mjs';
 
 const argv = process.argv.slice(2);
@@ -30,6 +30,7 @@ const SLUG = arg('slug', null);
 if (!SLUG) { console.error('usage: node tools/short-shots.mjs --slug <slug>'); process.exit(1); }
 const EP = path.join('episodes', SLUG);
 const OUT = path.join(EP, 'short-clips');
+const STILLS = path.join(EP, 'short-stills');
 const PLANFILE = path.join(EP, 'short-shots.json');
 /* The real throttle is soraFleet inside genVideo, which finds each deployment's current cap by
    probing it. Workers here only need to be numerous enough that no lane is ever starved of
@@ -130,6 +131,7 @@ for (const s of plan.shots) console.log(`  ${String(s.n + 1)}. ${s.id.padEnd(22)
 if (has('plan')) { console.log('\n--plan: nothing generated'); process.exit(0); }
 
 await mkdir(OUT, { recursive: true });
+await mkdir(STILLS, { recursive: true });
 const have = await readdir(OUT).catch(() => []);
 const todo = plan.shots.filter((s) => {
   if (ONLY.length && !ONLY.includes(String(s.n + 1)) && !ONLY.includes(s.id)) return false;
@@ -148,11 +150,21 @@ await Promise.all(Array.from({ length: Math.min(CONC, queue.length) }, async () 
     if (!s) return;
     const base = `${String(s.n).padStart(2, '0')}-${s.id}`;
     const out = path.join(OUT, `${base}-r1.mp4`);
+    const still = path.join(STILLS, `${base}-r1.png`);
     try {
-      /* Text to video, no reference frame. The era pipeline animates a chosen still so the
-         picked candidate is the one that moves; here there is no candidate to pick and a
-         reference would cost a still per shot for no editorial gain. */
-      await genVideo(s.prompt, out, { seconds: '8', size: '720x1280' });
+      /* A still first, kept, then animated from it.
+
+         This used to go straight from text to video on the reasoning that there is no candidate
+         to pick here, so a reference bought nothing. That was wrong twice over. The still is a
+         finished piece of art in its own right and throwing it away meant seven takes produced
+         no stills at all. And animating a still holds the take much closer to what was asked
+         for than a text prompt does, which is what keeps seven shots in one visual language.
+
+         Portrait, 1024x1536: a landscape still centre-cropped to 9:16 keeps a narrow strip and
+         upscales it, which is the same softness that made cropped landscape footage unusable. */
+      await genImage(s.prompt, still, { size: '1024x1536', quality: 'high' });
+      await writeFile(still.replace(/\.png$/, '.txt'), s.prompt);
+      await genVideo(s.prompt, out, { seconds: '8', size: '720x1280', ref: still });
       await writeFile(out.replace(/\.mp4$/, '.txt'), s.prompt);
       done++;
       console.log(`  [${done + failed}/${todo.length}] ${((Date.now() - t0) / 1000).toFixed(0)}s  ok   ${base}`);
