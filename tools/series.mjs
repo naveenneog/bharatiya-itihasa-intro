@@ -106,7 +106,11 @@ function run(story) {
     let tail = '';
     const keep = (b) => { tail = (tail + b.toString()).slice(-4000); };
     p.stdout.on('data', (b) => { keep(b); process.stdout.write(b); });
-    p.stderr.on('data', keep);
+    /* stderr was captured and never shown. A failed stage reported only its own name, and the
+       exception explaining it — the one thing needed to fix it — went into a string that was
+       used to regex out that same name and then thrown away. Four stories failed at `outro` in
+       one run with nothing anywhere saying why. */
+    p.stderr.on('data', (b) => { keep(b); process.stderr.write(b); });
     p.on('close', (code) => resolve({ code, tail }));
   });
 }
@@ -126,6 +130,17 @@ for (const [i, story] of queue.entries()) {
     failedAt: code === 0 ? null : (tail.match(/(\S+(?: \S+)?) FAILED — stopping/) || [])[1] || 'unknown',
   };
   await writeFile(LEDGER, `${JSON.stringify(ledger, null, 2)}\n`);
+  /* The last four thousand characters of a failed run, kept where the ledger points at it. An
+     unattended run is read hours later, by which time the scrollback is gone or was never
+     visible — the ledger has to be able to hand over the evidence, not just the verdict. */
+  if (code !== 0) {
+    const log = path.join(path.dirname(LEDGER), `${story.slug}.fail.log`);
+    await writeFile(log, `${new Date().toISOString()}  ${story.slug}  failed at `
+      + `${ledger.runs[story.slug].failedAt}\n\n${tail}\n`);
+    ledger.runs[story.slug].log = log;
+    await writeFile(LEDGER, `${JSON.stringify(ledger, null, 2)}\n`);
+    console.log(`  why: ${log}`);
+  }
   console.log(`\n  ${story.slug}: ${code === 0 ? 'done' : `FAILED at ${ledger.runs[story.slug].failedAt}`} in ${mins} min`);
 }
 
