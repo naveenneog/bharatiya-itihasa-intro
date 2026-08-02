@@ -23,13 +23,23 @@ const argv = process.argv.slice(2);
 const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : d; };
 
 const SRC = flag('src', 'C:/Users/navg/DailyApps/IndianHistory');
-const SLUG = flag('slug', 'aryabhata');
 /* The language is part of the episode's identity, not a rendering option. Hindi narration is a
    different length line by line, so every duration, every splice point and every chapter mark
-   differs — it is a different timeline over the same pictures, and it gets its own folder. The
-   folder name is derived rather than passed, because a language flag and a path flag that can
-   disagree is exactly the shape of the bug described below. */
-const LANG = flag('lang', 'en');
+   differs — it is a different timeline over the same pictures, and it gets its own folder.
+
+   The folder name is derived rather than passed, and a slug that already names one is understood
+   as itself: every downstream tool takes the folder as its --slug, so `--slug zero-hi` is what a
+   person will type, and composing that with --lang produced `zero-hi-hi`. One name, read two
+   ways, is the same defect as two flags that can disagree. */
+const LANG_SUFFIX = /-(hi|kn|ta|te)$/;
+const askedSlug = flag('slug', 'aryabhata');
+const suffix = askedSlug.match(LANG_SUFFIX);
+const SLUG = suffix ? askedSlug.slice(0, -suffix[0].length) : askedSlug;
+const LANG = flag('lang', null) || (suffix ? suffix[1] : 'en');
+if (suffix && flag('lang', null) && flag('lang', null) !== suffix[1]) {
+  console.error(`--slug ${askedSlug} says "${suffix[1]}" and --lang says "${flag('lang', null)}".`);
+  process.exit(1);
+}
 const EPID = LANG === 'en' ? SLUG : `${SLUG}-${LANG}`;
 const OUT = path.join('episodes', EPID);
 const MAXW = 1280;                       // art is 1024-1536px square-ish; 1280 is plenty at 1080p
