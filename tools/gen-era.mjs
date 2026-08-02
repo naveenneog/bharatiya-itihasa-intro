@@ -26,7 +26,7 @@
 */
 import { mkdir, writeFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { genImage, genVideo } from './azure.mjs';
+import { genImage, genVideo, soraWorkers, rememberConc } from './azure.mjs';
 import { listEras, loadEra, ROOT } from './eras.mjs';
 import { picks, choose } from './picks.mjs';
 
@@ -80,7 +80,9 @@ const BEATFILTER = [arg('beats', ''), arg('beat', '')]
 /* Concurrency is per *kind of job*, because the two endpoints behave differently: image
    generation is fast and tolerates four in flight, video is slow and expensive and two is
    already enough to keep it saturated. Measured on this account, not guessed. */
-const CONC = Number(arg('conc', WHAT === 'clips' ? '2' : '4'));
+/* Stills are capped here; clips are capped by soraFleet inside genVideo, which discovers each
+   deployment's own limit, so the worker count only has to keep both lanes fed. */
+const CONC = Number(arg('conc', 0)) || (WHAT === 'clips' ? soraWorkers() : 4);
 
 if (!['stills', 'clips'].includes(WHAT)) {
   console.error(`--what must be stills or clips`);
@@ -205,4 +207,5 @@ await Promise.all(Array.from({ length: Math.max(1, Math.min(CONC, queue.length))
 console.log(`\n  ${done}/${queue.length} ${WHAT} in ${((Date.now() - t0) / 60000).toFixed(1)} min`
   + (failed ? `, ${failed} failed — re-run with --missing to fill the gaps` : ''));
 console.log(`  -> ${ROOT}/<era>/${WHAT}/\n`);
+if (WHAT === 'clips') await rememberConc();
 process.exit(failed ? 1 : 0);

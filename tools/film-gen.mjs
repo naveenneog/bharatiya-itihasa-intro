@@ -16,7 +16,7 @@
 */
 import { readdir, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { genImage, genVideo } from './azure.mjs';
+import { genImage, genVideo, soraWorkers, rememberConc } from './azure.mjs';
 import { listFilms, loadFilm, validateFilm, ROOT } from './films.mjs';
 
 const argv = process.argv.slice(2);
@@ -36,7 +36,9 @@ const WHAT = arg('what', 'stills');
 const ROUNDS = Number(arg('rounds', '1'));
 const DRY = has('dry');
 const MISSING = has('missing');
-const CONC = Number(arg('conc', WHAT === 'clips' ? '2' : '4'));
+/* Stills are capped here; clips are capped by soraFleet inside genVideo, which discovers each
+   deployment's own limit, so the worker count only has to keep both lanes fed. */
+const CONC = Number(arg('conc', 0)) || (WHAT === 'clips' ? soraWorkers() : 4);
 const FILTER = [arg('shot', ''), arg('shots', '')].join(',').split(',').map((s) => s.trim()).filter(Boolean);
 
 if (!['stills', 'clips'].includes(WHAT)) { console.error('--what must be stills or clips'); process.exit(1); }
@@ -157,4 +159,5 @@ await Promise.all(Array.from({ length: Math.max(1, Math.min(CONC, queue.length))
 console.log(`\n  ${done}/${queue.length} ${WHAT} in ${((Date.now() - t0) / 60000).toFixed(1)} min`
   + (noref ? `, ${noref} fell back to text-to-video (a person in the reference)` : '')
   + (failed ? `, ${failed} failed — re-run with --missing` : ''));
+if (WHAT === 'clips') await rememberConc();
 process.exit(failed ? 1 : 0);

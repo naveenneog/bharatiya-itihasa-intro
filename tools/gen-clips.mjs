@@ -16,7 +16,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { genVideo, pool } from './azure.mjs';
+import { genVideo, pool, soraWorkers, rememberConc } from './azure.mjs';
 import { DIRECTIONS } from './directions.mjs';
 import { picks, choose } from './picks.mjs';
 
@@ -31,7 +31,7 @@ const flag = (name, dflt) => {
 const SECONDS = flag('seconds', '4');
 const MODEL = flag('model', 'sora-2');
 const SIZE = flag('size', '1280x720');   // all sora-2 offers in landscape; upscaled at assembly
-const CONC = Number(flag('conc', '2'));  // sora rejects with 429 "too many running tasks" above this
+const CONC = Number(flag('conc', 0)) || soraWorkers();  // real cap is soraFleet, per deployment
 /* Sora moderation refuses reference images containing people
    ("people-in-user-uploads"), so portrait directions have to fall back to
    text-to-video and carry their look in the prompt instead. */
@@ -153,4 +153,5 @@ const results = await pool(jobs, CONC, (job, res) => {
 
 const bad = results.filter((r) => !r.ok).length;
 console.log(`\n${jobs.length - bad}/${jobs.length} clips in ${((Date.now() - t0) / 1000).toFixed(0)}s -> ${ROOT}/`);
+await rememberConc();
 process.exit(bad ? 1 : 0);

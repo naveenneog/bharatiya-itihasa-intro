@@ -19,7 +19,7 @@
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { chatJson } from './llm.mjs';
-import { genVideo } from './azure.mjs';
+import { genVideo, soraFleet, rememberConc } from './azure.mjs';
 import { INK_STYLE, INK_LIGHT, FRAME_TALL, LOWER, NOTYPE } from './ink.mjs';
 
 const argv = process.argv.slice(2);
@@ -31,7 +31,12 @@ if (!SLUG) { console.error('usage: node tools/short-shots.mjs --slug <slug>'); p
 const EP = path.join('episodes', SLUG);
 const OUT = path.join(EP, 'short-clips');
 const PLANFILE = path.join(EP, 'short-shots.json');
-const CONC = Number(arg('conc', 2));
+/* The real throttle is soraFleet inside genVideo, which finds each deployment's current cap by
+   probing it. Workers here only need to be numerous enough that no lane is ever starved of
+   something to start. --conc pins every lane. */
+const PIN = Number(arg('conc', 0));
+if (PIN) for (const l of soraFleet.lanes) { l.limit = PIN; l.min = PIN; l.max = PIN; }
+const CONC = soraFleet.max;
 const ONLY = (arg('shots', '') || '').split(',').map((s) => s.trim()).filter(Boolean);
 
 const script = JSON.parse(await readFile(path.join(EP, 'short.json'), 'utf8'));
@@ -133,7 +138,7 @@ const todo = plan.shots.filter((s) => {
 });
 if (!todo.length) { console.log('\nall seven already generated'); process.exit(0); }
 
-console.log(`\n  generating ${todo.length}, ${CONC} at a time — about ${Math.ceil(todo.length / CONC * 1.2)} min\n`);
+console.log(`\n  generating ${todo.length} across ${soraFleet.lanes.length} deployment(s): ${soraFleet.lanes.map((l) => `${l.name}@${l.limit}`).join(', ')}\n`);
 const t0 = Date.now();
 let done = 0; let failed = 0;
 const queue = [...todo];
@@ -160,4 +165,6 @@ await Promise.all(Array.from({ length: Math.min(CONC, queue.length) }, async () 
 }));
 
 console.log(`\n  ${done}/${todo.length} in ${((Date.now() - t0) / 60000).toFixed(1)} min -> ${OUT}/`);
+console.log(`  lanes: ${soraFleet.report()}`);
+await rememberConc();
 if (failed) process.exit(1);

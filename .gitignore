@@ -23,3 +23,6 @@ dist/thumbs-*/.*.html
 # Era stills and clips ARE committed (generative output is not reproducible).
 # Only the assembled pages and plates are derived.
 eras/**/build-*/plates/
+
+# learned Sora per-deployment concurrency (account state, not source)
+dist/.sora-conc.json
