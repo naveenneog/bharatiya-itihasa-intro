@@ -32,9 +32,9 @@ for (const lane of LANES) {
 const t0 = Date.now();
 const at = () => ((Date.now() - t0) / 1000).toFixed(0).padStart(4);
 
-/* Every job is launched at once and the fleet is bypassed, because the point is to find out what
-   the service refuses — a gate that prevents the refusal would prevent the measurement. */
-for (const l of soraFleet.lanes) { l.limit = 99; l.max = 99; l.min = 99; }
+/* Every job is launched at once and the lanes are opened wide, because the point is to find out
+   what the service refuses — a gate that prevents the refusal prevents the measurement. */
+for (const name of LANES) { const l = soraFleet.lane(name); l.limit = 99; l.max = 99; l.min = 99; }
 soraFleet.quiet = true;
 
 const results = await Promise.all(jobs.map(async ({ lane, i }) => {

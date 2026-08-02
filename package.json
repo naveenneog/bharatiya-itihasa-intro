@@ -14,6 +14,7 @@
     "render:draft": "node scripts/render.mjs --fps 24 --scale 0.5 --out dist/draft.mp4",
     "fonts": "node scripts/fetch-fonts.mjs",
     "test:years": "node tools/years.test.mjs",
+    "test:fleet": "node tools/fleet.test.mjs",
     "check": "node tools/check.mjs"
   },
   "devDependencies": {

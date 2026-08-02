@@ -29,7 +29,7 @@ const flag = (name, dflt) => {
   return i >= 0 ? argv[i + 1] : dflt;
 };
 const SECONDS = flag('seconds', '4');
-const MODEL = flag('model', 'sora-2');
+const MODEL = flag('model', null);  // null lets soraFleet choose the deployment
 const SIZE = flag('size', '1280x720');   // all sora-2 offers in landscape; upscaled at assembly
 const CONC = Number(flag('conc', 0)) || soraWorkers();  // real cap is soraFleet, per deployment
 /* Sora moderation refuses reference images containing people

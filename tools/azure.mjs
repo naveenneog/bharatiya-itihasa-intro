@@ -102,10 +102,22 @@ class Fleet {
     return best;
   }
 
-  async acquire() {
-    const l = this.#free();
+  /* `want` pins the lane. Without it a job could be dispatched to one deployment while holding a
+     slot on another, which mis-attributes both the load and any throttle it causes — the probe,
+     whose whole job is to attribute throttles to deployments, would have been measuring noise.
+     A name with no lane gets one: naming a deployment is asking for it, and if it does not exist
+     the service says so far more clearly than a lookup here could. */
+  lane(name) {
+    let l = this.lanes.find((x) => x.name === name);
+    if (!l) { l = new Lane(name, 2); this.lanes.push(l); }
+    return l;
+  }
+
+  async acquire(want = null) {
+    const named = want ? this.lane(want) : null;
+    const l = named ? (named.room ? named : null) : this.#free();
     if (l) { l.active++; return l; }
-    return new Promise((r) => this.#waiters.push(r));
+    return new Promise((r) => this.#waiters.push({ want, r }));
   }
 
   release(lane) {
@@ -114,13 +126,16 @@ class Fleet {
   }
 
   /* Claims the slot on the waiter's behalf, before resolving, so two waiters woken in the same
-     turn cannot both decide the same lane had room for them. */
+     turn cannot both decide the same lane had room for them. Walks the queue rather than only
+     its head, because a waiter pinned to a busy lane must not block one that would run now. */
   #pump() {
-    while (this.#waiters.length) {
-      const l = this.#free();
-      if (!l) return;
+    for (let i = 0; i < this.#waiters.length;) {
+      const w = this.#waiters[i];
+      const l = w.want ? this.lanes.find((x) => x.name === w.want && x.room) : this.#free();
+      if (!l) { i++; continue; }
       l.active++;
-      this.#waiters.shift()(l);
+      this.#waiters.splice(i, 1);
+      w.r(l);
     }
   }
 
@@ -278,11 +293,10 @@ async function fitRef(ref, size) {
 /** Text -> video, or image -> video when `ref` is a still. A reference of any size works —
     it is centre-cropped and scaled to `size` first, because sora requires an exact match. */
 export async function genVideo(prompt, out, { seconds = '4', size = '1280x720', model = null, ref = null, onTick } = {}) {
-  /* A pinned model bypasses the fleet's dispatch but still needs a slot, so it runs on the lane
-     of that name if there is one and on the least-loaded lane otherwise. */
-  const lane = await soraFleet.acquire();
+  /* A named model pins the lane, so the slot is held on the deployment the job actually runs on. */
+  const lane = await soraFleet.acquire(model);
   try {
-    return await runVideo(prompt, out, { seconds, size, model: model || lane.name, lane, ref, onTick });
+    return await runVideo(prompt, out, { seconds, size, model: lane.name, lane, ref, onTick });
   } finally {
     soraFleet.release(lane);
   }
