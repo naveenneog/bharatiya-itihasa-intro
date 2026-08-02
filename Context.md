@@ -1228,6 +1228,34 @@ over a fixable sentence.
 
 Standing instruction from the user: **upload via the local yt-agent, never by driving a browser.**
 
+**Use `tools/upload.mjs`** — it reads a finished upload folder and drives the agent:
+
+```powershell
+node tools/upload.mjs --dir dist/gupta/zero_v5 --dry          # show what would be sent
+node tools/upload.mjs --dir dist/gupta/zero_v5 --ab           # private, with A/B challengers
+node tools/upload.mjs --dir dist/gupta/zero_v5 --visibility public
+```
+
+It picks the master (largest mp4 that is not the intro or outro), the title from `title.txt`,
+the description from `description.txt`, the 1280×720 `<slug>-thumb.png`, and — with `--ab` — the
+B title from `ab/titles.txt` and the B plate from `ab/`. It checks the title is within YouTube's
+100 characters before submitting.
+
+**Two deliberate choices:**
+
+- **Private by default.** The agent's own documentation shows `--visibility public`, which is
+  right for one video someone is watching go up and wrong as the default of an unattended
+  thirteen-story run, which would publish an unreviewed series to subscribers. Pass
+  `--visibility public` explicitly.
+- **Idempotent against the master's SHA-256.** Every other step here is safe to re-run — a stage
+  whose output exists is skipped, a failed story is retried. An upload is the one step that is
+  not: running it twice produces two videos on a public channel. Uploads are recorded in
+  `dist/uploads.json` against the video's content hash, and a second attempt refuses unless
+  `--again` is passed. A timeout (exit 3) is recorded too, because "still processing" is not
+  "not uploaded".
+
+Raw agent interface, if it is ever needed directly:
+
 ```powershell
 powershell -File C:\Users\navg\DailyApps\yt-agent\start-agent.ps1     # idempotent
 node C:\Users\navg\DailyApps\yt-agent\submit.mjs `
@@ -1239,13 +1267,15 @@ node C:\Users\navg\DailyApps\yt-agent\submit.mjs `
 
 Exit `0` done → report `youtube_url`; `ab:true` A/B running; `thumbnail_limited:true` daily cap,
 add tomorrow. Exit `1` failed (`SIGNED_OUT` → sign in once in the Edge profile). Exit `3` timeout,
-still processing. `--title-variants` / `--thumbnail-variants` are optional (≤2 each; variant A is
-the video's own). The B thumbnail must be a genuinely different hook, not a recolour.
+still processing.
 
 **Only one process at a time may drive `C:\Users\navg\.copilot\playwright-youtube-profile`.**
 Serialise uploads; never run a batch of them in parallel.
 
-Nothing has been uploaded yet.
+**Nothing has been uploaded yet, and this is not a factory stage.** It was left out on purpose
+while `series.mjs` was mid-run — editing `factory.mjs` during a run is what broke three stories
+earlier. Adding an opt-in `upload` stage gated on `--upload` is the next step. Until then it is
+run by hand per folder.
 
 ---
 
