@@ -1,0 +1,20 @@
+[submodule "episodes"]
+	path = episodes
+	url = https://github.com/naveenneog/bharatiya-itihasa-intro-episodes.git
+	branch = main
+[submodule "films"]
+	path = films
+	url = https://github.com/naveenneog/bharatiya-itihasa-intro-films.git
+	branch = main
+[submodule "eras"]
+	path = eras
+	url = https://github.com/naveenneog/bharatiya-itihasa-intro-eras.git
+	branch = main
+[submodule "versions"]
+	path = versions
+	url = https://github.com/naveenneog/bharatiya-itihasa-intro-versions.git
+	branch = main
+[submodule "artifacts"]
+	path = artifacts
+	url = https://github.com/naveenneog/bharatiya-itihasa-intro-artifacts.git
+	branch = main
