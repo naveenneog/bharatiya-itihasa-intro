@@ -177,7 +177,7 @@ export const CUTS = [  {
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 export const episodePage = (ep, cut) => `<!doctype html>
-<html lang="en">
+<html lang="${ep.lang || 'en'}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -236,7 +236,17 @@ export const episodePage = (ep, cut) => `<!doctype html>
   .framed #art .scene.on img.plate{animation:plateDrift linear forwards}
   .framed #art .scene.on img.bg,.framed #art .scene.on img.char{animation:none}
 
-  .framed #capwrap{right:auto;width:38%;bottom:auto;top:0;height:100%;padding:0 3.2% 0 5%;
+  /* A gutter margin, because the page has a gutter shadow.
+
+     The .page-turn #stage::before rule darkens the rightmost 21% of the verso, up to 66% black
+     at the crease — that shadow is what makes the left side read as a bound page rather than a
+     caption bar. The text block was given only 3.2%, so the last word of every full line sat
+     under a ~40% veil. In English that only ever dimmed words not yet spoken, which are dim
+     anyway and brighten as the voice reaches them, so it passed as part of the treatment. Hindi
+     has no word timings and is lit all the way along, which made the same shadow permanent and
+     unmissable. 7.2% clears it to under a tenth of its strength; the left margin gives back some
+     of the measure so the block does not become a column. */
+  .framed #capwrap{right:auto;width:38%;bottom:auto;top:0;height:100%;padding:0 7.2% 0 4.6%;
     display:grid;align-content:center;background:none}
   /* Larger than the bled cut's, not smaller. Contain-fitting frees the width the caption
      used to share with the picture, and burnt-in text on a phone needs to clear about
@@ -324,7 +334,22 @@ export const episodePage = (ep, cut) => `<!doctype html>
   #cap .w{transition:color .18s linear,text-shadow .18s linear}
   #cap .w.said{color:var(--ink-hi)}
   #cap .w.now{color:#fff;text-shadow:0 0 18px rgba(232,182,74,.55)}
+
+  /* The whole-line caption, which is what Hindi gets.
+
+     The source ships no Hindi word timings, and the Hindi voice it chose (MAI-Voice-2) returns
+     none from the synthesiser either. Rather than sweep the line on invented timings — which
+     would light the wrong word and look exactly like a version that worked — the Hindi line is
+     shown entire and lit, and rises very slightly as it arrives. It is a different treatment,
+     not a broken one: the English line is a voice tracked word by word, the Hindi line is a
+     sentence set on a page.
+
+     Devanagari sits lower and taller than Latin at the same point size, so it is set a little
+     smaller with more leading, or the line crowds the crease in the book cut. */
   #cap.plain{color:var(--ink-hi)}
+  html[lang="hi"] #cap{font-family:"Tiro Devanagari Hindi","Cormorant Garamond",Georgia,serif;
+    font-size:clamp(14px,1.82vw,33px);line-height:1.62;max-width:42ch}
+  html[lang="hi"] #cap.speech{font-style:normal;color:var(--ink)}
 
   /* ── caption treatments ────────────────────────────────────────────────
      What actually holds attention on a phone in 2026 is word-synchronised text with
@@ -483,7 +508,10 @@ export const episodePage = (ep, cut) => `<!doctype html>
     pointer-events:none;
     background:
       radial-gradient(196% 100% at 64% 44%,rgba(240,224,192,.30),rgba(126,102,68,.13) 44%,rgba(20,15,10,0) 100%),
-      linear-gradient(270deg,rgba(0,0,0,.66) 0%,rgba(0,0,0,0) 21%)}
+     linear-gradient(270deg,rgba(0,0,0,.66) 0%,rgba(0,0,0,0) 21%)}
+  /* This shadow reaches 21% of the page in from the crease; the caption's gutter margin is set
+    against that number in the .framed #capwrap rule. The two belong together — change one and
+    the last word of every line goes back under the veil. */
   /* preserve-3d, not backface-visibility, on the leaf itself.
 
      Hiding the container's back face hid *everything inside it* the moment the turn passed
@@ -670,7 +698,7 @@ const $ = (s) => document.querySelector(s);
 const art = $('#art'), film = $('#film'), vid = $('#vid'), card = $('#card');
 const cap = $('#cap'), speaker = $('#speaker'), bar = $('#bar i'), where = $('#where');
 
-let lang = 'en';
+let lang = ${JSON.stringify(ep.lang || 'en')};
 let i = -1;                 // current panel index
 let audio = null;
 let raf = 0;
@@ -748,7 +776,21 @@ function paintCaption(p) {
    — and two copies of the rule that decides what the viewer sees is how the master and the
    player quietly stop agreeing. */
 function paintWords(p, ms) {
-  if (lang !== 'en' || !p.words.length) return;
+  /* A caption with no word timings still has a state that depends on the clock, and it has to
+     be decided here with the rest of them. Driving it from a CSS animation on a class change
+     would look right in the player and be wrong in the master, because the renderer seeks to
+     each frame rather than playing: an animation that starts when a class is added has no
+     defined position at an arbitrary seek. */
+  if (lang !== 'en' || !p.words.length) {
+    if (cap.classList.contains('plain')) {
+      const u = Math.max(0, Math.min(1, ms / 460));
+      const e = u * u * (3 - 2 * u);
+      cap.style.opacity = String(e);
+      cap.style.transform = 'translateY(' + ((1 - e) * 0.32).toFixed(3) + 'em)';
+    }
+    return;
+  }
+  cap.style.opacity = '';
   const spans = cap.children;
   let live = -1;
   for (let k = 0; k < p.words.length; k++) {

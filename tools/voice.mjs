@@ -23,10 +23,23 @@ export const RID = '/subscriptions/e839ff0f-532b-4828-a2b3-8c9a1b719d85/resource
   + 'providers/Microsoft.CognitiveServices/accounts/ai-contosohub530569751908';
 export const CS_SCOPE = 'https://cognitiveservices.azure.com';
 
-export const NARR = { en: 'en-IN-Arjun:DragonHDLatestNeural' };
-export const MALE = { en: 'en-IN-PrabhatNeural' };
-export const FEMALE = { en: 'en-IN-NeerjaNeural' };
+export const NARR = {
+  en: 'en-IN-Arjun:DragonHDLatestNeural', hi: 'hi-IN-Dhruv:MAI-Voice-2',
+  kn: 'kn-IN-GaganNeural', ta: 'ta-IN-ValluvarNeural', te: 'te-IN-MohanNeural',
+};
+export const MALE = {
+  en: 'en-IN-PrabhatNeural', hi: 'hi-IN-Arjun:MAI-Voice-2',
+  kn: 'kn-IN-GaganNeural', ta: 'ta-IN-ValluvarNeural', te: 'te-IN-MohanNeural',
+};
+export const FEMALE = {
+  en: 'en-IN-NeerjaNeural', hi: 'hi-IN-Kavya:MAI-Voice-2',
+  kn: 'kn-IN-SapnaNeural', ta: 'ta-IN-PallaviNeural', te: 'te-IN-ShrutiNeural',
+};
 export const RATE = { narrator: -6, male: 2, female: 0 };
+/* Tamil/Telugu/Kannada neural voices are less native than DragonHD (en) and MAI-Voice-2 (hi),
+   so they are slowed for clearer word pronunciation. Hindi is deliberately not in this set —
+   it runs at the English rate. */
+export const SLOW_LANGS = new Set(['ta', 'te', 'kn']);
 export const EMO = {
   battle: { nstyle: 'excited', dstyle: 'angry', pitch: '+8%', rate: 6 },
   suspense: { nstyle: 'sad', dstyle: 'sad', pitch: '-7%', rate: -7 },
@@ -44,9 +57,15 @@ export const fmtRate = (n) => {
   return r > 0 ? `+${r}%` : `${r}%`;
 };
 
+/* A language with no voice of its own must not quietly borrow English's. `table[lang] || table.en`
+   returned an en-IN narrator for Hindi text: the request succeeds, the audio is the right length,
+   and it is an English speaker sounding out Devanagari. Ask for a language the channel has no
+   voice for and it should say so. */
 export function voiceFor(role, lang = 'en') {
   const table = { narrator: NARR, male: MALE, female: FEMALE }[role] || NARR;
-  return [table[lang] || table.en, RATE[role] ?? RATE.narrator];
+  const voice = table[lang];
+  if (!voice) throw new Error(`no ${role} voice for "${lang}" — have ${Object.keys(table).join(', ')}`);
+  return [voice, (RATE[role] ?? RATE.narrator) - (SLOW_LANGS.has(lang) ? 9 : 0)];
 }
 
 export async function token() {
@@ -72,8 +91,9 @@ export function ssml(text, voice, rate, style, pitch) {
 }
 
 /** One synthesis at an explicit rate. Returns the mp3 bytes and the word boundaries. */
-export async function synth(text, { role = 'narrator', mood = 'calm', ratePct = null, lang = 'en' } = {}) {
-  const [voice, defRate] = voiceFor(role, lang);
+export async function synth(text, { role = 'narrator', mood = 'calm', ratePct = null, lang = 'en', voice: pin = null } = {}) {
+  const [tableVoice, defRate] = voiceFor(role, lang);
+  const voice = pin || tableVoice;
   const e = EMO[mood] || EMO.calm;
   const style = voice.includes('MAI-Voice') ? null : (role === 'narrator' ? e.nstyle : e.dstyle);
 

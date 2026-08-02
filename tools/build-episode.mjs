@@ -24,7 +24,14 @@ const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[
 
 const SRC = flag('src', 'C:/Users/navg/DailyApps/IndianHistory');
 const SLUG = flag('slug', 'aryabhata');
-const OUT = path.join('episodes', SLUG);
+/* The language is part of the episode's identity, not a rendering option. Hindi narration is a
+   different length line by line, so every duration, every splice point and every chapter mark
+   differs — it is a different timeline over the same pictures, and it gets its own folder. The
+   folder name is derived rather than passed, because a language flag and a path flag that can
+   disagree is exactly the shape of the bug described below. */
+const LANG = flag('lang', 'en');
+const EPID = LANG === 'en' ? SLUG : `${SLUG}-${LANG}`;
+const OUT = path.join('episodes', EPID);
 const MAXW = 1280;                       // art is 1024-1536px square-ish; 1280 is plenty at 1080p
 
 /* Which upstream story this slug is, and the refusal to guess.
@@ -52,14 +59,21 @@ if (!STORY) {
   process.exit(1);
 }
 if (existing && existing.id && existing.id !== STORY && !argv.includes('--restory')) {
-  console.error(`episodes/${SLUG} was built from "${existing.id}" and you asked for "${STORY}".`);
+  console.error(`episodes/${EPID} was built from "${existing.id}" and you asked for "${STORY}".`);
   console.error('One of the two is wrong. Pass --restory only if you mean to replace the story.');
   process.exit(1);
 }
-console.log(`${SLUG} <- ${STORY}`);
+if (existing && existing.lang && existing.lang !== LANG) {
+  console.error(`episodes/${EPID} was built as "${existing.lang}" and you asked for "${LANG}".`);
+  process.exit(1);
+}
+console.log(`${EPID} <- ${STORY} [${LANG}]`);
 
-const srcJson = path.join(SRC, 'app', 'data', `${STORY}.player.json`);
-const story = JSON.parse(await readFile(srcJson, 'utf8'));
+const story = JSON.parse(await readFile(path.join(SRC, 'app', 'data', `${STORY}.player.json`), 'utf8'));
+if (!(story.langs || ['en']).includes(LANG)) {
+  console.error(`${STORY} has no "${LANG}" narration — it has ${(story.langs || ['en']).join(', ')}`);
+  process.exit(1);
+}
 
 await mkdir(path.join(OUT, 'img'), { recursive: true });
 await mkdir(path.join(OUT, 'audio'), { recursive: true });
@@ -186,7 +200,14 @@ for (const p of story.panels) {
   const [imgPath, aEn, aHi] = await Promise.all([
     art(p.art), audioFixed(line.audio?.en), audio(line.audio?.hi),
   ]);
-  const dur = aEn ? await seconds(aEn) : 0;
+  /* The timeline belongs to the language being built. Taking the duration from English and
+     playing Hindi over it is how a dub goes out of sync with its own pictures. */
+  const track = LANG === 'en' ? aEn : aHi;
+  if (!track) {
+    console.error(`panel ${p.id} has no ${LANG} audio — cannot build a ${LANG} timeline`);
+    process.exit(1);
+  }
+  const dur = await seconds(track);
 
   /* Four of the twenty-eight panels are not plain pictures: a located map, two action
      beats with a cut-out figure moving over a panning background, and a split of three
@@ -212,11 +233,17 @@ for (const p of story.panels) {
     }
   }
 
-  const rawWords = (line.words?.en || []).map((w) => [w.w, w.t, w.d]);
+  /* Word timings exist for English only. The source ships none for Hindi, and the Hindi voice
+     the source chose (MAI-Voice-2) returns none from the synthesiser either — that architecture
+     does not emit boundaries at all, while the ordinary hi-IN neural voices do. Keeping the
+     better voice therefore means keeping whole-line Hindi captions, which is a deliberate
+     choice: a caption swept word by word on invented timings would light the wrong word and
+     look exactly like one that worked. */
+  const rawWords = LANG === 'en' ? (line.words?.en || []).map((w) => [w.w, w.t, w.d]) : [];
   /* A re-synthesised line carries its own boundaries, already folded back onto the
      written tokens — the source timings belong to audio that is no longer being played
      and would drift the caption by seconds. */
-  const fix = fixFor(line.audio?.en);
+  const fix = LANG === 'en' ? fixFor(line.audio?.en) : null;
   const { words, fixed } = fix
     ? { words: fix.words, fixed: 0 }
     : repairWords(rawWords, dur);
@@ -232,7 +259,6 @@ for (const p of story.panels) {
     speech: line.type === 'speech',
     text: { en: line.text?.en || '', hi: line.text?.hi || '' },
     audio: { en: aEn, hi: aHi },
-    // only English carries word timings in the source; Hindi captions run whole-line
     words,
     dur,
     ...extra,
@@ -263,7 +289,7 @@ if (hook?.dur) {
   /* The mp3 is copied into audio/ with every other line rather than referenced where it was
      written. The renderer gathers narration from one directory, and a panel whose audio
      lives somewhere else is a special case that every consumer would have to know about. */
-  await copyFile(path.join(OUT, 'hook', 'hook.mp3'), path.join(OUT, 'audio', 'en_hook.mp3'));
+  await copyFile(path.join(OUT, 'hook', 'hook.mp3'), path.join(OUT, 'audio', `${LANG}_hook.mp3`));
   panels.unshift({
     id: 'hook',
     kind: 'panel',
@@ -271,8 +297,8 @@ if (hook?.dur) {
     art: hook.art,
     role: 'narrator',
     speech: false,
-    text: { en: hook.line, hi: '' },
-    audio: { en: '../audio/en_hook.mp3', hi: null },
+    text: { en: LANG === 'en' ? hook.line : '', hi: LANG === 'hi' ? hook.line : '' },
+    audio: { en: LANG === 'en' ? '../audio/en_hook.mp3' : null, hi: LANG === 'hi' ? '../audio/hi_hook.mp3' : null },
     words: hook.words || [],
     dur: hook.dur,
   });
@@ -288,8 +314,13 @@ if (hook?.dur) {
 
    Stamping the newest mtime seen lets every downstream tool ask whether the sample it is
    about to spend forty minutes rendering is still the current one. */
+/* The first line of the first panel that has narration — not `p.audio`, which panels do not
+   have. Reading it off the panel gave '', so dirname twice gave '.', and the stamp watched
+   IndianHistory/app instead of the story's audio folder: a drift detector pointed at the
+   wrong directory reports "unchanged" no matter what changes. */
+const anyAudio = story.panels.flatMap((p) => p.lines || []).find((l) => l.audio?.en || l.audio?.hi);
 const audioDir = path.join(SRC, 'app', path.dirname(path.dirname(
-  (story.panels.find((p) => p.audio?.en)?.audio?.en || '').replace(/^assets\//, 'assets/'))));
+  (anyAudio?.audio?.en || anyAudio?.audio?.hi || '').replace(/^assets\//, 'assets/'))));
 let newestMs = 0;
 for (const f of await readdir(audioDir).catch(() => [])) {
   const s = await stat(path.join(audioDir, f)).catch(() => null);
@@ -299,6 +330,7 @@ for (const f of await readdir(audioDir).catch(() => [])) {
 const episode = {
   id: story.id,
   slug: SLUG,
+  lang: LANG,
   title: story.title,
   title_i18n: story.title_i18n || null,
   figure: story.figure,

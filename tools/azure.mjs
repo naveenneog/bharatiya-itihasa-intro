@@ -201,7 +201,11 @@ const pinnedConc = Number(process.env.SORA_CONC || 0);
 const learnedConc = pinnedConc ? {} : await recallConc();
 export const soraFleet = new Fleet(SORA_LANES.map((name) => {
   const was = Number(learnedConc[name] || 0);
-  return new Lane(name, pinnedConc || (was ? was + 1 : 4),
+  /* Start at what has been measured, not at what would be nice. Starting each lane at 4 was
+     optimism with no evidence behind it: against a real cap of 2 it put eight jobs at a service
+     that would take four, and the resulting throttle storm cost two clips. Additive increase is
+     cheap and safe — a lane that has headroom finds it within five clean finishes. */
+  return new Lane(name, pinnedConc || (was ? was + 1 : 2),
     pinnedConc ? { min: pinnedConc, max: pinnedConc } : { min: 1, max: 12 });
 }));
 
@@ -214,32 +218,43 @@ export function soraWorkers(n = Infinity) {
 
 async function call(url, init, tries = 10, onThrottle = null) {
   let last;
-  for (let i = 1; i <= tries; i++) {
+  /* Backpressure is counted separately from failure. "Too many running tasks" is not an error —
+     it is the service saying "not yet", and the slot it waits for is guaranteed to free when some
+     job finishes. Spending the error budget on it means the faster the backoff, the sooner a
+     healthy job is abandoned: making the retry cheaper in wall-clock time silently cut the
+     patience from 450 s to 225 s, and two clips out of seven died of it. */
+  let waits = 0;
+  const MAX_WAITS = 40;
+  for (let i = 1; i <= tries;) {
     const tok = await token();
     const r = await fetch(url, { ...init, headers: { Authorization: `Bearer ${tok}`, ...(init.headers || {}) } });
     if (r.ok) return r;
     const body = await r.text().catch(() => '');
     last = `HTTP ${r.status} ${body.slice(0, 300)}`;
-    if (r.status === 401 || r.status === 403) { await token(true); await sleep(2000); continue; }
+    if (r.status === 401 || r.status === 403) { await token(true); await sleep(2000); i++; continue; }
     if (r.status === 429) {
       const ra = parseInt(r.headers.get('retry-after') || '', 10);
       /* A running-task cap and a token-rate limit are both 429 and want opposite things. The cap
          says "run fewer at once", and once the fleet has shrunk the pressure is already relieved
          — a slot frees the moment any job finishes, so waiting a flat 45 s throws away most of
          what the second deployment bought. A rate limit says "wait", and no amount of shrinking
-         fixes it. Measured: a burst of six against a per-lane cap of two spent more time asleep
-         in this branch than it spent generating.
-         So concurrency 429s back off briefly and escalate; rate limits keep the long wait. */
+         fixes it. So concurrency 429s back off briefly, escalate, and draw on their own budget;
+         rate limits keep the long wait and count as attempts. */
       const concurrency = /too many running|concurren|active task/i.test(body);
-      if (concurrency) onThrottle?.('too many running tasks');
-      const wait = Number.isFinite(ra) ? ra + 3 : (concurrency ? Math.min(30, 5 * i) : 45);
-      await sleep(wait * 1000);
+      if (concurrency) {
+        onThrottle?.('too many running tasks');
+        if (++waits > MAX_WAITS) throw new Error(`still throttled after ${MAX_WAITS} waits\n  ${last}`);
+        await sleep((Number.isFinite(ra) ? ra + 3 : Math.min(30, 5 * waits)) * 1000);
+        continue;
+      }
+      await sleep((Number.isFinite(ra) ? ra + 3 : 45) * 1000);
+      i++;
       continue;
     }
-    if (r.status >= 500) { await sleep(12000 * i); continue; }
+    if (r.status >= 500) { await sleep(12000 * i); i++; continue; }
     /* Azure returns 400 for a reference-image upload that timed out server-side.
        It is transient despite the 4xx, and it is the only 400 worth retrying. */
-    if (r.status === 400 && /upload timed out/i.test(body)) { await sleep(6000 * i); continue; }
+    if (r.status === 400 && /upload timed out/i.test(body)) { await sleep(6000 * i); i++; continue; }
     throw new Error(`${url}\n  ${last}`);
   }
   throw new Error(`gave up after ${tries}\n  ${last}`);
