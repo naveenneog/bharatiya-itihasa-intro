@@ -23,7 +23,7 @@
      node tools/render-episode.mjs --cut cut-e-framed --intro dist/v7-gupta-ink.mp4
      node tools/render-episode.mjs --cut cut-e-framed --limit 40 --scale 0.5   # draft
 */
-import { mkdir, rm, writeFile, readdir, readFile, stat } from 'node:fs/promises';
+import { mkdir, rm, writeFile, readdir, readFile, stat, rename } from 'node:fs/promises';
 import { stash, recycle } from './keep.mjs';
 import { existsSync } from 'node:fs';
 import { spawn, execFile } from 'node:child_process';
@@ -369,7 +369,28 @@ try {
     '-of', 'default=noprint_wrappers=1', OUT]);
   console.log(`\ndone -> ${OUT}\n${stdout.trim()}`);
   await trimToTarget(OUT);
-await assertLoudness(OUT);
+  /* A master that fails its own check must not be left where the next run will find it.
+
+     Every stage here is skipped when its declared output exists, which is what makes a run
+     resumable — and it means a failed render that leaves a file behind converts itself into a
+     success on the next pass. Kalidasa did exactly that: it failed the true-peak assertion,
+     left its master, and the following run skipped the render stage, reported ok in two minutes
+     and uploaded a clipping file. The failure was real, was reported, and was then erased by the
+     cache that was supposed to save work.
+
+     So the output is moved out of the way before the error propagates. It is archived rather
+     than deleted, because forty minutes of rendering is worth keeping even when it is wrong —
+     and looking at it is usually how the cause gets found. */
+  try {
+    await assertLoudness(OUT);
+  } catch (e) {
+    const to = path.join('artifacts', 'rejected',
+      `${SLUG}-${CUT}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.mp4`);
+    await mkdir(path.dirname(to), { recursive: true }).catch(() => {});
+    await rename(OUT, to).catch(() => {});
+    console.error(`  master failed its check — moved to ${to} so the next run cannot mistake it for a good one`);
+    throw e;
+  }
   console.log(problems.length ? `\nPAGE WARNINGS:\n${problems.slice(0, 12).join('\n')}`
     : (canReuse ? '' : '\npage clean — no errors'));
 } finally {
