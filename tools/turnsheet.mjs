@@ -107,3 +107,8 @@ await execFileP('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error',
 await writeFile(path.join(OUT, 'state.json'), JSON.stringify(shots, null, 2));
 console.log(`\nsheet: ${sheet}`);
 console.log(`frames: ${OUT}`);
+
+/* Explicit, not only from the exit handler: a spawned child keeps the event loop referenced,
+   so a server cleaned up solely on 'exit' deadlocks the process that is waiting to exit. One
+   turnsheet sat like that for two days holding port 4419. */
+server.kill();
