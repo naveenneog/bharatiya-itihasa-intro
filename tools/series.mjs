@@ -17,6 +17,7 @@
    The ledger is dist/<era>/series.json.
 */
 import { writeFile, readFile, mkdir } from 'node:fs/promises';
+import { unlinkSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { loadStories, eraOf } from './stories.mjs';
@@ -97,6 +98,29 @@ if (PLAN) { console.log('  --plan: nothing run'); process.exit(0); }
 
 const LEDGER = path.join('dist', ERA, 'series.json');
 await mkdir(path.dirname(LEDGER), { recursive: true });
+
+/* One runner per era, enforced.
+
+   Two of these ran against Gupta at once for over an hour. Every stage is keyed on the slug, so
+   they did not obviously collide — they simply took turns doing the same work, until both
+   reached render-episode for the same story. That stage archives the scratch frame directory
+   before capturing into it, so one run moved the other's frames out from under it at 69% and the
+   encode found an empty folder: "Error opening input file f%06d.jpg", forty minutes in, three
+   stories running.
+
+   Nothing in the ledger showed two runners. The failures looked like a bug in the renderer. */
+const LOCK = path.join('dist', ERA, 'series.lock');
+const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+const held = await readFile(LOCK, 'utf8').then(JSON.parse).catch(() => null);
+if (held && held.pid !== process.pid && alive(held.pid)) {
+  console.error(`another series runner is already producing "${ERA}" (pid ${held.pid}, started ${held.at}).`);
+  console.error('Two runners share every scratch directory and will corrupt each other\'s renders.');
+  console.error(`Stop it first, or delete ${LOCK} if that process is gone.`);
+  process.exit(1);
+}
+await writeFile(LOCK, `${JSON.stringify({ pid: process.pid, at: new Date().toISOString(), era: ERA })}\n`);
+process.on('exit', () => { try { unlinkSync(LOCK); } catch { /* gone */ } });
+
 const ledger = await readFile(LEDGER, 'utf8').then(JSON.parse).catch(() => ({ era: ERA, runs: {} }));
 ledger.skipped = skipped;
 
