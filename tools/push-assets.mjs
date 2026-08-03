@@ -13,7 +13,7 @@
      node tools/push-assets.mjs --dry
      node tools/push-assets.mjs -m "Gupta series, story-specific closes"
 */
-import { readFile, stat, readdir } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -45,7 +45,13 @@ async function walk(dir) {
 
 const git = async (args, cwd = '.') => {
   const { stdout } = await execFileP('git', args, { cwd, maxBuffer: 1 << 28 });
-  return stdout.trim();
+  /* Trailing only. `--porcelain` writes a two-column status field, and an unstaged change has a
+     blank first column: " M path". Trimming both ends removed that leading space from the first
+     line of the output and nothing else, so slice(3) then ate the first character of exactly one
+     path per repository — "aryabhata/episode.json" was handed to git as "ryabhata/episode.json".
+     One corrupted entry in three hundred, always the first, which is why it read as a missing
+     file rather than a parsing bug. */
+  return stdout.replace(/\s+$/, '');
 };
 
 const mods = (await readFile('.gitmodules', 'utf8').catch(() => ''))
@@ -59,7 +65,13 @@ const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
 let moved = 0;
 
 for (const m of mods) {
-  const status = await git(['status', '--porcelain'], m).catch(() => null);
+  /* -uall lists every untracked file individually instead of collapsing new directories into one
+     entry. That matters twice: the byte accounting below needs per-file sizes, and expanding the
+     directories here by hand also swept up files that git's own ignore rules exclude — the era
+     repo ignores the plates under each build-stinger directory, and adding an ignored path
+     explicitly is an error rather than a skip. Letting git enumerate them keeps one source of
+     truth for what belongs in the repo. */
+  const status = await git(['status', '--porcelain', '-uall'], m).catch(() => null);
   if (status === null) { console.log(`  ${m.padEnd(11)} not a checkout — skipped`); continue; }
 
   const lines = status ? status.split('\n') : [];
@@ -91,18 +103,26 @@ for (const m of mods) {
      Untracked directories are expanded to their files first. Git reports a new folder as one
      entry, so batching the entries git prints puts a seven-gigabyte tree in a single batch and
      the limit never binds. */
-  const entries = lines.map((l) => l.slice(3).replace(/^"|"$/g, '')).filter(Boolean);
+  const entries = lines
+    /* Parsed rather than sliced, so a status field of any shape yields the path intact. */
+    .map((l) => (l.match(/^..\s(.*)$/) || [, ''])[1].replace(/^"|"$/g, ''))
+    .filter(Boolean);
   const weighed = [];
+  const toobig = [];
   for (const e of entries) {
     const full = path.join(m, e);
-    const isDir = e.endsWith('/') || await stat(full).then((s) => s.isDirectory(), () => false);
-    if (isDir) {
-      for (const f of await walk(full)) {
-        weighed.push({ p: path.relative(m, f).replace(/\\/g, '/'), size: (await stat(f).catch(() => ({ size: 0 }))).size });
-      }
-    } else {
-      weighed.push({ p: e, size: (await stat(full).catch(() => ({ size: 0 }))).size });
-    }
+    const s = await stat(full).catch(() => null);
+    if (!s || s.isDirectory()) continue;
+    /* GitHub refuses a file over 100 MB outright, at push time, after the commit is built and
+       the upload has run. Finding out then means unpicking a commit; finding out here costs a
+       stat. Full-length masters live in the archive and are exactly this size. */
+    if (s.size > 95 * 1024 * 1024) { toobig.push({ p: e, mb: s.size / 1024 / 1024 }); continue; }
+    weighed.push({ p: e, size: s.size });
+  }
+  if (toobig.length) {
+    console.log(`    ${toobig.length} file(s) over GitHub's 100 MB limit, left on disk:`);
+    for (const t of toobig.slice(0, 5)) console.log(`      ${t.mb.toFixed(0)} MB  ${t.p}`);
+    if (toobig.length > 5) console.log(`      ... and ${toobig.length - 5} more`);
   }
 
   const batches = [];
