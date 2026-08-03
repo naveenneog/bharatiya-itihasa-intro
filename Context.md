@@ -22,8 +22,16 @@ Five things changed structurally and none of them are visible from the file tree
    frame directory, a plate directory or probe output. See "Keeping what was generated".
 4. **Sora runs across two deployments** with a self-tuning per-lane concurrency. See "Sora
    capacity".
-5. **Finished videos are uploaded by the local yt-agent**, never by driving a browser. See
-   "Publishing to YouTube".
+5. **Finished videos are uploaded by the local yt-agent**, never by driving a browser, private by
+   default. `node tools/upload.mjs --dir dist/<era>/<slug>_book`. See "Publishing to YouTube".
+
+**One `series.mjs` per era, and never edit `tools/` while it runs.** It takes a lock now, but the
+second rule is not enforceable — the runner spawns a fresh `node` per stage and will read a
+half-written file. That mistake has cost stories twice.
+
+**When the ledger and the artefacts disagree, believe the artefacts.** `dist/<era>/series.json` was
+corrupted by two concurrent runners on 3 Aug; `dist/uploads.json` and a master's measured loudness
+are written once and are trustworthy.
 
 Standing constraints, unchanged and repeatedly verified:
 `C:\Users\navg\DailyApps\IndianHistory` is **read from and never written to**, and the Indian
@@ -974,6 +982,100 @@ scorer does not measure treatment. The remaining 23 points are not reachable by 
 
 Both need story-level edits upstream in IndianHistory. **Cut J is worth judging by eye**: the
 picture now cuts two or three times per panel, and the metric cannot see it.
+
+---
+
+## Changelog — 3 Aug 2026: the Gupta run, and five bugs it exposed
+
+The era was produced end to end with uploads. Ten of fourteen episodes went up private on the
+first pass. Everything below was found by running it, not by reading it.
+
+**Every failure of the day was a false report of some kind.** Not one was a crash.
+
+### 1. A server cleaned up only on exit is a process that cannot exit
+
+`short.mjs` finished a Short, wrote its upload folder, and sat for **seven hours** holding up the
+run. A spawned child keeps the parent's event loop referenced until it exits, and the server's
+only cleanup was `process.on('exit')` — so the process would not exit until the child did, and
+the child was only killed when the process exited.
+
+It had been latent for weeks. Orphaned servers from previous days were squatting on those ports,
+so the spawn failed, the child died at once, the handle was released and the process exited. **The
+port clash was accidentally papering over the deadlock**, and clearing the orphans removed the
+accident. The same bug is why a `turnsheet` from 31 July had been stuck two days holding 4419 —
+one root cause, two symptoms that looked unrelated.
+
+`film-render` and `render-episode` already called `stop()` explicitly. `short.mjs` and
+`turnsheet.mjs` now do too.
+
+### 2. Two runners, one era
+
+Two `series.mjs` processes ran against Gupta for over an hour. Every stage is keyed on the slug so
+they did not obviously collide — they took turns doing the same work, until both reached
+`render-episode` for the same story. That stage archives the scratch frame directory before
+capturing into it, so one run moved the other's frames out at **69% of a forty-minute capture**
+and the encode found an empty folder. It cost `chandragupta-ii` and `faxian`.
+
+Worse, both had loaded `series.json` at start and wrote back their whole copy, so **the ledger
+alternated between two stale views** — the same story read `ok 44.4m` and `FAILED at render book`
+half an hour apart. Nothing in it showed two runners; the failures looked like a renderer bug.
+
+`series.mjs` now takes a per-era lock with a liveness check. **When the record disagrees with
+itself, trust the artefacts**: `uploads.json` is written per upload rather than rewritten wholesale,
+and a master's measured loudness is ground truth.
+
+### 3. A failed render that leaves its output turns into a false "ok"
+
+`kalidasa` failed on 2 Aug at `-0.1 dBTP` — the limiter had not taken effect — but **left the
+master behind**. The next run saw the file, skipped the stage, and reported success in 2.5
+minutes. A sweep of all six masters found only that one bad; it was quarantined to
+`artifacts/superseded/` and re-queued.
+
+Still to fix: `render-episode` must remove or quarantine its own output when the assertion fails.
+Until then, sweep before trusting a resumed run:
+
+```powershell
+node -e "import('./tools/loudness.mjs').then(async m=>{const fs=await import('node:fs/promises');
+for(const f of (await fs.readdir('dist')).filter(f=>/-book-cut-k-page\.mp4$/.test(f))){
+const r=await m.measure('dist/'+f);const i=+r.input_i,tp=+r.input_tp;
+console.log((Math.abs(i+14)>1||tp>-0.9?'BAD ':'ok  ')+f+' '+i.toFixed(1)+' LUFS '+tp.toFixed(1)+' dBTP')}})"
+```
+
+### 4. The close was one dB quiet, and the check was right to stop
+
+Every story failed at `outro`, and it was the loudness assertion rather than the render. `loudnorm`
+in linear mode computes one gain from the **pre-limiter** measurement; the limiter then shaves the
+peaks and takes back some of that loudness. How much depends on the crest factor, so it varies per
+take.
+
+It went unnoticed while every episode closed on the same era beat: that clip landed at −14.9 LUFS,
+just inside tolerance. **The moment each story got its own closing take, the spread showed.**
+
+`trimToTarget` measures what actually came out and applies the residual, bounded by real headroom.
+Two things it got wrong first: headroom computed by subtracting an intersample true-peak reading
+from `alimiter`'s **sample**-peak target — two different scales, giving −0.1 dB of "headroom" and
+correcting nothing; and re-limiting the correction, which is exactly what removed the loudness in
+the first place. −15.2 → −14.8 LUFS at −1.0 dBTP.
+
+### 5. A validation message is an instruction
+
+`deogarh` failed `short-script` three attempts running, every one opening a line on "His". The
+rule is right — a Short is watched from the middle of a scroll, so a line starting on a pronoun
+has no referent. But the message said only that a pronoun was used, and the prompt's advice was
+"name the subject again". Deogarh's figure is **"The Master Sculptor of the Gupta Age"**. There is
+no name. The model was being told to do something impossible and kept trying variations of it.
+
+The check now says what to do instead — use a noun phrase where there is no recorded name.
+Corrected on the first retry. **Stating the violation is only half the job.**
+
+### What the run produced
+
+Ten of fourteen uploaded private on the first pass, each with its own stinger pair and its own
+closing image, no two alike. `dist/uploads.json` holds the URLs. Outstanding: `deogarh`
+(`--from short-script`), `kalidasa` (re-render), `iron-pillar`, `the-coins-go-silent`.
+
+A **fourteenth story appeared upstream mid-run** — `the_coins_go_silent_in_ujjain` — and
+`series.mjs` picked it up without being told.
 
 ---
 
