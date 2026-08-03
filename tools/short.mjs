@@ -172,8 +172,16 @@ function check(lines) {
       'meaning', 'leading', 'thus', 'hence', 'later', 'soon', 'now'].includes(lead)) {
       problems.push(`line ${i + 1} opens on "${lead}" — it continues the line before instead of standing alone: "${t}"`);
     }
-    if (i > 0 && /^(he|she|it|they|his|her|its|their)\b/i.test(t)) {
-      problems.push(`line ${i + 1} opens on a pronoun, so it only makes sense after line ${i}: "${t}"`);
+    const pronoun = t.match(/^(he|she|it|they|his|her|its|their)\b/i);
+    if (i > 0 && pronoun) {
+      /* Actionable, because the first version of this message was not and the model could not
+         act on it. Deogarh's figure is "The Master Sculptor of the Gupta Age" — genuinely
+         anonymous — so "name the subject again" has no answer and three attempts all came back
+         with "His nameless legacy…". A pronoun is still wrong; what was missing was the way out. */
+      problems.push(`line ${i + 1} opens on "${pronoun[1]}", so it only makes sense after line ${i}.`
+        + ' Replace it with what it refers to. If the person has no recorded name, use a noun'
+        + ' phrase — "the sculptor", "the unnamed master" — never a pronoun: '
+        + `"${t}"`);
     }
     if (!String(l?.kick || '').trim()) problems.push(`line ${i + 1} has no kicker`);
   }
