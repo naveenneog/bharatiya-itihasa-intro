@@ -101,8 +101,21 @@ if (!plan || has('replan')) {
     if (/\binscription|\bwriting|\bletter|\bnumeral|\bscript\b|\btext\b|\bmanuscript|\bpalm.leaf|\bengrav/i.test(subj)) {
       problems.push(`shot ${i + 1}: asks for writing — it will come out as gibberish glyphs: "${subj}"`);
     }
-    if (/\bhand|\bfinger|\bface|\bfigure|\bperson|\bsilhouette|\bman\b|\bwoman\b/i.test(subj)) {
-      problems.push(`shot ${i + 1}: contains a person: "${subj}"`);
+    /* A living person, which Sora renders badly and whose reference images moderation refuses.
+
+       "face", "figure" and "bust" are not people when they are struck, carved or cast — and on
+       this channel they very often are. The episode about the Western Satraps' coinage had two
+       shots rejected for "a standing figure in shallow relief" and "one face catching brief
+       flashes": a coin's face and the image struck on it, which is the entire subject of the
+       story. The words alone cannot decide it, so the sentence is read for whether the thing is
+       an object or a person. Hands, fingers and silhouettes stay banned outright — there is no
+       reading of those that is not a person. */
+    const iconography = /\brelief\b|\bcarved\b|\bstruck\b|\bstamped\b|\bcast\b|\bcoin\b|\bmask\b|\bstatue\b|\bsculpt|\bidol\b|\bmedallion\b|\bseal\b|\bbronze\b|\bterracotta\b/i.test(subj);
+    const person = /\bhand\b|\bhands\b|\bfinger|\bsilhouette|\bperson\b|\bpeople\b|\bcrowd\b|\bman\b|\bwoman\b|\bchild\b/i.test(subj);
+    const depiction = /\bface\b|\bfigure\b|\bbust\b|\bhead\b|\btorso\b/i.test(subj);
+    if (person || (depiction && !iconography)) {
+      problems.push(`shot ${i + 1}: contains a person — describe the object, not who is in it`
+        + ` (a carved or struck ${depiction ? 'face or figure' : 'form'} is fine if the sentence says so): "${subj}"`);
     }
   }
   if (problems.length) {

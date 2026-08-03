@@ -107,10 +107,38 @@ export async function normaliseTo(file, label = 'audio') {
    So: measure what actually came out, and apply the residual bounded by the peak headroom that
    is genuinely available. If the material is truly against the ceiling this does nothing and the
    assertion that follows will say so. */
-export async function trimToTarget(file, { tol = 0.4 } = {}) {
+export async function trimToTarget(file, { tol = 0.4, pass = 1 } = {}) {
   const m = await measure(file);
   const i = Number(m.input_i);
   const tp = Number(m.input_tp);
+
+  /* Too loud at the peak is a different fault from too quiet overall, and needs a different fix.
+
+     alimiter works on sample peak; the assertion measures intersample true peak. CEILING carries
+     0.4 dB of overshoot allowance for the difference, which covers almost everything — but the
+     Kalidasa episode came out at -0.2 dBTP twice, its transients reconstructing above the ceiling
+     no matter how the sample peak was held. Reducing gain cannot fix it without taking the
+     integrated loudness out of range with it: the level is already right.
+
+     So the peak is limited properly, by loudnorm in dynamic mode, which does true-peak limiting
+     rather than sample-peak clamping. It holds the integrated target while pulling the peaks
+     down, which is exactly the thing alimiter cannot do. */
+  if (tp > TP_LIMIT && pass <= 2) {
+    const tmp = `${file}.tp.mp4`;
+    await execFileP('ffmpeg', ['-y', '-v', 'error', '-i', file,
+      '-c:v', 'copy',
+      '-af', `loudnorm=I=${TARGET_I}:TP=-2.0:LRA=${TARGET_LRA}:linear=false`,
+      '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart', tmp], { maxBuffer: 1 << 28 });
+    await rename(tmp, file);
+    const after = await measure(file);
+    console.log(`  true-peak limited: ${tp.toFixed(1)} -> ${Number(after.input_tp).toFixed(1)} dBTP`
+      + ` (${i.toFixed(1)} -> ${Number(after.input_i).toFixed(1)} LUFS)`);
+    /* Bounded: the level correction below may lift the peak again, so one more round is allowed
+       and no more. Anything still over after two is a real conflict and assertLoudness should
+       say so rather than this looping on it. */
+    return trimToTarget(file, { tol, pass: pass + 1 });
+  }
+
   const need = TARGET_I - i;
   if (!Number.isFinite(need) || Math.abs(need) <= tol) return null;
 
