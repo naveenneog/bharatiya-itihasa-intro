@@ -142,8 +142,6 @@ if (done.length && !has('force')) {
 }
 
 const take = done.length + 1;
-const out = path.join(OUT, `${plan.id}-r${take}.mp4`);
-const still = path.join(STILLS, `${plan.id}-r${take}.png`);
 await mkdir(STILLS, { recursive: true });
 
 /* A still first, kept, and then used as the reference the take is built from.
@@ -152,32 +150,60 @@ await mkdir(STILLS, { recursive: true });
    the best thing the pipeline makes. The still is a finished piece of art in its own right —
    it is what a thumbnail, a chapter card or a poster would be cut from — and generating none
    meant a run produced nothing but video. It also locks the take: an animated still varies far
-   less from what was asked for than a text prompt does, so the close matches the language. */
-console.log(`\n  still...`);
-const t0 = Date.now();
-try {
-  await genImage(plan.prompt, still, { size: '1536x1024', quality: 'high' });
-  await writeFile(still.replace(/\.png$/, '.txt'), `${plan.prompt}\n`);
-  console.log(`  ok  ${((Date.now() - t0) / 1000).toFixed(0)}s -> ${still}`);
-} catch (e) {
-  console.error(`  FAIL still: ${String(e.message || e).slice(0, 300)}`);
-  process.exit(1);
-}
+   less from what was asked for than a text prompt does, so the close matches the language.
 
-console.log(`  ${SECONDS}s take r${take}, animated from that still...`);
-const t1 = Date.now();
-try {
+   Moderation gets a second chance at a different subject rather than ending the story. The
+   Seleucus episode was refused for "sexual" content on "a single carved ivory elephant chessman,
+   its flanks faintly banded, slowly rotating until its outline diffuses into a pale glow" — a
+   verdict no rewording of that sentence was going to argue with. The filter is not reasoning
+   about the image, so the answer is a different image, not a better defence of this one. */
+async function attempt(p, n) {
+  const out = path.join(OUT, `${p.id}-r${n}.mp4`);
+  const still = path.join(STILLS, `${p.id}-r${n}.png`);
+  console.log(`\n  still...`);
+  const t0 = Date.now();
+  await genImage(p.prompt, still, { size: '1536x1024', quality: 'high' });
+  await writeFile(still.replace(/\.png$/, '.txt'), `${p.prompt}\n`);
+  console.log(`  ok  ${((Date.now() - t0) / 1000).toFixed(0)}s -> ${still}`);
+
+  console.log(`  ${SECONDS}s take, animated from that still...`);
+  const t1 = Date.now();
   /* The still is 1536x1024 (3:2) and the take is 1280x720; genVideo centre-crops and scales the
      reference, because sora rejects any mismatch. */
-  const r = await genVideo(plan.prompt, out, { seconds: SECONDS, size: '1280x720', ref: still });
+  const r = await genVideo(p.prompt, out, { seconds: SECONDS, size: '1280x720', ref: still });
   /* The prompt is written beside the take, always. A generated asset whose prompt was not kept
      cannot be varied, corrected or explained later — only replaced. */
-  await writeFile(out.replace(/\.mp4$/, '.txt'), `${plan.prompt}\n`);
-  await writeFile(DONEFILE, `${JSON.stringify({ ...plan, take: out, still, lane: r.lane, at: new Date().toISOString() }, null, 2)}\n`);
+  await writeFile(out.replace(/\.mp4$/, '.txt'), `${p.prompt}\n`);
+  await writeFile(DONEFILE, `${JSON.stringify({ ...p, take: out, still, lane: r.lane, at: new Date().toISOString() }, null, 2)}\n`);
   console.log(`  ok  ${((Date.now() - t1) / 1000).toFixed(0)}s on ${r.lane} -> ${out}`);
-} catch (e) {
-  console.error(`  FAIL take: ${String(e.message || e).slice(0, 300)}`);
-  process.exit(1);
+}
+
+const blocked = (e) => /moderation_blocked|moderation system/i.test(String(e?.message || e));
+
+for (let n = take; n <= take + 2; n++) {
+  try {
+    await attempt(plan, n);
+    break;
+  } catch (e) {
+    const msg = String(e.message || e).replace(/\s+/g, ' ').slice(0, 200);
+    if (!blocked(e) || n === take + 2) { console.error(`  FAIL ${msg}`); process.exit(1); }
+    console.error(`  moderation refused this subject: ${msg}`);
+    console.error('  asking for a different closing image');
+    const got = await chatJson(SYSTEM,
+      `${user}\n\nThe following subject was refused by an automated content filter. It is not`
+      + ` about wording — propose a DIFFERENT object, plainer and more concrete:\n"${plan.subject}"`,
+      { maxTokens: 1200 });
+    const subject = String(got?.subject || '').trim();
+    const id = String(got?.id || '').trim();
+    if (!subject || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) { console.error('  no usable replacement'); process.exit(1); }
+    plan = {
+      slug: SLUG, id, subject, why: got.why || '',
+      prompt: `${subject} The camera is static and the movement is slow and continuous throughout.`
+        + `\n\n${INK_STYLE} ${INK_LIGHT}\n\n${NOTYPE}`,
+    };
+    await writeFile(PLANFILE, `${JSON.stringify(plan, null, 2)}\n`);
+    console.log(`  now: ${plan.id} — ${plan.subject}`);
+  }
 }
 await rememberConc();
 console.log(`  lanes: ${soraFleet.report()}`);

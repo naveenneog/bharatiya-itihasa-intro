@@ -112,7 +112,12 @@ if (!plan || has('replan')) {
        reading of those that is not a person. */
     const iconography = /\brelief\b|\bcarved\b|\bstruck\b|\bstamped\b|\bcast\b|\bcoin\b|\bmask\b|\bstatue\b|\bsculpt|\bidol\b|\bmedallion\b|\bseal\b|\bbronze\b|\bterracotta\b/i.test(subj);
     const person = /\bhand\b|\bhands\b|\bfinger|\bsilhouette|\bperson\b|\bpeople\b|\bcrowd\b|\bman\b|\bwoman\b|\bchild\b/i.test(subj);
-    const depiction = /\bface\b|\bfigure\b|\bbust\b|\bhead\b|\btorso\b/i.test(subj);
+    /* "head" is not on this list. In this subject matter it is nearly always part of an object —
+       a mace head, a spear head, an arrow head, the head of a pillar — and it cost a story:
+       "a heavy iron mace with a chipped head" was rejected as containing a person. The words that
+       genuinely signal a human subject are few, and a checker that flags more than those stops
+       being a check and starts being an obstacle. */
+    const depiction = /\bface\b|\bfigure\b|\bbust\b|\btorso\b/i.test(subj);
     if (person || (depiction && !iconography)) {
       problems.push(`shot ${i + 1}: contains a person — describe the object, not who is in it`
         + ` (a carved or struck ${depiction ? 'face or figure' : 'form'} is fine if the sentence says so): "${subj}"`);
