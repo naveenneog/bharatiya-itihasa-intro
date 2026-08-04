@@ -88,42 +88,64 @@ Era: ${ep.era || ''}
 NARRATION
 ${narration}`;
 
-const got = await chatJson(SYSTEM, user, { maxTokens: 3000 });
-
-/* Checked, not trusted. The point of the file is that these lines are safe to put on screen
-   without a voice explaining them, so the constraints that make them safe are enforced here
-   rather than hoped for. */
-const problems = [];
-const cards = Array.isArray(got.cards) ? got.cards : [];
-if (cards.length !== 5) problems.push(`${cards.length} cards, expected 5`);
-for (const [i, c] of cards.entries()) {
-  const en = String(c?.en || '').trim();
-  if (!en) { problems.push(`card ${i + 1} is empty`); continue; }
-  const words = en.split(/\s+/).length;
-  if (words > 8) problems.push(`card ${i + 1} is ${words} words: "${en}"`);
-  if (/\?$|\.\.\.$|…$/.test(en)) problems.push(`card ${i + 1} trails off or asks: "${en}"`);
-  if (/\byou\b|\byour\b/i.test(en)) problems.push(`card ${i + 1} addresses the viewer: "${en}"`);
-  if (i === 4 && !c.when) problems.push('the fifth card has no date');
-  if (i < 4 && c.when) problems.push(`card ${i + 1} is a line, not a citation — it should have no date`);
-}
 /* Spot-check the grounding rather than take it on faith: a distinctive word from each line
    should appear somewhere in the narration. It does not prove the claim, but it catches a
    line that was invented wholesale, which is the failure that matters. */
 const hay = narration.toLowerCase();
 const STOP = new Set(['the', 'and', 'that', 'with', 'from', 'into', 'this', 'their', 'were', 'was',
   'for', 'his', 'her', 'its', 'are', 'has', 'had', 'not', 'but', 'all', 'one', 'two', 'first']);
-for (const [i, c] of cards.slice(0, 4).entries()) {
-  const words = String(c?.en || '').toLowerCase().match(/[a-z]{4,}/g) || [];
-  const known = words.filter((w) => !STOP.has(w) && hay.includes(w));
-  if (words.length && !known.length) {
-    problems.push(`card ${i + 1} shares no vocabulary with the narration: "${c.en}"`);
-  }
-}
 
-if (problems.length) {
-  console.error(`closing cards for ${SLUG} did not pass:`);
+/* Three attempts, with every rejection handed back as an instruction.
+
+   This was one attempt and then exit, and it cost `the-four-lions` a build at stage 13 of 23 over
+   a single card: "Independent India adopts its lions and wheel as emblem." — nine words against a
+   limit of eight. The limit is not the problem; eight words is what stays readable on screen
+   without a voice. Throwing the whole run away rather than asking again was. */
+let got = null;
+let cards = [];
+let note = '';
+for (let attempt = 1; ; attempt++) {
+  got = await chatJson(SYSTEM, user + note, { maxTokens: 3000 });
+
+  /* Checked, not trusted. The point of the file is that these lines are safe to put on screen
+     without a voice explaining them, so the constraints that make them safe are enforced here
+     rather than hoped for. */
+  const problems = [];
+  cards = Array.isArray(got.cards) ? got.cards : [];
+  if (cards.length !== 5) problems.push(`${cards.length} cards, expected 5`);
+  for (const [i, c] of cards.entries()) {
+    const en = String(c?.en || '').trim();
+    if (!en) { problems.push(`card ${i + 1} is empty`); continue; }
+    const words = en.split(/\s+/).length;
+    if (words > 8) {
+      problems.push(`card ${i + 1} is ${words} words and must be 8 or fewer —`
+        + ` cut it, do not rephrase at the same length: "${en}"`);
+    }
+    if (/\?$|\.\.\.$|…$/.test(en)) problems.push(`card ${i + 1} trails off or asks: "${en}"`);
+    if (/\byou\b|\byour\b/i.test(en)) problems.push(`card ${i + 1} addresses the viewer: "${en}"`);
+    if (i === 4 && !c.when) problems.push('the fifth card has no date');
+    if (i < 4 && c.when) problems.push(`card ${i + 1} is a line, not a citation — it should have no date`);
+  }
+  for (const [i, c] of cards.slice(0, 4).entries()) {
+    const words = String(c?.en || '').toLowerCase().match(/[a-z]{4,}/g) || [];
+    const known = words.filter((w) => !STOP.has(w) && hay.includes(w));
+    if (words.length && !known.length) {
+      problems.push(`card ${i + 1} shares no vocabulary with the narration: "${c.en}"`);
+    }
+  }
+
+  if (!problems.length) break;
+
+  if (attempt >= 3) {
+    console.error(`closing cards for ${SLUG} did not pass in ${attempt} attempts:`);
+    for (const p of problems) console.error(`  - ${p}`);
+    process.exit(1);
+  }
+  console.error(`closing cards attempt ${attempt} did not pass, asking again:`);
   for (const p of problems) console.error(`  - ${p}`);
-  process.exit(1);
+  note = '\n\nYour previous answer was rejected for these reasons:\n'
+    + problems.map((p) => `- ${p}`).join('\n')
+    + '\nReturn all five cards again with every one of these fixed.';
 }
 
 await mkdir(EP, { recursive: true });

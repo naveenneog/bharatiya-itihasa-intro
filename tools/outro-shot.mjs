@@ -20,6 +20,7 @@ import { chatJson } from './llm.mjs';
 import { genImage, genVideo, soraFleet, rememberConc } from './azure.mjs';
 import { INK_STYLE, INK_LIGHT, NOTYPE } from './ink.mjs';
 import { langOf, lineOf } from './lang.mjs';
+import { flagPerson } from './human-subject.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
@@ -90,28 +91,50 @@ ${ep.panels.slice(0, 5).map((p) => lineOf(p, LANG)).filter(Boolean).join('\n')}`
 
 let plan = await readFile(PLANFILE, 'utf8').then(JSON.parse).catch(() => null);
 if (!plan || has('replan')) {
-  const got = await chatJson(SYSTEM, user, { maxTokens: 1200 });
-  const subject = String(got?.subject || '').trim();
-  const id = String(got?.id || '').trim();
+  /* Three attempts, with the rejection handed back as an instruction.
 
-  /* Checked, not trusted — the same three rules that the Short's shots are held to, because the
-     same model breaks them in the same way. The writing rule is the one that matters: asking for
-     worn or indistinct marks reduces fake glyphs and does not stop them. */
-  const problems = [];
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) problems.push(`id must be kebab-case, got "${id}"`);
-  const n = subject.split(/\s+/).filter(Boolean).length;
-  if (n < 14 || n > 34) problems.push(`${n} words, outside 14-34`);
-  if (/\binscription|\bwriting|\bletter|\bnumeral|\bscript\b|\btext\b|\bmanuscript|\bengrav/i.test(subject)) {
-    problems.push(`asks for writing — it will come out as gibberish glyphs: "${subject}"`);
-  }
-  if (/\bhand|\bfinger|\bface|\bfigure|\bperson|\bsilhouette|\bman\b|\bwoman\b|\bcrowd/i.test(subject)) {
-    problems.push(`contains a person: "${subject}"`);
-  }
-  if (problems.length) {
-    console.error(`the closing shot for ${SLUG} did not pass:`);
+     This used to be one attempt and then exit, which cost `the-didarganj-yakshi` an entire build:
+     a stone torso read as a person, the run stopped at stage 14 of 23, and nothing was wrong with
+     the episode. A validator that only says "no" throws away a nearly-good answer; the same model
+     that broke the rule will usually fix it first time when told which rule and what to do
+     instead. */
+  let got = null;
+  let note = '';
+  for (let attempt = 1; ; attempt++) {
+    got = await chatJson(SYSTEM, user + note, { maxTokens: 1200 });
+    const subject = String(got?.subject || '').trim();
+    const id = String(got?.id || '').trim();
+
+    /* Checked, not trusted — the same three rules that the Short's shots are held to, because the
+       same model breaks them in the same way. The writing rule is the one that matters: asking for
+       worn or indistinct marks reduces fake glyphs and does not stop them. */
+    const problems = [];
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) problems.push(`id must be kebab-case, got "${id}"`);
+    const n = subject.split(/\s+/).filter(Boolean).length;
+    if (n < 14 || n > 34) {
+      problems.push(`the subject is ${n} words; write one sentence of 14 to 34 words`);
+    }
+    if (/\binscription|\bwriting|\bletter|\bnumeral|\bscript\b|\btext\b|\bmanuscript|\bengrav/i.test(subject)) {
+      problems.push('asks for writing, which comes out as gibberish glyphs — ask for geometry'
+        + ` instead, such as a single incised circle or a row of shallow drilled dots: "${subject}"`);
+    }
+    const personProblem = flagPerson(subject);
+    if (personProblem) problems.push(personProblem);
+
+    if (!problems.length) { got = { ...got, subject, id }; break; }
+
+    if (attempt >= 3) {
+      console.error(`the closing shot for ${SLUG} did not pass in ${attempt} attempts:`);
+      for (const p of problems) console.error(`  - ${p}`);
+      process.exit(1);
+    }
+    console.error(`closing shot attempt ${attempt} did not pass, asking again:`);
     for (const p of problems) console.error(`  - ${p}`);
-    process.exit(1);
+    note = '\n\nYour previous answer was rejected for these reasons:\n'
+      + problems.map((p) => `- ${p}`).join('\n')
+      + '\nWrite a different closing shot that fixes every one of them.';
   }
+  const { subject, id } = got;
 
   plan = {
     slug: SLUG,

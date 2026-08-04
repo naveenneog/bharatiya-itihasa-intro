@@ -21,6 +21,7 @@ import path from 'node:path';
 import { chatJson } from './llm.mjs';
 import { genImage, genVideo, soraFleet, rememberConc } from './azure.mjs';
 import { INK_STYLE, INK_LIGHT, FRAME_TALL, LOWER, NOTYPE } from './ink.mjs';
+import { flagPerson } from './human-subject.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
@@ -101,27 +102,8 @@ if (!plan || has('replan')) {
     if (/\binscription|\bwriting|\bletter|\bnumeral|\bscript\b|\btext\b|\bmanuscript|\bpalm.leaf|\bengrav/i.test(subj)) {
       problems.push(`shot ${i + 1}: asks for writing — it will come out as gibberish glyphs: "${subj}"`);
     }
-    /* A living person, which Sora renders badly and whose reference images moderation refuses.
-
-       "face", "figure" and "bust" are not people when they are struck, carved or cast — and on
-       this channel they very often are. The episode about the Western Satraps' coinage had two
-       shots rejected for "a standing figure in shallow relief" and "one face catching brief
-       flashes": a coin's face and the image struck on it, which is the entire subject of the
-       story. The words alone cannot decide it, so the sentence is read for whether the thing is
-       an object or a person. Hands, fingers and silhouettes stay banned outright — there is no
-       reading of those that is not a person. */
-    const iconography = /\brelief\b|\bcarved\b|\bstruck\b|\bstamped\b|\bcast\b|\bcoin\b|\bmask\b|\bstatue\b|\bsculpt|\bidol\b|\bmedallion\b|\bseal\b|\bbronze\b|\bterracotta\b/i.test(subj);
-    const person = /\bhand\b|\bhands\b|\bfinger|\bsilhouette|\bperson\b|\bpeople\b|\bcrowd\b|\bman\b|\bwoman\b|\bchild\b/i.test(subj);
-    /* "head" is not on this list. In this subject matter it is nearly always part of an object —
-       a mace head, a spear head, an arrow head, the head of a pillar — and it cost a story:
-       "a heavy iron mace with a chipped head" was rejected as containing a person. The words that
-       genuinely signal a human subject are few, and a checker that flags more than those stops
-       being a check and starts being an obstacle. */
-    const depiction = /\bface\b|\bfigure\b|\bbust\b|\btorso\b/i.test(subj);
-    if (person || (depiction && !iconography)) {
-      problems.push(`shot ${i + 1}: contains a person — describe the object, not who is in it`
-        + ` (a carved or struck ${depiction ? 'face or figure' : 'form'} is fine if the sentence says so): "${subj}"`);
-    }
+    const problem = flagPerson(subj);
+    if (problem) problems.push(`shot ${i + 1}: ${problem}`);
   }
   if (problems.length) {
     console.error(`the shot plan for ${SLUG} did not pass:`);
