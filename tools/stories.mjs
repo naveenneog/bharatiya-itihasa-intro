@@ -40,7 +40,10 @@ const LIMIT = Number(arg('limit', '0'));
    dynasties are listed before the empires that contain them. */
 export const ERAS = [
   ['harappa', /harappa|indus|meluhha|mohenjo|dholavira|shortughai/i],
-  ['maurya', /maurya|ashoka|asoka|chandragupta maurya|bindusara|kautilya|arthashastra|pataliputra.*maurya|sarnath/i],
+  /* No `sarnath` here: the place is both Ashoka's lion capital and the Gupta Buddha, and since
+     the first matching era wins it dragged `the_gods_take_shape_at_deogarh` (5th c. CE) into
+     Maurya. `the_four_lions_of_sarnath` still lands here on "Ashokan". */
+  ['maurya', /maurya|ashoka|asoka|chandragupta maurya|bindusara|kautilya|arthashastra|pataliputra.*maurya/i],
   ['kushan', /kushan|kanishka|huvishka|kadphises|yuezhi|gandhara|begram/i],
   ['satavahana', /satavahana|paithan|amaravati/i],
   ['gupta', /gupta|aryabhat|kalidasa|vakataka|samudragupta|skandagupta|prabhavati|faxian|nalanda|deogarh|iron pillar/i],
@@ -101,8 +104,63 @@ export async function loadStories() {
       langs: s.langs || [],
     });
   }
-  return out.sort((a, b) => a.id.localeCompare(b.id));
+  return out.sort(byChronology);
 }
+
+/* When a story happens, as a sortable number.
+
+   A series should be produced and watched in the order the events occurred, and the only date
+   available is the `era` field — free text written for a human: "Maurya Empire, c. 261 BCE",
+   "c. 321-297 BCE", "Ashokan dhamma policy, c. 260s-230s BCE", "5th-early 6th century CE",
+   "Decipherment of Ashoka's edicts, 1837-1838 CE".
+
+   Rules that fall out of the data:
+     - The FIRST date in the string is the story's own. "c. 250 BCE and modern national adoption
+       in 1947-1950" is an Ashokan pillar, not a 1947 story.
+     - A range means its start. 321-297 BCE begins in 321.
+     - BCE counts backwards, so it is negated: 321 BCE sorts before 261 BCE.
+     - A century is a hedge, not a date, so it is placed at its middle and shifted by any
+       "early"/"mid"/"late" qualifier. Taking a century's first year instead put Kalidasa and
+       Sushruta ("4th-5th century CE") ahead of Chandragupta I founding the dynasty in 319.
+     - Some stories genuinely have no date ("Mauryan statecraft tradition", "debated Mauryan or
+       Kushan date"). They return null and are placed last rather than guessed at, because a
+       wrong date in a chronological series is worse than an admitted gap. */
+export function yearOf(story) {
+  const s = `${story?.era || ''} ${story?.title || ''}`;
+
+  const century = s.match(
+    /(early|mid|late)?[\s-]*(\d{1,2})(?:st|nd|rd|th)[^.]{0,24}?century\s*(BCE|BC|CE|AD)?/i);
+  const plain = s.match(/\b(\d{1,4})s?\s*(?:[-–—]\s*\d{1,4}s?\s*)?(BCE|BC|CE|AD)\b/i);
+
+  /* Whichever appears first in the text, since that is the story's own date. */
+  const useCentury = century && (!plain || century.index <= plain.index);
+  if (!century && !plain) return null;
+
+  if (useCentury) {
+    const n = Number(century[2]);
+    if (!Number.isFinite(n)) return null;
+    const into = { early: 15, mid: 50, late: 80 }[(century[1] || 'mid').toLowerCase()] ?? 50;
+    /* A BCE century runs backwards: early 3rd century BCE is nearer 300 than 201. */
+    return /^(BCE|BC)$/i.test(century[3] || '') ? -(n * 100 - into) : (n - 1) * 100 + into;
+  }
+
+  const n = Number(plain[1]);
+  if (!Number.isFinite(n)) return null;
+  return /^(BCE|BC)$/i.test(plain[2] || '') ? -n : n;
+}
+
+/* Chronological, with undated stories last and ties broken by id so the order is stable.
+
+   Alphabetical by id put Ashoka's change of heart before Chandragupta founding the dynasty, and
+   the decipherment of the edicts in the middle of the empire it decoded. */
+export const byChronology = (a, b) => {
+  const ya = yearOf(a);
+  const yb = yearOf(b);
+  if (ya === null && yb === null) return a.id.localeCompare(b.id);
+  if (ya === null) return 1;
+  if (yb === null) return -1;
+  return ya - yb || a.id.localeCompare(b.id);
+};
 
 /** Which stories already have a built episode in this repo. */
 async function builtHere() {

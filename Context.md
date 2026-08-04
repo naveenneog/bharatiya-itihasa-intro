@@ -1425,6 +1425,57 @@ server, and the series was running.
 
 ---
 
+---
+
+## The series runs in chronological order
+
+`loadStories()` used to end `out.sort((a, b) => a.id.localeCompare(b.id))`. Alphabetical by id put
+Ashoka's change of heart before Chandragupta founded the dynasty, and dropped Prinsep's 1837
+decipherment of the edicts into the middle of the empire it decoded. Production order is also
+upload order, so the channel was filling up out of sequence.
+
+The only date available is the `era` field, which is free text written for a human. `yearOf(story)`
+in `tools/stories.mjs` turns it into a signed sort year and `byChronology` sorts on it:
+
+| the string | reads as | why |
+|---|---|---|
+| `c. 261 BCE` | −261 | BCE is negated so it counts backwards |
+| `c. 321-297 BCE` | −321 | a range means its start |
+| `c. 260s-230s BCE` | −260 | the decade `s` is ignored |
+| `after c. 297 BCE` | −297 | |
+| `c. 250 BCE and modern national adoption in 1947-1950` | −250 | **the first date wins** — this is an Ashokan pillar, not a 1947 story |
+| `c. late 4th-early 5th century CE` | 380 | century + qualifier |
+| `1837-1838 CE` | 1837 | |
+| `Mauryan statecraft tradition` | `null` | sorts last, not guessed |
+
+Two decisions worth keeping:
+
+- **A century is a hedge, not a date, so it sits at its middle**, shifted by `early` / `mid` /
+  `late` (15 / 50 / 80 years in). Taking a century's first year instead put Kalidasa and Sushruta
+  (`4th-5th century CE` → 300) ahead of Chandragupta I founding the dynasty in 319. With midpoints
+  Kalidasa lands at 380, beside Chandragupta II, which is where tradition puts him. A BCE century
+  runs backwards — early 3rd century BCE is nearer 300 than 201.
+- **An undated story returns `null` and sorts last** rather than being given a plausible year. A
+  wrong date in a chronological series is worse than an admitted gap.
+
+Gupta now reads founder → expansion → zenith → Kalidasa → twilight → Aryabhata → zero (628), and
+Maurya ends on `the_parade_that_ended_the_mauryas` (185 BCE) with Prinsep trailing the empire.
+
+### It immediately caught a mis-filed story
+
+Sorting chronologically showed `the_gods_take_shape_at_deogarh` sitting in **Maurya** at 450 CE.
+The year was right; the bucket was wrong. `eraOf` returns the **first** matching era in list order
+and `maurya` is listed before `gupta`, so `sarnath` in the Maurya pattern claimed it — Sarnath is
+both Ashoka's lion capital and the Gupta Buddha. `sarnath` is gone from the Maurya pattern;
+`the_four_lions_of_sarnath` still lands there on `ashoka`. Counts moved 14/14 → 13/15, and deogarh
+is now bucketed where it was actually built and uploaded.
+
+First-match-wins on an ordered keyword list stays fragile: any place, dynasty or name shared across
+two eras is claimed by whichever era is listed first. Putting a date in the story files would
+remove both this class of bug and `yearOf` altogether.
+
+---
+
 ## The tools added on 2 Aug
 
 | tool | what it does |
