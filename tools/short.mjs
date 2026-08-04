@@ -120,16 +120,23 @@ if (!script) {
   const narration = ep.panels.map((p) => lineOf(p, LANG)).filter(Boolean).join('\n');
   const base = `Episode: ${ep.title}\nFigure: ${ep.figure || '(none)'}\nEra: ${ep.era || ''}\n\nNARRATION\n${narration}`;
 
-  /* Three attempts, with the failures handed back.
+  /* Five attempts, with the failures handed back.
 
      The rules that matter here are the ones a model drifts across rather than breaks outright —
      opening a line on "and" or on "he" is the natural way to write history, and asking once
      produced exactly that. Feeding the specific failures back corrects it, where failing the
-     stage outright would stop an unattended run over a fixable sentence. */
+     stage outright would stop an unattended run over a fixable sentence.
+
+     Three was not always enough. `the_didarganj_yakshi_s_polished_secret` has no named subject
+     and a disputed date, so every attempt came back as a museum label — "At Patna Museum, her
+     famed mirror polish led many to hail her as Mauryan imperial glory", 16 words and opening on
+     a pronoun. The constraints are right; the subject is simply harder to say in seven facts, and
+     two more asks are far cheaper than losing the build at stage 20 of 23. */
+  const TRIES = 5;
   let lines = [];
   let got = {};
   let problems = [];
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= TRIES; attempt++) {
     const user = problems.length
       ? `${base}\n\nYour previous answer broke these rules. Rewrite all seven lines, fixing them:\n`
         + problems.map((p) => `- ${p}`).join('\n')
@@ -138,11 +145,11 @@ if (!script) {
     lines = Array.isArray(got.lines) ? got.lines : [];
     problems = check(lines);
     if (!problems.length) break;
-    console.log(`  attempt ${attempt}: ${problems.length} problem(s)${attempt < 3 ? ', asking again' : ''}`);
+    console.log(`  attempt ${attempt}: ${problems.length} problem(s)${attempt < TRIES ? ', asking again' : ''}`);
     for (const p of problems) console.log(`    - ${p}`);
   }
   if (problems.length) {
-    console.error(`the short script for ${SLUG} did not pass after 3 attempts`);
+    console.error(`the short script for ${SLUG} did not pass after ${TRIES} attempts`);
     process.exit(1);
   }
   script = { slug: SLUG, title: ep.title, why: got.why || '', lines };
