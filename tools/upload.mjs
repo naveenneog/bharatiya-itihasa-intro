@@ -100,10 +100,27 @@ const digest = await sha(videoPath);
 const ledger = await readFile(LEDGER, 'utf8').then(JSON.parse).catch(() => ({ uploads: {} }));
 const already = Object.values(ledger.uploads).find((u) => u.sha === digest);
 if (already && !has('again')) {
-  console.log(`${DIR} was already uploaded on ${already.at}`);
-  console.log(`  ${already.url || '(no url recorded)'}`);
-  console.log('  Same video content, byte for byte. Pass --again only if a second copy is meant.');
-  process.exit(0);
+  /* Only a *successful* previous upload means "nothing to do here".
+
+     This matched on the hash alone, so a failed attempt counted as done: `the-grammar` was
+     accepted by YouTube and then left as an unpublished draft, exit 1, and the next run would
+     have printed "already uploaded", exited 0, and let the factory record the episode as
+     published. The same false-ok that shipped a clipping master.
+
+     Re-sending is not the answer either — the file did reach YouTube, so a second send leaves two
+     copies. The only honest move is to stop and say what is there. */
+  if (already.exit === 0) {
+    console.log(`${DIR} was already uploaded on ${already.at}`);
+    console.log(`  ${already.url || '(no url recorded)'}`);
+    console.log('  Same video content, byte for byte. Pass --again only if a second copy is meant.');
+    process.exit(0);
+  }
+  console.error(`${DIR} was already sent on ${already.at} and did not finish (exit ${already.exit}):`);
+  console.error(`  ${already.url || '(no url recorded)'}`);
+  console.error('  The file reached YouTube but the upload was left unfinished, usually as a draft,');
+  console.error('  so sending it again would leave two copies. Publish or delete that one in');
+  console.error('  YouTube Studio, then re-run this with --again.');
+  process.exit(1);
 }
 
 const args = [
