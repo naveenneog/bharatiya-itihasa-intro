@@ -82,34 +82,53 @@ ${script.lines.map((l, i) => `${i + 1}. [${l.kick}] ${l.text}`).join('\n')}`;
 
 let plan = await readFile(PLANFILE, 'utf8').then(JSON.parse).catch(() => null);
 if (!plan || has('replan')) {
-  const got = await chatJson(SYSTEM, user, { maxTokens: 2000 });
-  const shots = Array.isArray(got.shots) ? got.shots : [];
+  /* Three attempts, with the rejection handed back as an instruction — the same loop as closer
+     and outro-shot, for the same reason. `the-four-lions` lost a whole build to one word: shot 7
+     described the Sarnath capital locking into "a single, balanced, emblematic silhouette", which
+     is the outline of a sculpture, not a person. A validator that exits on the first miss throws
+     away six good shots to punish the seventh. */
+  let shots = [];
+  let note = '';
+  for (let attempt = 1; ; attempt++) {
+    const got = await chatJson(SYSTEM, user + note, { maxTokens: 2000 });
+    shots = Array.isArray(got.shots) ? got.shots : [];
 
-  /* Checked, not trusted. The writing rule is the one that matters: "worn and indistinct"
-     reduces fake writing and does not stop it, so the only rule that holds is never to
-     mention writing at all — see the skill's bug log. */
-  const problems = [];
-  if (shots.length !== 7) problems.push(`${shots.length} shots, expected 7`);
-  const seen = new Set();
-  for (const [i, s] of shots.entries()) {
-    const subj = String(s?.subject || '').trim();
-    const id = String(s?.id || '').trim();
-    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) problems.push(`shot ${i + 1}: id must be kebab-case, got "${id}"`);
-    if (seen.has(id)) problems.push(`shot ${i + 1}: duplicate id "${id}"`);
-    seen.add(id);
-    const n = subj.split(/\s+/).length;
-    if (n < 12 || n > 30) problems.push(`shot ${i + 1}: ${n} words, outside 12-30`);
-    if (/\binscription|\bwriting|\bletter|\bnumeral|\bscript\b|\btext\b|\bmanuscript|\bpalm.leaf|\bengrav/i.test(subj)) {
-      problems.push(`shot ${i + 1}: asks for writing — it will come out as gibberish glyphs: "${subj}"`);
+    /* Checked, not trusted. The writing rule is the one that matters: "worn and indistinct"
+       reduces fake writing and does not stop it, so the only rule that holds is never to
+       mention writing at all — see the skill's bug log. */
+    const problems = [];
+    if (shots.length !== 7) problems.push(`${shots.length} shots, expected 7`);
+    const seen = new Set();
+    for (const [i, s] of shots.entries()) {
+      const subj = String(s?.subject || '').trim();
+      const id = String(s?.id || '').trim();
+      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) problems.push(`shot ${i + 1}: id must be kebab-case, got "${id}"`);
+      if (seen.has(id)) problems.push(`shot ${i + 1}: duplicate id "${id}"`);
+      seen.add(id);
+      const n = subj.split(/\s+/).length;
+      if (n < 12 || n > 30) problems.push(`shot ${i + 1}: the subject is ${n} words; write 12 to 30`);
+      if (/\binscription|\bwriting|\bletter|\bnumeral|\bscript\b|\btext\b|\bmanuscript|\bpalm.leaf|\bengrav/i.test(subj)) {
+        problems.push(`shot ${i + 1}: asks for writing, which comes out as gibberish glyphs —`
+          + ` ask for geometry instead, such as a single incised circle: "${subj}"`);
+      }
+      const problem = flagPerson(subj);
+      if (problem) problems.push(`shot ${i + 1}: ${problem}`);
     }
-    const problem = flagPerson(subj);
-    if (problem) problems.push(`shot ${i + 1}: ${problem}`);
-  }
-  if (problems.length) {
-    console.error(`the shot plan for ${SLUG} did not pass:`);
+
+    if (!problems.length) break;
+
+    if (attempt >= 3) {
+      console.error(`the shot plan for ${SLUG} did not pass in ${attempt} attempts:`);
+      for (const p of problems) console.error(`  - ${p}`);
+      process.exit(1);
+    }
+    console.error(`shot plan attempt ${attempt} did not pass, asking again:`);
     for (const p of problems) console.error(`  - ${p}`);
-    process.exit(1);
+    note = '\n\nYour previous answer was rejected for these reasons:\n'
+      + problems.map((p) => `- ${p}`).join('\n')
+      + '\nReturn all seven shots again with every one of them fixed.';
   }
+
   plan = {
     slug: SLUG,
     shots: shots.map((s, i) => ({

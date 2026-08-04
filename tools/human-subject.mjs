@@ -17,16 +17,20 @@
      - Stone counts as iconography. `the_didarganj_yakshi_s_polished_secret` is about a famous
        polished sandstone statue, and "a single smooth stone torso… never revealing its missing
        face" was rejected as a person. The story is the sculpture.
+     - "silhouette" is the outline of a thing, and the thing is usually an object. It cost
+       `the_four_lions_of_sarnath` a build: three lion heads on a circular base locking into "a
+       single, balanced, emblematic silhouette" — the Ashokan capital, and now the national
+       emblem. It is treated like face and figure: fine when the sentence says the thing is made.
 
-   Hands, fingers, silhouettes, crowds stay banned outright — there is no reading of those that is
-   not a person. A checker that flags more than that stops being a check and becomes an obstacle. */
+   Hands, fingers, crowds stay banned outright — there is no reading of those that is not a
+   person. A checker that flags more than that stops being a check and becomes an obstacle. */
 
-const ICONOGRAPHY = /\brelief\b|\bcarved\b|\bcarving\b|\bstruck\b|\bstamped\b|\bcast\b|\bcoin\b|\bmask\b|\bstatue\b|\bsculpt|\bidol\b|\bmedallion\b|\bseal\b|\bbronze\b|\bterracotta\b|\bstone\b|\bsandstone\b|\bgranite\b|\bmarble\b|\bschist\b|\balabaster\b|\bchiselled\b|\bchiseled\b|\bpolished\b/i;
+const ICONOGRAPHY = /\brelief\b|\bcarved\b|\bcarving\b|\bstruck\b|\bstamped\b|\bcast\b|\bcoin\b|\bmask\b|\bstatue\b|\bsculpt|\bidol\b|\bmedallion\b|\bseal\b|\bbronze\b|\bterracotta\b|\bstone\b|\bsandstone\b|\bgranite\b|\bmarble\b|\bschist\b|\balabaster\b|\bchiselled\b|\bchiseled\b|\bpolished\b|\bemblem/i;
 
-const PERSON = /\bhand\b|\bhands\b|\bfinger|\bsilhouette|\bperson\b|\bpeople\b|\bcrowd\b|\bman\b|\bwoman\b|\bchild\b/i;
+const PERSON = /\bhand\b|\bhands\b|\bfinger|\bperson\b|\bpeople\b|\bcrowd\b|\bman\b|\bwoman\b|\bchild\b/i;
 
 /* Words that name a human form but just as readily name its image in stone or metal. */
-const DEPICTION = /\bface\b|\bfigure\b|\bbust\b|\btorso\b/i;
+const DEPICTION = /\bface\b|\bfigure\b|\bbust\b|\btorso\b|\bsilhouette\b/i;
 
 /** A problem string naming what to do instead, or null when the subject is fine. */
 export function flagPerson(subject) {
