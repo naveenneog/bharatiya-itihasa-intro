@@ -20,7 +20,7 @@ import { writeFile, readFile, mkdir } from 'node:fs/promises';
 import { unlinkSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { loadStories, eraOf } from './stories.mjs';
+import { loadStories, eraOf, yearOf } from './stories.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
@@ -74,8 +74,32 @@ function eraMismatch(story, era) {
   const bce = /\bBCE\b/.test(t);
   const ce = /\bCE\b/.test(t) && !/\bBCE\b/.test(t);
   if (era === 'harappa' || era === 'maurya' || era === 'vedic') return null;
-  if (bce && !ce) return `dated ${t.trim()} — BCE, in a CE era`;
+  if (bce && !ce) {
+    /* A BCE story in a CE era is usually misfiled — but not when it is the era's own run-up.
+
+       Kushan has three: Panini (400-350 BCE) and Taxila (600 BCE), which are Gandhara stories the
+       keyword match dragged in, and `the_yuezhi_cross_a_thousand_mountains` (176-30 BCE), which is
+       how the Kushans came to exist. Kujula Kadphises founds the dynasty at 30 CE, continuous with
+       it. Reading the letters BCE cannot tell those apart; the distance can.
+
+       Measured against the era's earliest CE story rather than a fixed year, so it needs no table
+       of dynasties. Maurya keeps its exemption above: Prinsep reading the edicts in 1837 is 2,000
+       years from that era's centre and still belongs to it, which is why distance alone is not
+       enough on its own. */
+    const start = eraStart(era);
+    const y = yearOf(story);
+    if (start !== null && y !== null && start - y <= 250) return null;
+    return `dated ${t.trim()} — BCE, in a CE era`;
+  }
   return null;
+}
+
+/** The year the era proper begins: its earliest story that is not itself BCE. */
+function eraStart(era) {
+  const ys = all.filter((s) => eraOf(s) === era)
+    .map(yearOf)
+    .filter((y) => y !== null && y > 0);
+  return ys.length ? Math.min(...ys) : null;
 }
 
 const all = await loadStories();
