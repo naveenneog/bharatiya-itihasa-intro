@@ -166,7 +166,16 @@ function check(lines) {
     const t = String(l?.text || '').trim();
     if (!t) { problems.push(`line ${i + 1} is empty`); continue; }
     const n = t.split(/\s+/).length;
-    if (n < 7 || n > 15) problems.push(`line ${i + 1} is ${n} words, outside 7-15: "${t}"`);
+    /* Says how many words to remove, because naming the range does not work. `the-council-tradition`
+       failed five attempts in a row and every single line came back at 16 or 17 words against a
+       limit of 15 — the model reads "outside 7-15" as approximate and rephrases at the same
+       length. An instruction to delete a specific number of words is something it can act on. */
+    if (n > 15) {
+      problems.push(`line ${i + 1} is ${n} words and the limit is 15 — delete ${n - 15} word(s)`
+        + ` from it; do not rewrite it at the same length: "${t}"`);
+    } else if (n < 7) {
+      problems.push(`line ${i + 1} is only ${n} words — say more, at least 7: "${t}"`);
+    }
     if (/\d/.test(t)) problems.push(`line ${i + 1} contains a numeral — it will be spoken as a quantity: "${t}"`);
     if (/\byou\b|\byour\b/i.test(t)) problems.push(`line ${i + 1} addresses the viewer: "${t}"`);
     if (/\?$|\.\.\.$|…$/.test(t)) problems.push(`line ${i + 1} trails off or asks: "${t}"`);
