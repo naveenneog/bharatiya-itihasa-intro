@@ -157,6 +157,30 @@ export async function trimToTarget(file, { tol = 0.4, pass = 1 } = {}) {
   const ENCODE_OVERSHOOT = 0.3;
   const room = TP_LIMIT - tp - ENCODE_OVERSHOOT;
   const gain = need > 0 ? Math.min(need, Math.max(0, room)) : need;
+
+  /* Too quiet, with no peak headroom to lift it into. A plain gain cannot solve this — it is
+     bounded by the very headroom that is missing — but loudnorm in dynamic mode can reach the
+     target and hold the true peak at the same time, which is the whole reason it exists. It is
+     used above to pull a peak down; this is the same tool on the opposite problem.
+
+     kanishka-raises' outro sat at -15.1 LUFS with its peak at -1.4 dBTP: 1.1 dB short, with about
+     0.35 dB of room. Reserving 0.3 dB of that for encoder overshoot left 0.05, below the minimum
+     correction, so nothing was applied and the assertion failed on level instead of peak. The
+     reserve is right; skipping the correction because of it was not. */
+  if (need > tol && gain < need - tol && pass <= 4) {
+    const tmp = `${file}.up.mp4`;
+    await execFileP('ffmpeg', ['-y', '-v', 'error', '-i', file,
+      '-c:v', 'copy',
+      '-af', `loudnorm=I=${TARGET_I}:TP=-2.0:LRA=${TARGET_LRA}:linear=false`,
+      '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart', tmp], { maxBuffer: 1 << 28 });
+    await rename(tmp, file);
+    const after = await measure(file);
+    console.log(`  ${need.toFixed(1)} dB short with ${Math.max(0, room).toFixed(2)} dB of room`
+      + ` — levelled: ${i.toFixed(1)} -> ${Number(after.input_i).toFixed(1)} LUFS`
+      + ` (${tp.toFixed(1)} -> ${Number(after.input_tp).toFixed(1)} dBTP)`);
+    return trimToTarget(file, { tol, pass: pass + 1 });
+  }
+
   if (Math.abs(gain) < 0.15) {
     console.log(`  ${i.toFixed(1)} LUFS, ${need.toFixed(1)} dB short, peak ${tp.toFixed(1)} dBTP`
       + ' — no headroom to correct into');
