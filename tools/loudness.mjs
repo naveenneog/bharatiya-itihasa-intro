@@ -123,7 +123,7 @@ export async function trimToTarget(file, { tol = 0.4, pass = 1 } = {}) {
      So the peak is limited properly, by loudnorm in dynamic mode, which does true-peak limiting
      rather than sample-peak clamping. It holds the integrated target while pulling the peaks
      down, which is exactly the thing alimiter cannot do. */
-  if (tp > TP_LIMIT && pass <= 2) {
+  if (tp > TP_LIMIT && pass <= 4) {
     const tmp = `${file}.tp.mp4`;
     await execFileP('ffmpeg', ['-y', '-v', 'error', '-i', file,
       '-c:v', 'copy',
@@ -146,8 +146,16 @@ export async function trimToTarget(file, { tol = 0.4, pass = 1 } = {}) {
      against CEILING. Those are two different scales and mixing them computed zero headroom
      where there was half a decibel: CEILING is alimiter's *sample* peak target (-1.6 dBFS)
      while input_tp is an *intersample* true-peak reading (-1.5 dBTP). The first attempt at this
-     fix subtracted one from the other, got -0.1, clamped it to zero, and corrected nothing. */
-  const room = TP_LIMIT - tp;
+     fix subtracted one from the other, got -0.1, clamped it to zero, and corrected nothing.
+
+     ENCODE_OVERSHOOT is held back on top of that. The old comment below claimed a gain no larger
+     than the measured headroom cannot create a peak above the ceiling — true of sample peaks,
+     false here, because the gain is applied and then re-encoded to AAC, and the encoder
+     reconstructs intersample peaks above what the arithmetic predicts. huvishka's outro landed at
+     -0.8 dBTP against a -0.9 assertion that way: every step was individually reasonable and the
+     result still clipped. Predicting a peak is not the same as measuring one. */
+  const ENCODE_OVERSHOOT = 0.3;
+  const room = TP_LIMIT - tp - ENCODE_OVERSHOOT;
   const gain = need > 0 ? Math.min(need, Math.max(0, room)) : need;
   if (Math.abs(gain) < 0.15) {
     console.log(`  ${i.toFixed(1)} LUFS, ${need.toFixed(1)} dB short, peak ${tp.toFixed(1)} dBTP`
@@ -157,8 +165,7 @@ export async function trimToTarget(file, { tol = 0.4, pass = 1 } = {}) {
 
   /* A pure gain, with no limiter. The material has already been through one, and re-limiting is
      precisely what took the loudness away the first time: the correction would be applied and
-     then immediately shaved off again. A gain no larger than the measured headroom cannot
-     create a peak above the ceiling. */
+     then immediately shaved off again. */
   const tmp = `${file}.trim.mp4`;
   await execFileP('ffmpeg', ['-y', '-v', 'error', '-i', file,
     '-c:v', 'copy', '-af', `volume=${gain.toFixed(2)}dB`,
@@ -166,6 +173,17 @@ export async function trimToTarget(file, { tol = 0.4, pass = 1 } = {}) {
   await rename(tmp, file);
   console.log(`  corrected ${gain > 0 ? '+' : ''}${gain.toFixed(2)} dB (was ${i.toFixed(1)} LUFS,`
     + ` ${tp.toFixed(1)} dBTP)`);
+
+  /* Check what the encoder actually produced rather than trusting the arithmetic. If the gain
+     pushed the true peak over after all, hand it back to the true-peak limiter once. */
+  if (gain > 0 && pass <= 3) {
+    const after = await measure(file);
+    if (Number(after.input_tp) > TP_LIMIT) {
+      console.log(`  the gain reconstructed above the limit (${Number(after.input_tp).toFixed(1)} dBTP)`
+        + ' — limiting the peak again');
+      return trimToTarget(file, { tol, pass: pass + 1 });
+    }
+  }
   return gain;
 }
 
