@@ -161,7 +161,16 @@ if (!script) {
    Returns the failures so they can be handed back rather than only reported. */
 function check(lines) {
   const problems = [];
-  if (lines.length !== 7) problems.push(`${lines.length} lines, expected 7`);
+  /* A wrong line count is a structural fault, and reporting it alongside sixteen line-level
+     complaints made it worse: `the-locked-rooms` came back with the kick and the sentence as
+     separate entries — "SILENT GUARDIANS" then "Whether warehouse, royal gift store…" — and got
+     fourteen messages treating that as fourteen legitimate lines needing a word trimmed. The
+     shape was being confirmed while the words were corrected. Say the one thing that is wrong. */
+  if (lines.length !== 7) {
+    return [`${lines.length} lines, expected exactly 7. Each line is ONE object with a short`
+      + ' all-caps "kick" and a "text" sentence of 7 to 15 words — the kick is a field on the'
+      + ' line, never a line of its own.'];
+  }
   for (const [i, l] of lines.entries()) {
     const t = String(l?.text || '').trim();
     if (!t) { problems.push(`line ${i + 1} is empty`); continue; }
