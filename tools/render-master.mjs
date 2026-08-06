@@ -25,6 +25,7 @@ import { launch } from '../scripts/browser.mjs';
 import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
 import { MASTER_AF } from './score.mjs';
 import { normaliseTo, assertLoudness } from './loudness.mjs';
+import { filterScript } from './ffmpeg-args.mjs';
 import { variant, beatsFor } from './variants.mjs';
 import { resolveSource } from './source.mjs';
 import { picks, choose } from './picks.mjs';
@@ -241,7 +242,7 @@ try {
   }
 
   args.push(
-    '-filter_complex_script', path.join(plateDir, 'filter.txt'),
+    ...await filterScript(path.join(plateDir, 'filter.txt')),
     '-map', '[out]',
   );
   if (SCORE) args.push('-map', `${wavIdx}:a`, '-af', audioFilter, '-c:a', 'aac', '-b:a', '192k');

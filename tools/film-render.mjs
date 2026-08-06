@@ -25,6 +25,7 @@ import { loadFilm, ROOT } from './films.mjs';
 import { filmPage, cardsOf, scrimsOf } from './film-page.mjs';
 import { buildUnderscore } from './underscore.mjs';
 import { normaliseTo, assertLoudness, trimToTarget, measure } from './loudness.mjs';
+import { filterScript } from './ffmpeg-args.mjs';
 
 const execFileP = promisify(execFile);
 const argv = process.argv.slice(2);
@@ -273,7 +274,7 @@ const audioIdx = film.shots.length + 5 + plates.cards.length;
 args.push('-i', mixed);
 
 console.log('  compositing...');
-args.push('-filter_complex_script', path.join(TMP, 'filter.txt'), '-map', '[out]', '-map', `${audioIdx}:a`);
+args.push(...await filterScript(path.join(TMP, 'filter.txt')), '-map', '[out]', '-map', `${audioIdx}:a`);
 args.push('-af', await normaliseTo(mixed, 'programme'));
 args.push('-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-ac', '2');
 args.push('-r', String(FPS), '-c:v', 'libx264', '-preset', DRAFT ? 'veryfast' : 'slow',
