@@ -21,6 +21,9 @@
        `the_four_lions_of_sarnath` a build: three lion heads on a circular base locking into "a
        single, balanced, emblematic silhouette" — the Ashokan capital, and now the national
        emblem. It is treated like face and figure: fine when the sentence says the thing is made.
+     - Materials count too. "A thin rectangular copper plate… its face patterned with dense,
+       faintly ridged horizontal bands" was read as a person, because `copper` was not on the
+       list and a plate has a face the way a person does.
 
    Hands, fingers, crowds stay banned outright — there is no reading of those that is not a
    person. A checker that flags more than that stops being a check and becomes an obstacle.
@@ -31,7 +34,7 @@
    sat in the allowlist unable to see them. The person list had spelled out `hand|hands`, so the
    plural problem was known on one side of the test and missed on the other. */
 
-const ICONOGRAPHY = /\brelief|\bcarv|\bstruck\b|\bstamped\b|\bcast\b|\bcoin|\bmask|\bstatue|\bsculpt|\bidol|\bmedallion|\bseal|\bbronze\b|\bterracotta\b|\bstone\b|\bsandstone\b|\bgranite\b|\bmarble\b|\bschist\b|\balabaster\b|\bchiselled\b|\bchiseled\b|\bpolished\b|\bemblem|\bdinar|\beffigy|\beffigies/i;
+const ICONOGRAPHY = /\brelief|\bcarv|\bstruck\b|\bstamped\b|\bcast\b|\bcoin|\bmask|\bstatue|\bsculpt|\bidol|\bmedallion|\bseal|\bbronze\b|\bterracotta\b|\bstone\b|\bsandstone\b|\bgranite\b|\bmarble\b|\bschist\b|\balabaster\b|\bchiselled\b|\bchiseled\b|\bpolished\b|\bemblem|\bdinar|\beffigy|\beffigies|\bcopper|\bbrass\b|\biron\b|\bclay\b|\bivory\b|\bplate|\btablet|\bplaque/i;
 
 const PERSON = /\bhand\b|\bhands\b|\bfinger|\bperson\b|\bpeople\b|\bcrowd\b|\bman\b|\bwoman\b|\bchild\b/i;
 

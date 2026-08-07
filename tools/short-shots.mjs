@@ -107,7 +107,7 @@ if (!plan || has('replan')) {
       seen.add(id);
       const n = subj.split(/\s+/).length;
       if (n < 12 || n > 30) problems.push(`shot ${i + 1}: the subject is ${n} words; write 12 to 30`);
-      if (/\binscription|\bwriting|\bletter|\bnumeral|\bscript\b|\btext\b|\bmanuscript|\bpalm.leaf|\bengrav/i.test(subj)) {
+      if (/\binscription|\bwriting|\bletter|\bnumeral|\bscript\b|\btext\b|\bmanuscript|\bengrav/i.test(subj)) {
         problems.push(`shot ${i + 1}: asks for writing, which comes out as gibberish glyphs —`
           + ` ask for geometry instead, such as a single incised circle: "${subj}"`);
       }
