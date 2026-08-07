@@ -163,34 +163,74 @@ console.log(`\n  generating ${todo.length} across ${soraFleet.lanes.length} depl
 const t0 = Date.now();
 let done = 0; let failed = 0;
 const queue = [...todo];
+
+const blocked = (e) => /moderation_blocked|moderation system/i.test(String(e?.message || e));
+
+/* Moderation gets a second subject rather than costing the story its Short.
+
+   `mamallapuram` lost shot 5 to "violence" on a dancing torso fragment — a broken sculpture at a
+   site whose whole subject is broken sculpture. The filter is not reasoning about the image, and
+   no rewording of that sentence was going to argue with it, so the answer is a different object.
+   outro-shot has had this since the Seleucus elephant; the Short's shots did not, and a single
+   blocked shot out of seven failed the stage. */
+async function replan(s) {
+  const got = await chatJson(
+    'You write one shot for a vertical film in the Ink and Light language: an object in ink and'
+    + ' gold in black water, no people, no writing. Return JSON only:'
+    + ' {"id":"kebab-case-two-words","subject":"one sentence, 12-30 words"}',
+    `The claim this shot sits under: "${s.claim}"\n\nThis subject was refused by an automated`
+    + ` content filter. It is not about wording — propose a DIFFERENT object, plainer and more`
+    + ` concrete, that still carries the claim:\n"${s.subject}"`,
+    { maxTokens: 600 });
+  const subject = String(got?.subject || '').trim();
+  const id = String(got?.id || '').trim();
+  if (!subject || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) return null;
+  if (flagPerson(subject)) return null;
+  return {
+    ...s,
+    id,
+    subject,
+    prompt: `${subject} ${LOWER}\n\n${INK_STYLE} ${INK_LIGHT}\n\n${FRAME_TALL}\n\n${NOTYPE}`,
+  };
+}
+
 await Promise.all(Array.from({ length: Math.min(CONC, queue.length) }, async () => {
   for (;;) {
-    const s = queue.shift();
+    let s = queue.shift();
     if (!s) return;
-    const base = `${String(s.n).padStart(2, '0')}-${s.id}`;
-    const out = path.join(OUT, `${base}-r1.mp4`);
-    const still = path.join(STILLS, `${base}-r1.png`);
-    try {
-      /* A still first, kept, then animated from it.
+    for (let attempt = 1; ; attempt++) {
+      const base = `${String(s.n).padStart(2, '0')}-${s.id}`;
+      const out = path.join(OUT, `${base}-r1.mp4`);
+      const still = path.join(STILLS, `${base}-r1.png`);
+      try {
+        /* A still first, kept, then animated from it.
 
-         This used to go straight from text to video on the reasoning that there is no candidate
-         to pick here, so a reference bought nothing. That was wrong twice over. The still is a
-         finished piece of art in its own right and throwing it away meant seven takes produced
-         no stills at all. And animating a still holds the take much closer to what was asked
-         for than a text prompt does, which is what keeps seven shots in one visual language.
+           This used to go straight from text to video on the reasoning that there is no candidate
+           to pick here, so a reference bought nothing. That was wrong twice over. The still is a
+           finished piece of art in its own right and throwing it away meant seven takes produced
+           no stills at all. And animating a still holds the take much closer to what was asked
+           for than a text prompt does, which is what keeps seven shots in one visual language.
 
-         Portrait, 1024x1536: a landscape still centre-cropped to 9:16 keeps a narrow strip and
-         upscales it, which is the same softness that made cropped landscape footage unusable. */
-      await genImage(s.prompt, still, { size: '1024x1536', quality: 'high' });
-      await writeFile(still.replace(/\.png$/, '.txt'), s.prompt);
-      await genVideo(s.prompt, out, { seconds: '8', size: '720x1280', ref: still });
-      await writeFile(out.replace(/\.mp4$/, '.txt'), s.prompt);
-      done++;
-      console.log(`  [${done + failed}/${todo.length}] ${((Date.now() - t0) / 1000).toFixed(0)}s  ok   ${base}`);
-    } catch (e) {
-      failed++;
-      console.log(`  [${done + failed}/${todo.length}] ${((Date.now() - t0) / 1000).toFixed(0)}s  FAIL ${base}`);
-      console.log(`        ${String(e.message || e).slice(0, 300)}`);
+           Portrait, 1024x1536: a landscape still centre-cropped to 9:16 keeps a narrow strip and
+           upscales it, which is the same softness that made cropped landscape footage unusable. */
+        await genImage(s.prompt, still, { size: '1024x1536', quality: 'high' });
+        await writeFile(still.replace(/\.png$/, '.txt'), s.prompt);
+        await genVideo(s.prompt, out, { seconds: '8', size: '720x1280', ref: still });
+        await writeFile(out.replace(/\.mp4$/, '.txt'), s.prompt);
+        done++;
+        console.log(`  [${done + failed}/${todo.length}] ${((Date.now() - t0) / 1000).toFixed(0)}s  ok   ${base}`);
+        break;
+      } catch (e) {
+        if (blocked(e) && attempt <= 2) {
+          console.log(`  moderation refused ${base}, asking for a different object`);
+          const next = await replan(s).catch(() => null);
+          if (next) { s = next; continue; }
+        }
+        failed++;
+        console.log(`  [${done + failed}/${todo.length}] ${((Date.now() - t0) / 1000).toFixed(0)}s  FAIL ${base}`);
+        console.log(`        ${String(e.message || e).slice(0, 300)}`);
+        break;
+      }
     }
   }
 }));
