@@ -131,15 +131,27 @@ if (!script) {
      and a disputed date, so every attempt came back as a museum label — "At Patna Museum, her
      famed mirror polish led many to hail her as Mauryan imperial glory", 16 words and opening on
      a pronoun. The constraints are right; the subject is simply harder to say in seven facts, and
-     two more asks are far cheaper than losing the build at stage 20 of 23. */
+     two more asks are far cheaper than losing the build at stage 20 of 23.
+
+     The retry also has to show the model what it wrote. It used to send the original prompt and a
+     list of problems about text the model could not see, so each attempt was a fresh generation
+     that happened to be told about faults in a previous one — and broke different lines instead.
+     `mamallapuram` oscillated through all five: line 7 too short, then opening on "after", then
+     16 words, and by the fifth attempt three lines were wrong where one had been. Handing back
+     the previous answer and asking for only the named lines to change turns a re-roll into an
+     edit. */
   const TRIES = 5;
   let lines = [];
   let got = {};
   let problems = [];
   for (let attempt = 1; attempt <= TRIES; attempt++) {
     const user = problems.length
-      ? `${base}\n\nYour previous answer broke these rules. Rewrite all seven lines, fixing them:\n`
+      ? `${base}\n\nYour previous answer was:\n`
+        + lines.map((l, i) => `${i + 1}. [${l?.kick || ''}] ${l?.text || ''}`).join('\n')
+        + '\n\nIt broke these rules:\n'
         + problems.map((p) => `- ${p}`).join('\n')
+        + '\n\nReturn all seven lines again. Change ONLY the lines named above; copy every other'
+        + ' line back exactly as it is.'
       : base;
     got = await chatJson(SYSTEM, user, { maxTokens: 3000 });
     lines = Array.isArray(got.lines) ? got.lines : [];
