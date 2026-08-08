@@ -260,6 +260,16 @@ const STAGES = [
     run: (v) => ['tools/upload.mjs', '--dir', upload(v), '--ab',
       '--visibility', arg('visibility', 'private')],
   },
+  {
+    /* The Short goes up as its own video, not a version of the long form: different aspect,
+       different title, different audience surface. No --ab — the A/B plates are a feed-thumbnail
+       experiment and a Short is not browsed that way. */
+    id: 'upload-short',
+    what: 'send the vertical cut to YouTube through the local agent, private',
+    when: () => UPLOAD,
+    run: () => ['tools/upload.mjs', '--dir', path.join('dist', ERA, `${SLUG}_short`),
+      '--visibility', arg('visibility', 'private')],
+  },
 ];
 
 // ── planning ─────────────────────────────────────────────────────────────

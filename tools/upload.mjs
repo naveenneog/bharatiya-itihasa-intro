@@ -64,13 +64,24 @@ if (!master) { console.error(`no master mp4 in ${DIR}`); process.exit(1); }
 const read = async (name) => (await readFile(path.join(DIR, name), 'utf8').catch(() => '')).trim();
 const title = await read('title.txt');
 const descFile = path.join(DIR, 'description.txt');
-const thumb = files.find((f) => /-thumb\.png$/.test(f)) || files.find((f) => /-thumb\.jpg$/.test(f));
+/* The Short names its plate `-cover.png` rather than `-thumb.png`, because on a vertical cut it
+   is the poster frame rather than a thumbnail in a feed. Both are accepted here so the same
+   uploader takes either folder. */
+const thumb = files.find((f) => /-thumb\.png$/.test(f)) || files.find((f) => /-thumb\.jpg$/.test(f))
+  || files.find((f) => /-cover\.png$/.test(f)) || files.find((f) => /-cover\.jpg$/.test(f));
+
+/* A Short takes no custom thumbnail. YouTube Studio does not offer the input for a vertical cut,
+   so the agent's selector resolves to null and throws "Cannot read properties of null (reading
+   'setInputFiles')" — after the file is already uploaded. The first Short went up that way and
+   then returned a blank URL, because the agent never got past the thumbnail step to read it.
+   YouTube picks a poster frame from the video itself for Shorts. */
+const isShort = /_short$/.test(DIR.replace(/[\\/]+$/, ''));
 
 const problems = [];
 if (!title) problems.push('title.txt is empty');
 if (title.length > 100) problems.push(`title is ${title.length} chars, over YouTube's 100`);
 if (!(await readFile(descFile, 'utf8').catch(() => ''))) problems.push('description.txt is empty');
-if (!thumb) problems.push('no <slug>-thumb.png');
+if (!thumb && !isShort) problems.push('no <slug>-thumb.png or <slug>-cover.png');
 if (problems.length) {
   console.error(`${DIR} is not ready to upload:`);
   for (const p of problems) console.error(`  - ${p}`);
@@ -129,7 +140,7 @@ const args = [
   '--title', title,
   '--desc-file', path.resolve(descFile),
   '--visibility', VISIBILITY,
-  '--thumbnail', abs(thumb),
+  ...(isShort ? [] : ['--thumbnail', abs(thumb)]),
   ...(titleVariants ? ['--title-variants', titleVariants] : []),
   ...(thumbVariants ? ['--thumbnail-variants', thumbVariants] : []),
   '--wait', '--timeout', TIMEOUT,
@@ -138,7 +149,7 @@ const args = [
 console.log(`${DIR}`);
 console.log(`  video      ${master.f}  ${(master.size / 1024 / 1024).toFixed(0)} MB`);
 console.log(`  title      ${title}  (${title.length} chars)`);
-console.log(`  thumbnail  ${thumb}`);
+console.log(`  thumbnail  ${isShort ? 'skipped — a Short has no custom thumbnail' : thumb}`);
 console.log(`  visibility ${VISIBILITY}`);
 if (titleVariants) console.log(`  A/B title  ${titleVariants}`);
 if (thumbVariants) console.log(`  A/B thumb  ${path.basename(thumbVariants)}`);
@@ -174,16 +185,27 @@ for (const f of outs) {
 }
 
 await mkdir(path.dirname(LEDGER), { recursive: true });
+/* "done" with no URL is not done.
+
+   The agent returned status done, youtube_url "", verified_visibility "" and custom_thumbnail
+   false for the first Short, and this recorded exit 0 with url null — which the idempotency
+   check above then reads as a successful upload and skips forever. A result carrying no URL is
+   treated as a failure so it is retried rather than silently accepted. */
+const noUrl = code === 0 && !result?.youtube_url;
 ledger.uploads[DIR.replace(/\\/g, '/')] = {
-  sha: digest, title, visibility: VISIBILITY, exit: code,
+  sha: digest, title, visibility: VISIBILITY, exit: noUrl ? 4 : code,
   url: result?.youtube_url || null, ab: !!result?.ab,
   thumbnailLimited: !!result?.thumbnail_limited,
   at: new Date().toISOString(),
 };
 await writeFile(LEDGER, `${JSON.stringify(ledger, null, 2)}\n`);
 
-if (code === 0) {
-  console.log(`\n  done -> ${result?.youtube_url || '(no url in the result)'}`);
+if (noUrl) {
+  console.error('\n  the agent reported done but returned no YouTube URL, so nothing was verified');
+  console.error('  as uploaded. Recorded as failed; check the Edge profile is signed in and that');
+  console.error(`  the video is not sitting half-uploaded in YouTube Studio before re-running.`);
+} else if (code === 0) {
+  console.log(`\n  done -> ${result.youtube_url}`);
   if (result?.ab) console.log('  A/B test running');
   if (result?.thumbnail_limited) console.log('  ! thumbnail hit the daily cap — add it tomorrow');
 } else if (code === 3) {
@@ -191,4 +213,4 @@ if (code === 0) {
 } else {
   console.error('\n  upload failed. SIGNED_OUT means signing in once in the Edge profile.');
 }
-process.exit(code === 0 ? 0 : code);
+process.exit(noUrl ? 4 : (code === 0 ? 0 : code));
