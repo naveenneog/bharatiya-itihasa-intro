@@ -24,6 +24,10 @@
      - Materials count too. "A thin rectangular copper plate… its face patterned with dense,
        faintly ridged horizontal bands" was read as a person, because `copper` was not on the
        list and a plate has a face the way a person does.
+     - So does architecture. `lokamahadevi_builds_in_two_stone_tongues` is about temple form, and
+       lost three attempts to "a broken tower finial… revealing its hybrid silhouette" and "a
+       tiered spire fragment… its ridged silhouette" — buildings have silhouettes far more often
+       than people do.
 
    Hands, fingers, crowds stay banned outright — there is no reading of those that is not a
    person. A checker that flags more than that stops being a check and becomes an obstacle.
@@ -34,7 +38,7 @@
    sat in the allowlist unable to see them. The person list had spelled out `hand|hands`, so the
    plural problem was known on one side of the test and missed on the other. */
 
-const ICONOGRAPHY = /\brelief|\bcarv|\bstruck\b|\bstamped\b|\bcast\b|\bcoin|\bmask|\bstatue|\bsculpt|\bidol|\bmedallion|\bseal|\bbronze\b|\bterracotta\b|\bstone\b|\bsandstone\b|\bgranite\b|\bmarble\b|\bschist\b|\balabaster\b|\bchiselled\b|\bchiseled\b|\bpolished\b|\bemblem|\bdinar|\beffigy|\beffigies|\bcopper|\bbrass\b|\biron\b|\bclay\b|\bivory\b|\bplate|\btablet|\bplaque/i;
+const ICONOGRAPHY = /\brelief|\bcarv|\bstruck\b|\bstamped\b|\bcast\b|\bcoin|\bmask|\bstatue|\bsculpt|\bidol|\bmedallion|\bseal|\bbronze\b|\bterracotta\b|\bstone\b|\bsandstone\b|\bgranite\b|\bmarble\b|\bschist\b|\balabaster\b|\bchiselled\b|\bchiseled\b|\bpolished\b|\bemblem|\bdinar|\beffigy|\beffigies|\bcopper|\bbrass\b|\biron\b|\bclay\b|\bivory\b|\bplate|\btablet|\bplaque|\bfinial|\bspire|\btower|\bpillar|\bcapital\b|\bshrine|\btemple|\bcornice|\bplinth|\blintel|\bfragment|\bdome\b|\bcolumn|\bvault\b|\bfrieze/i;
 
 const PERSON = /\bhand\b|\bhands\b|\bfinger|\bperson\b|\bpeople\b|\bcrowd\b|\bman\b|\bwoman\b|\bchild\b/i;
 
