@@ -29,6 +29,7 @@ import { filterScript } from './ffmpeg-args.mjs';
 import { variant, beatsFor } from './variants.mjs';
 import { resolveSource } from './source.mjs';
 import { picks, choose } from './picks.mjs';
+import { startServer } from './local-server.mjs';
 
 const execFileP = promisify(execFile);
 const W = 1920;
@@ -84,7 +85,7 @@ async function capture(page, url, out) {
 
 async function renderPlates(sched, plateDir) {
   await mkdir(plateDir, { recursive: true });
-  const base = `http://localhost:${PORT}/${ROOT}/${dir.id}/${BUILD}/index.html?export=1`;
+  const base = `${server.base}/${ROOT}/${dir.id}/${BUILD}/index.html?export=1`;
 
   const browser = await launch();
   const page = await browser.newPage({
@@ -205,9 +206,8 @@ await mkdir(path.dirname(out), { recursive: true });
 
 console.log(`${dir.id}: ${beats.length} beats, ${total.toFixed(1)}s @ ${FPS}fps -> ${out}`);
 
-const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
-const stop = () => { try { server.kill(); } catch { /* already gone */ } };
-process.on('exit', stop);
+const server = await startServer();
+const stop = async () => { try { await server.stop(); } catch { /* already gone */ } };
 
 try {
   await new Promise((r) => setTimeout(r, 700));
@@ -263,5 +263,5 @@ try {
   console.log(`\ndone -> ${out}\n${stdout.trim()}`);
   if (SCORE) await assertLoudness(out);
 } finally {
-  stop();
+  await stop();
 }

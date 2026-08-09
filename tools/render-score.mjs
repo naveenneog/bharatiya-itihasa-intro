@@ -17,6 +17,7 @@ import { DIRECTIONS } from './directions.mjs';
 import { clipSeconds, schedule, totalSeconds } from './timeline.mjs';
 import { MASTER_AF } from './score.mjs';
 import { variant, beatsFor } from './variants.mjs';
+import { startServer } from './local-server.mjs';
 
 const execFileP = promisify(execFile);
 const ROOT = 'versions';
@@ -44,12 +45,12 @@ for (const b of beatsFor(dir, V)) {
 }
 const total = totalSeconds(schedule(beats));
 
-const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
+const server = await startServer();
 try {
   await new Promise((r) => setTimeout(r, 700));
   const browser = await launch();
   const page = await browser.newPage();
-  await page.goto(`http://localhost:${PORT}/${ROOT}/${dir.id}/${BUILD}/index.html?export=1&layer=scrim`,
+  await page.goto(`${server.base}/${ROOT}/${dir.id}/${BUILD}/index.html?export=1&layer=scrim`,
     { waitUntil: 'load' });
   await page.waitForFunction(() => window.__seq && window.__seq.CUES, { timeout: 20000 });
 
@@ -86,5 +87,5 @@ try {
   const tail = stderr.slice(stderr.lastIndexOf('Integrated loudness'));
   console.log('\n' + tail.split('\n').filter((l) => /I:|LRA:|Peak:/.test(l)).join('\n'));
 } finally {
-  try { server.kill(); } catch { /* already gone */ }
+  try { await server.stop(); } catch { /* already gone */ }
 }

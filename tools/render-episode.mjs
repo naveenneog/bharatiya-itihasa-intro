@@ -30,6 +30,7 @@ import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { launch } from '../scripts/browser.mjs';
+import { startServer } from './local-server.mjs';
 import { buildUnderscore } from './underscore.mjs';
 import { normaliseTo, assertLoudness, trimToTarget, measure } from './loudness.mjs';
 
@@ -118,10 +119,10 @@ if (!canReuse) {
 }
 await mkdir(path.dirname(OUT), { recursive: true });
 
-const server = canReuse ? null : spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
-const stop = () => { try { server?.kill(); } catch { /* gone */ } };
-process.on('exit', stop);
-if (server) await new Promise((r) => setTimeout(r, 700));
+/* In-process, on a port the OS picks — see tools/local-server.mjs for why. `canReuse` skips the
+   page entirely, so there is nothing to serve. */
+const server = canReuse ? null : await startServer();
+const stop = async () => { try { await server?.stop(); } catch { /* gone */ } };
 
 let tl;
 let fullDuration;
@@ -135,7 +136,7 @@ try {
     console.log(`reusing the body encode from the last run (${duration.toFixed(1)}s) — splice and loudness only`);
   } else {
   // ── the page ────────────────────────────────────────────────────────────
-  const url = `http://localhost:${PORT}/${EP.replace(/\\/g, '/')}/${CUT}/index.html?export=1`;
+  const url = `${server.base}/${EP.replace(/\\/g, '/')}/${CUT}/index.html?export=1`;
   const browser = await launch();
   const page = await browser.newPage({
     viewport: { width: W, height: H },
@@ -394,5 +395,5 @@ try {
   console.log(problems.length ? `\nPAGE WARNINGS:\n${problems.slice(0, 12).join('\n')}`
     : (canReuse ? '' : '\npage clean — no errors'));
 } finally {
-  stop();
+  await stop();
 }

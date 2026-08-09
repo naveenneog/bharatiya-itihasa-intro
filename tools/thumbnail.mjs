@@ -24,6 +24,7 @@ import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { launch } from '../scripts/browser.mjs';
+import { startServer } from './local-server.mjs';
 
 const execFileP = promisify(execFile);
 
@@ -287,9 +288,8 @@ for (const c of chosen) {
 }
 
 await mkdir(OUT, { recursive: true });
-const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
-const stop = () => { try { server.kill(); } catch { /* gone */ } };
-process.on('exit', stop);
+const server = await startServer();
+const stop = async () => { try { await server.stop(); } catch { /* gone */ } };
 
 try {
   await new Promise((r) => setTimeout(r, 700));
@@ -299,7 +299,7 @@ try {
   for (const c of chosen) {
     const html = path.join(OUT, `.${c.id}.html`);
     await writeFile(html, page(c));
-    await p.goto(`http://localhost:${PORT}/${OUT.replace(/\\/g, '/')}/.${c.id}.html`, { waitUntil: 'load' });
+    await p.goto(`${server.base}/${OUT.replace(/\\/g, '/')}/.${c.id}.html`, { waitUntil: 'load' });
 
     const ok = await p.evaluate(() => {
       const im = document.querySelector('#t img');
@@ -340,7 +340,7 @@ try {
   }
   await browser.close();
 } finally {
-  stop();
+  await stop();
 }
 
 // ── contact sheets ────────────────────────────────────────────────────────

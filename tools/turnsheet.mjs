@@ -20,6 +20,7 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import { runDir } from './keep.mjs';
 import { launch } from '../scripts/browser.mjs';
+import { startServer } from './local-server.mjs';
 
 const execFileP = promisify(execFile);
 const argv = process.argv.slice(2);
@@ -43,11 +44,10 @@ const H = Math.round(1080 * SCALE);
 
 await mkdir(OUT, { recursive: true });
 
-const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
-process.on('exit', () => { try { server.kill(); } catch { /* gone */ } });
+const server = await startServer();
 await new Promise((r) => setTimeout(r, 700));
 
-const url = `http://localhost:${PORT}/episodes/${SLUG}/${CUT}/index.html?export=1`;
+const url = `${server.base}/episodes/${SLUG}/${CUT}/index.html?export=1`;
 const browser = await launch();
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
 await page.goto(url, { waitUntil: 'load' });
@@ -111,4 +111,4 @@ console.log(`frames: ${OUT}`);
 /* Explicit, not only from the exit handler: a spawned child keeps the event loop referenced,
    so a server cleaned up solely on 'exit' deadlocks the process that is waiting to exit. One
    turnsheet sat like that for two days holding port 4419. */
-server.kill();
+await server.stop();

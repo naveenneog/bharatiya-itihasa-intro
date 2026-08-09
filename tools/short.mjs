@@ -35,6 +35,7 @@ import { speakYears } from './years.mjs';
 import { shortPage } from './short-page.mjs';
 import { buildUnderscore } from './underscore.mjs';
 import { normaliseTo, assertLoudness } from './loudness.mjs';
+import { startServer } from './local-server.mjs';
 
 const execFileP = promisify(execFile);
 const argv = process.argv.slice(2);
@@ -268,23 +269,25 @@ await mkdir(build, { recursive: true });
 await writeFile(path.join(build, 'index.html'),
   shortPage({ title: ep.title, beats, runtime, tail: TAIL }));
 
-const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
-/* Killed explicitly at the end, not only from the exit handler.
+/* Served in-process — see tools/local-server.mjs.
 
-   A spawned child keeps the parent's event loop referenced until it exits, so a server whose
-   only cleanup is `process.on('exit')` can never be reached: the process will not exit until the
-   child does, and the child is only killed when the process exits. This tool finished all its
-   work, wrote its upload folder, and then sat for seven hours holding up a thirteen-story run.
+   This was a spawned child on a fixed port, and the comment that used to sit here recorded why
+   that could not work: a spawned child keeps the parent's event loop referenced until it exits,
+   so a server whose only cleanup is `process.on('exit')` can never be reached — the process will
+   not exit until the child does, and the child is only killed when the process exits. This tool
+   finished all its work, wrote its upload folder, and then sat for seven hours holding up a
+   thirteen-story run.
 
    It was latent for weeks and surfaced the moment the machine was tidied. Orphaned servers from
    earlier days were squatting on these ports, so the spawn failed, the child died immediately,
    the handle was released and the process exited — the port clash was accidentally papering over
-   the deadlock. Clearing the orphans removed the accident. */
-const stop = () => { try { server.kill(); } catch { /* already gone */ } };
-process.on('exit', stop);
-await new Promise((r) => setTimeout(r, 700));
+   the deadlock. Clearing the orphans removed the accident, and `badami` hung the same night.
 
-const base = `http://localhost:${PORT}/${build.replace(/\\/g, '/')}/index.html`;
+   An explicit kill at the end patched the symptom. There is now no child at all. */
+const server = await startServer();
+const stop = async () => { try { await server.stop(); } catch { /* already gone */ } };
+
+const base = `${server.base}/${build.replace(/\\/g, '/')}/index.html`;
 const browser = await launch();
 const plates = {};
 {
@@ -521,4 +524,4 @@ const { stdout } = await execFileP('ffprobe', ['-v', 'error',
   '-show_entries', 'format=duration,size:stream=width,height', '-of', 'default=nw=1', OUTMP4]);
 console.log(`\ndone -> ${OUTMP4}\n${stdout.trim()}`);
 await assertLoudness(OUTMP4);
-stop();
+await stop();

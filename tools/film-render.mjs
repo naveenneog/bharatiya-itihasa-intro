@@ -26,6 +26,7 @@ import { filmPage, cardsOf, scrimsOf } from './film-page.mjs';
 import { buildUnderscore } from './underscore.mjs';
 import { normaliseTo, assertLoudness, trimToTarget, measure } from './loudness.mjs';
 import { filterScript } from './ffmpeg-args.mjs';
+import { startServer } from './local-server.mjs';
 
 const execFileP = promisify(execFile);
 const argv = process.argv.slice(2);
@@ -118,9 +119,8 @@ await writeFile(path.join(build, 'index.html'), filmPage({ ...film, tail: TAIL }
 
 const cards = cardsOf(film);
 const scrims = scrimsOf(film);
-const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
-const stop = () => { try { server.kill(); } catch { /* already gone */ } };
-process.on('exit', stop);
+const server = await startServer();
+const stop = async () => { try { await server.stop(); } catch { /* already gone */ } };
 
 async function alphaMax(png) {
   try {
@@ -136,7 +136,7 @@ const plates = {};
 const bed = path.join(TMP, 'bed.wav');
 try {
   await new Promise((r) => setTimeout(r, 700));
-  const base = `http://localhost:${PORT}/${ROOT}/${ID}/build/index.html?export=1`;
+  const base = `${server.base}/${ROOT}/${ID}/build/index.html?export=1`;
   const browser = await launch();
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
 
@@ -179,7 +179,7 @@ try {
 
   await browser.close();
 } finally {
-  stop();
+  await stop();
 }
 
 // ── sound ────────────────────────────────────────────────────────────────

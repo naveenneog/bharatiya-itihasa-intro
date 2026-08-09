@@ -14,6 +14,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { launch } from '../scripts/browser.mjs';
 import { runDir } from './keep.mjs';
+import { startServer } from './local-server.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
@@ -30,8 +31,7 @@ const W = 1920; const H = 1080;
 
 await mkdir(OUT, { recursive: true });
 
-const server = spawn(process.execPath, ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
-process.on('exit', () => { try { server.kill(); } catch { /* gone */ } });
+const server = await startServer();
 await new Promise((r) => setTimeout(r, 700));
 
 const browser = await launch();
@@ -39,7 +39,7 @@ const page = await browser.newPage({ viewport: { width: W, height: H }, deviceSc
 const problems = [];
 page.on('pageerror', (e) => problems.push('PAGEERROR ' + e.message));
 page.on('requestfailed', (r) => problems.push('REQFAIL ' + r.url()));
-await page.goto(`http://localhost:${PORT}/episodes/${SLUG}/${CUT}/index.html?export=1`, { waitUntil: 'load' });
+await page.goto(`${server.base}/episodes/${SLUG}/${CUT}/index.html?export=1`, { waitUntil: 'load' });
 await page.waitForFunction(() => window.__epReady === true, null, { timeout: 30000 });
 
 const tl = await page.evaluate(() => window.__ep.timeline());
@@ -86,7 +86,7 @@ for (const i of pick) {
 }
 
 await browser.close();
-server.kill();
+await server.stop();
 
 const cols = Math.min(4, shots.length);
 await writeFile(path.join(OUT, 'sheet.html'), `<!doctype html><meta charset="utf-8">
