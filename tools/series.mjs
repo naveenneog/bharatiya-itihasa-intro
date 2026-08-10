@@ -55,6 +55,35 @@ const BY_HAND = {
   samudragupta_s_hundred_victories: 'samudragupta',
   skandagupta_holds_back_the_huns: 'skandagupta',
   chandragupta_s_last_fast_at_shravanabelagola: 'shravanabelagola',
+
+  /* Slugs are a flat namespace — `episodes/<slug>` — but the rule below truncates at the first
+     "and/at/the/of/who/…", so four different kings all become `the-king`. That collision does not
+     surface until a second era tries to build into a directory the first one owns, which is where
+     Vijayanagara's Krishnadevaraya met Pallava's Nandivarman: "episodes/the-king was built from
+     the_king_who_turned_ally and you asked for the_king_who_wrote_amuktamalyada".
+
+     The two already built keep the short slug so their folders stay valid; every other member of
+     a colliding group is named here. checkSlugs below fails at plan time if a new one appears. */
+  water_in_the_desert: 'water-desert',
+  water_through_rock_at_bidar: 'bidar-water',
+  the_city_that_drew_itself_in_straight_lines: 'straight-lines',
+  the_city_that_did_not_smell: 'did-not-smell',
+  when_the_monsoons_changed: 'monsoons-changed',
+  when_the_deccan_empire_split: 'deccan-split',
+  the_river_the_two_republics_shared: 'two-republics',
+  the_queen_at_the_coin_pass: 'coin-pass',
+  the_queen_who_came_back: 'queen-came-back',
+  the_king_who_gathered_seven_hundred_songs: 'seven-hundred-songs',
+  the_king_who_became_jagannath_s_servant: 'jagannath-servant',
+  the_king_who_wrote_amuktamalyada: 'amuktamalyada',
+  the_man_who_read_the_sky_and_the_soil: 'sky-and-soil',
+  the_man_who_asked_why: 'asked-why',
+  lalitaditya_s_empire_and_its_legend: 'lalitaditya-empire',
+  lalitaditya_s_living_library: 'lalitaditya-library',
+  the_mathematician_who_made_numbers_dance: 'numbers-dance',
+  the_mathematician_at_the_edge_of_the_infinite: 'edge-of-infinite',
+  malik_kafur_at_the_granite_walls: 'kafur-granite',
+  malik_kafur_in_madurai: 'kafur-madurai',
 };
 const slugFor = (id) => BY_HAND[id]
   || id.replace(/_(and|at|the|of|in|through|that|who|s)_.*$/, '').replace(/_/g, '-');
@@ -103,6 +132,30 @@ function eraStart(era) {
 }
 
 const all = await loadStories();
+
+/* Two stories that share a slug share a directory, and the second one to build wins parts of the
+   first. Checked across every era rather than the one being produced, because that is the scope
+   the collision actually lives in, and checked before anything is generated rather than an hour
+   in when `rebuild` notices the episode it is rebuilding is a different story. */
+function checkSlugs(stories) {
+  const by = new Map();
+  for (const s of stories) {
+    const k = slugFor(s.id);
+    if (!by.has(k)) by.set(k, []);
+    by.get(k).push(s.id);
+  }
+  const clashes = [...by].filter(([, ids]) => ids.length > 1);
+  if (!clashes.length) return;
+  console.error('slug collision — these stories would share one episodes/ directory:\n');
+  for (const [slug, ids] of clashes) {
+    console.error(`  ${slug}`);
+    for (const id of ids) console.error(`    ${id}`);
+  }
+  console.error('\nAdd an entry to BY_HAND in tools/series.mjs for all but one of each group.');
+  process.exit(1);
+}
+checkSlugs(all);
+
 let stories = all.filter((s) => eraOf(s) === ERA);
 if (ONLY.length) stories = stories.filter((s) => ONLY.includes(slugFor(s.id)) || ONLY.includes(s.id));
 
