@@ -30,7 +30,14 @@
        than people do.
      - A hyphen is a word boundary, so `\bhand\b` matched "hand-drum" and refused a rotating
        two-headed drum on `tenali_rama_between_poet_and_folktale`. Hand is only a person's hand
-       when it stands alone: hand-drum, hand-mill and hand-axe are objects.
+       when it stands alone: hand-drum, hand-mill and hand-axe are objects. The same story then
+       lost "a child-sized reading slate" to `\bchild\b`, so the lookahead is now on the whole
+       person list rather than on the one word that happened to fail: a person-word followed by
+       a hyphen is a compound describing an object — child-sized, man-made, hand-drum.
+     - A puppet is an object that depicts a person, which is the whole of what ICONOGRAPHY is
+       for, but it was made of none of the listed materials. "A painted wooden puppet torso with
+       jointed arms" was refused three times on `tenali_rama_between_poet_and_folktale` — an
+       episode about folk theatre, where the puppet is the subject.
 
    Hands, fingers, crowds stay banned outright — there is no reading of those that is not a
    person. A checker that flags more than that stops being a check and becomes an obstacle.
@@ -41,10 +48,11 @@
    sat in the allowlist unable to see them. The person list had spelled out `hand|hands`, so the
    plural problem was known on one side of the test and missed on the other. */
 
-const ICONOGRAPHY = /\brelief|\bcarv|\bstruck\b|\bstamped\b|\bcast\b|\bcoin|\bmask|\bstatue|\bsculpt|\bidol|\bmedallion|\bseal|\bbronze\b|\bterracotta\b|\bstone\b|\bsandstone\b|\bgranite\b|\bmarble\b|\bschist\b|\balabaster\b|\bchiselled\b|\bchiseled\b|\bpolished\b|\bemblem|\bdinar|\beffigy|\beffigies|\bcopper|\bbrass\b|\biron\b|\bclay\b|\bivory\b|\bplate|\btablet|\bplaque|\bfinial|\bspire|\btower|\bpillar|\bcapital\b|\bshrine|\btemple|\bcornice|\bplinth|\blintel|\bfragment|\bdome\b|\bcolumn|\bvault\b|\bfrieze/i;
+const ICONOGRAPHY = /\brelief|\bcarv|\bstruck\b|\bstamped\b|\bcast\b|\bcoin|\bmask|\bstatue|\bsculpt|\bidol|\bmedallion|\bseal|\bbronze\b|\bterracotta\b|\bstone\b|\bsandstone\b|\bgranite\b|\bmarble\b|\bschist\b|\balabaster\b|\bchiselled\b|\bchiseled\b|\bpolished\b|\bemblem|\bdinar|\beffigy|\beffigies|\bcopper|\bbrass\b|\biron\b|\bclay\b|\bivory\b|\bplate|\btablet|\bplaque|\bfinial|\bspire|\btower|\bpillar|\bcapital\b|\bshrine|\btemple|\bcornice|\bplinth|\blintel|\bfragment|\bdome\b|\bcolumn|\bvault\b|\bfrieze|\bpuppet|\bmarionette|\bdoll\b|\bwood|\blacquer|\bpainted\b/i;
 
-/* `(?!-)` keeps a compound out: a hand-drum is an object, a hand is not. */
-const PERSON = /\bhands?\b(?!-)|\bfinger|\bperson\b|\bpeople\b|\bcrowd\b|\bman\b|\bwoman\b|\bchild\b/i;
+/* `(?!-)` keeps a compound out: a hand-drum is an object, a hand is not, and a child-sized
+   slate is a slate. */
+const PERSON = /\bhands?\b(?!-)|\bfinger|\bperson\b(?!-)|\bpeople\b(?!-)|\bcrowd\b(?!-)|\bman\b(?!-)|\bwoman\b(?!-)|\bchild\b(?!-)/i;
 
 /* Words that name a human form but just as readily name its image in stone or metal. */
 const DEPICTION = /\bface\b|\bfigure\b|\bbust\b|\btorso\b|\bsilhouette\b/i;
