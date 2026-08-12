@@ -27,7 +27,7 @@ import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { stash, recycle } from './keep.mjs';
-import { launch } from '../scripts/browser.mjs';
+import { launch, seekSettle } from '../scripts/browser.mjs';
 import { chatJson } from './llm.mjs';
 import { langOf, lineOf } from './lang.mjs';
 import { synth, seconds as mp3Seconds, foldToWritten } from './voice.mjs';
@@ -316,11 +316,8 @@ const plates = {};
   console.log(`  capturing ${n} type frames @ ${FPS}fps (${W}x${H})...`);
   const t0 = Date.now();
   for (let f = 0; f < n; f++) {
-    await page.evaluate((t) => {
-      window.__short.seek(t);
-      return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    }, f / FPS);
-    await page.screenshot({ path: path.join(TMP, 'type', `f${String(f).padStart(5, '0')}.png`), omitBackground: true });
+    await seekSettle(page, '__short', f / FPS);
+    await page.screenshot({ path: path.join(TMP, 'type', `f${String(f).padStart(5, '0')}.png`), omitBackground: true, timeout: 60000 });
     /* The first frame decides whether the next three minutes are worth capturing.
 
        A layer that comes back opaque overlays the picture out of existence, and the result

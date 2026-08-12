@@ -25,8 +25,20 @@ function findChromium() {
   return null;
 }
 
+/* Chromium suspends requestAnimationFrame outright in a renderer it considers backgrounded or
+   occluded. Every capture loop here advances a frame by waiting on rAF, so a suspended renderer
+   does not slow the capture down — it stops it dead, and page.evaluate has no timeout of its own
+   to end the wait. muhammad_bin_tughlaq_tests sat in exactly that state for seven hours with a
+   live browser and no frame written. */
+const NO_THROTTLE = [
+  '--disable-background-timer-throttling',
+  '--disable-renderer-backgrounding',
+  '--disable-backgrounding-occluded-windows',
+];
+
 export async function launch(opts = {}) {
-  const args = ['--force-color-profile=srgb', '--font-render-hinting=none', ...(opts.args || [])];
+  const args = ['--force-color-profile=srgb', '--font-render-hinting=none',
+    ...NO_THROTTLE, ...(opts.args || [])];
   try {
     return await chromium.launch({ ...opts, args });
   } catch (e) {
@@ -36,4 +48,31 @@ export async function launch(opts = {}) {
     console.warn(`[browser] using cached chromium: ${exe}`);
     return await chromium.launch({ ...opts, executablePath: exe, args });
   }
+}
+
+/** Reject rather than wait forever. Playwright's page.evaluate has no timeout at all. */
+export function withTimeout(p, ms, what) {
+  let t;
+  return Promise.race([
+    p.finally(() => clearTimeout(t)),
+    new Promise((_, rej) => { t = setTimeout(() => rej(new Error(`${what} timed out after ${ms}ms`)), ms); }),
+  ]);
+}
+
+/** Seek a capture page to `t` and wait for the frame to be painted, bounded on both sides.
+ *
+ *  The in-page wait races rAF against a timer because a backgrounded renderer suspends rAF
+ *  completely while it only clamps timers; the outer bound catches a renderer that has stopped
+ *  answering at all. A stall then costs a minute and a recorded failure instead of a night.
+ */
+export function seekSettle(page, globalName, t, ms = 60000) {
+  return withTimeout(page.evaluate(({ g, at }) => {
+    window[g].seek(at);
+    return new Promise((r) => {
+      let done = false;
+      const fin = () => { if (!done) { done = true; r(); } };
+      requestAnimationFrame(() => requestAnimationFrame(fin));
+      setTimeout(fin, 1000);
+    });
+  }, { g: globalName, at: t }), ms, `seek to ${t.toFixed(2)}s`);
 }

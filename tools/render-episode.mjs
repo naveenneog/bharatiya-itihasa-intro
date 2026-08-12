@@ -29,7 +29,7 @@ import { existsSync } from 'node:fs';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { launch } from '../scripts/browser.mjs';
+import { launch, seekSettle } from '../scripts/browser.mjs';
 import { startServer } from './local-server.mjs';
 import { buildUnderscore } from './underscore.mjs';
 import { normaliseTo, assertLoudness, trimToTarget, measure } from './loudness.mjs';
@@ -193,13 +193,11 @@ try {
   console.log(`  capturing ${total} frames @ ${FPS}fps (${W}x${H})...`);
   const t0 = Date.now();
   for (let f = 0; f < total; f++) {
-    await page.evaluate((t) => {
-      window.__ep.seek(t);
-      return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    }, f / FPS);
+    await seekSettle(page, '__ep', f / FPS);
     await page.screenshot({
       path: path.join(frames, `f${String(f).padStart(6, '0')}.jpg`),
       type: 'jpeg', quality: 94,
+      timeout: 60000,
     });
     if (f % 100 === 0) {
       const el = (Date.now() - t0) / 1000;
