@@ -110,6 +110,9 @@ Rules:
 - If the episode's figure is a woman, the description must say so; do not default to a man.
 - If the episode has no single human figure, describe the person the artwork actually shows
   doing the work the episode is about, and say so in "who".
+- The torso is always covered. Indian dress is often draped over one shoulder, and describing
+  the chest as bare or partly bare gets the image refused outright, so say how the cloth covers
+  it — drawn across the chest, wrapped over both shoulders — never what it leaves uncovered.
 - No text, letters, numerals or inscriptions anywhere in any description. If the real object
   is inscribed, say the marks are worn and indistinct.`;
 
@@ -142,6 +145,27 @@ const user = await withImages(text, refs);
 const got = await chatJson(SYSTEM, user, { maxTokens: 2000 });
 
 const problems = [];
+
+/* Azure refuses a bare torso as sexual content. `badami` lost five identical attempts to
+   "leaving his chest bare" and `paramesvara_watches_fifty_five_years` lost the two plates that
+   frame the upper body — gaze and defiant — while hold and eye passed, which is the signature.
+   The rule above usually holds, but this is rewritten rather than merely reported: `problems`
+   only prints, the factory carries on regardless, and the refusal then lands two stages later
+   as an unexplained HTTP 400 whose message is truncated before the reason. */
+const BARE = /,?\s*(?:leaving|with|and)?\s*(?:his|her|their|the)\s+(?:chest|torso|upper body)\s+(?:partly\s+|half\s+|mostly\s+)?(?:bare|uncovered|exposed)\b/gi;
+const BARE_ADJ = /\bbare[-\s]chested\b|\bshirtless\b|\bbare\s+torso\b/gi;
+const bareBefore = String(got.figure || '');
+const bareAfter = bareBefore
+  .replace(BARE, ', the cloth drawn across the chest')
+  .replace(BARE_ADJ, 'fully robed')
+  .replace(/\s+([,.])/g, '$1')
+  .replace(/,\s*,/g, ',')
+  .replace(/\s{2,}/g, ' ')
+  .trim();
+if (bareAfter !== bareBefore) {
+  got.figure = bareAfter;
+  problems.push('figure asked for a bare torso — rewritten as clothed, because Azure refuses it');
+}
 for (const k of ['figure', 'object', 'held']) {
   if (!got[k] || got[k].length < 30) problems.push(`${k} is too thin to produce a consistent image`);
   /* The model is told not to ask for writing; it sometimes does anyway, and the result is
