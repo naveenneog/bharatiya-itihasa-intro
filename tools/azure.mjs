@@ -230,7 +230,11 @@ async function call(url, init, tries = 10, onThrottle = null) {
     const r = await fetch(url, { ...init, headers: { Authorization: `Bearer ${tok}`, ...(init.headers || {}) } });
     if (r.ok) return r;
     const body = await r.text().catch(() => '');
-    last = `HTTP ${r.status} ${body.slice(0, 300)}`;
+    /* The body is pretty-printed JSON, so a plain slice of it is mostly newlines and indentation
+       and ends before the reason begins: every moderation refusal read exactly
+       `HTTP 400 { "error": { "message": "Your request wa`, which cost a separate probe to
+       resolve twice. Collapsing the whitespace first spends the budget on content. */
+    last = `HTTP ${r.status} ${body.replace(/\s+/g, ' ').trim().slice(0, 600)}`;
     if (r.status === 401 || r.status === 403) { await token(true); await sleep(2000); i++; continue; }
     if (r.status === 429) {
       const ra = parseInt(r.headers.get('retry-after') || '', 10);

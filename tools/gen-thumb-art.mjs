@@ -139,9 +139,12 @@ let done = 0;
 const results = await pool(jobs, 4, (job, res) => {
   done++;
   const el = ((Date.now() - t0) / 1000).toFixed(0);
+  /* The endpoint URL is ~150 characters, identical on every call, and used to consume the whole
+     error budget — which is why a moderation refusal only ever showed as "Your request wa". */
+  const why = String(res.error || '').replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim();
   console.log(res.ok
     ? `  [${done}/${jobs.length}] ${el}s  ok   ${job.label} -> ${path.basename(res.value)}`
-    : `  [${done}/${jobs.length}] ${el}s  FAIL ${job.label}: ${res.error.slice(0, 200)}`);
+    : `  [${done}/${jobs.length}] ${el}s  FAIL ${job.label}: ${why.slice(0, 400)}`);
 });
 
 const bad = results.filter((r) => !r.ok).length;
