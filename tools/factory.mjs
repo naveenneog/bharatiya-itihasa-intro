@@ -314,7 +314,14 @@ if (!todo.length) { console.log('\n  nothing to do — pass --force to redo a st
 
 // ── running ──────────────────────────────────────────────────────────────
 /* Output is streamed rather than captured. These stages take tens of minutes and a silent
-   terminal for an hour is indistinguishable from a hang. */
+   terminal for an hour is indistinguishable from a hang.
+
+   Resolve on `exit`, not `close`. `close` waits for the stdio pipes to close as well, and a
+   stage that dies without closing its browser leaves an orphaned Chromium holding the write end
+   open — so the child was gone and the run sat here anyway. muhammad_bin_tughlaq_tests crashed
+   its render at 23:33 and this function did not notice until 08:18. The short grace period after
+   exit is there so the last lines of output — the stack trace naming the fault — still make it
+   into the log. */
 function run(args, tag) {
   return new Promise((resolve) => {
     const p = spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -322,7 +329,18 @@ function run(args, tag) {
       .forEach((l) => console.log(`  ${tag} | ${l}`));
     p.stdout.on('data', line);
     p.stderr.on('data', line);
-    p.on('close', (code) => resolve(code === 0));
+
+    let settled = false;
+    let grace;
+    const done = (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(grace);
+      resolve(code === 0);
+    };
+    p.on('close', done);
+    p.on('exit', (code) => { grace = setTimeout(() => done(code), 3000); });
+    p.on('error', () => done(1));
   });
 }
 

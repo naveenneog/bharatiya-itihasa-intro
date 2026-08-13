@@ -192,20 +192,26 @@ try {
   const total = Math.ceil(duration * FPS);
   console.log(`  capturing ${total} frames @ ${FPS}fps (${W}x${H})...`);
   const t0 = Date.now();
-  for (let f = 0; f < total; f++) {
-    await seekSettle(page, '__ep', f / FPS);
-    await page.screenshot({
-      path: path.join(frames, `f${String(f).padStart(6, '0')}.jpg`),
-      type: 'jpeg', quality: 94,
-      timeout: 60000,
-    });
-    if (f % 100 === 0) {
-      const el = (Date.now() - t0) / 1000;
-      const eta = f ? ((el / f) * (total - f)) : 0;
-      process.stdout.write(`    ${((f / total) * 100).toFixed(0)}%  ${el.toFixed(0)}s elapsed, ~${eta.toFixed(0)}s left    \r`);
+  /* The browser is closed in a finally: a capture that throws used to leave Chromium running,
+     and an orphan holding the stdout pipe kept the parent waiting hours after this process
+     had already died. */
+  try {
+    for (let f = 0; f < total; f++) {
+      await seekSettle(page, '__ep', f / FPS);
+      await page.screenshot({
+        path: path.join(frames, `f${String(f).padStart(6, '0')}.jpg`),
+        type: 'jpeg', quality: 94,
+        timeout: 60000,
+      });
+      if (f % 100 === 0) {
+        const el = (Date.now() - t0) / 1000;
+        const eta = f ? ((el / f) * (total - f)) : 0;
+        process.stdout.write(`    ${((f / total) * 100).toFixed(0)}%  ${el.toFixed(0)}s elapsed, ~${eta.toFixed(0)}s left    \r`);
+      }
     }
+  } finally {
+    await browser.close().catch(() => { /* already gone */ });
   }
-  await browser.close();
   console.log(`\n  frames captured in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
 
   // ── narration ───────────────────────────────────────────────────────────

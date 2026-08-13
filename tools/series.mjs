@@ -79,6 +79,8 @@ const BY_HAND = {
   /* Neither prince is built, so both are named — no folder has to be kept valid. */
   the_prince_who_would_not_die: 'would-not-die',
   the_prince_who_read_the_hidden_books: 'hidden-books',
+  /* the_tanks_that_fed_an_empire is built as `the-tanks` in vijayanagara, so it keeps it. */
+  the_tanks_that_kept_mahoba_alive: 'mahoba-tanks',
   the_man_who_read_the_sky_and_the_soil: 'sky-and-soil',
   the_man_who_asked_why: 'asked-why',
   lalitaditya_s_empire_and_its_legend: 'lalitaditya-empire',
