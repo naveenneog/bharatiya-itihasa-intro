@@ -131,10 +131,11 @@ export function yearOf(story) {
   const century = s.match(
     /(early|mid|late)?[\s-]*(\d{1,2})(?:st|nd|rd|th)[^.]{0,24}?centur(?:y|ies)\s*(BCE|BC|CE|AD)?/i);
   const plain = s.match(/\b(\d{1,4})s?\s*(?:[-–—]\s*\d{1,4}s?\s*)?(BCE|BC|CE|AD)\b/i);
-  /* A year range often carries no era marker at all — "especially 1578-1617 and the seizure of
-     1610". Two 3-to-4 digit numbers joined by a dash is a date range and almost nothing else; a
-     lone bare number is not assumed, because panel counts and durations look the same. */
-  const bare = s.match(/\b(\d{3,4})\s*[-–—]\s*\d{3,4}\b/);
+  /* A date often carries no era marker at all — "especially 1578-1617 and the seizure of 1610",
+     "6 May 1529", "January-September 1687". A four-digit number in this field is a year and
+     essentially nothing else; three digits are not assumed, and neither are one or two, because
+     panel counts and durations look the same. */
+  const bare = s.match(/\b(1[0-9]{3}|20[0-9]{2})\b/);
 
   /* Whichever appears first in the text, since that is the story's own date. */
   const useCentury = century && (!plain || century.index <= plain.index);
