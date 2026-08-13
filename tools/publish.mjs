@@ -174,8 +174,15 @@ const dropped = marks.length - kept.length;
 
 /* The closing movement gets its own mark. It is a minute of picture with nothing said over
    it, and a chapter list whose last entry is four minutes from the end tells a viewer the
-   video finishes earlier than it does. */
-if (outroLen >= 12) kept.push({ at: runtime, name: 'The dot, resolved' });
+   video finishes earlier than it does.
+
+   It goes through the same ten-second rule as every other mark. It used to be appended
+   unconditionally, so when the last narrated chapter began less than ten seconds before the
+   outro the list carried a nine-second chapter and YouTube discarded the whole thing —
+   `acyuta` failed its score on exactly that, with every individual chapter looking right. */
+if (outroLen >= 12 && runtime - kept[kept.length - 1].at >= 10) {
+  kept.push({ at: runtime, name: 'The dot, resolved' });
+}
 
 const chapters = kept.map((m) => `${clock(m.at)} ${m.name}`).join('\n');
 await writeFile(path.join(OUT, 'chapters.txt'), chapters + '\n');
