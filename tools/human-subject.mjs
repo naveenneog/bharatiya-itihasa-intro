@@ -38,6 +38,9 @@
        for, but it was made of none of the listed materials. "A painted wooden puppet torso with
        jointed arms" was refused three times on `tenali_rama_between_poet_and_folktale` — an
        episode about folk theatre, where the puppet is the subject.
+     - A simile is not a person. `the_giant_book_of_heroes` lost all three attempts to "the
+       bristles fanning outward like many converging hands": the shot is brushes, and the hands
+       exist only in the comparison.
 
    Hands, fingers, crowds stay banned outright — there is no reading of those that is not a
    person. A checker that flags more than that stops being a check and becomes an obstacle.
@@ -57,11 +60,19 @@ const PERSON = /\bhands?\b(?!-)|\bfinger|\bperson\b(?!-)|\bpeople\b(?!-)|\bcrowd
 /* Words that name a human form but just as readily name its image in stone or metal. */
 const DEPICTION = /\bface\b|\bfigure\b|\bbust\b|\btorso\b|\bsilhouette\b/i;
 
+/* A simile compares the object to a person; it does not put one in the shot. `the_giant_book_of_heroes`
+   spent all three attempts on "the bristles fanning outward like many converging hands" — brushes,
+   and the only hands in the sentence are the ones they are said to resemble. The clause is dropped
+   before the test, so the simile's object stops counting while its subject still does: "a man like
+   a mountain" keeps the man. */
+const SIMILE = /\b(?:like|as if|as though|resembling|reminiscent of|recalling)\b[^.,;]*/gi;
+
 /** A problem string naming what to do instead, or null when the subject is fine. */
 export function flagPerson(subject) {
   const s = String(subject || '');
-  const depiction = DEPICTION.test(s);
-  if (!PERSON.test(s) && !(depiction && !ICONOGRAPHY.test(s))) return null;
+  const literal = s.replace(SIMILE, ' ');
+  const depiction = DEPICTION.test(literal);
+  if (!PERSON.test(literal) && !(depiction && !ICONOGRAPHY.test(literal))) return null;
   /* The message is an instruction, not a verdict: a validator that only says "no" gets the same
      answer back on the retry. */
   return 'contains a person — describe the object, not who is in it'
