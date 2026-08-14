@@ -29,7 +29,7 @@ import { existsSync } from 'node:fs';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { launch, seekSettle } from '../scripts/browser.mjs';
+import { launch, seekSettle, withTimeout } from '../scripts/browser.mjs';
 import { startServer } from './local-server.mjs';
 import { buildUnderscore } from './underscore.mjs';
 import { normaliseTo, assertLoudness, trimToTarget, measure } from './loudness.mjs';
@@ -194,7 +194,14 @@ try {
   const t0 = Date.now();
   /* The browser is closed in a finally: a capture that throws used to leave Chromium running,
      and an orphan holding the stdout pipe kept the parent waiting hours after this process
-     had already died. */
+     had already died.
+
+     close() is itself bounded, because the browser is often the thing that is wedged — a
+     screenshot that timed out is not a browser that will answer a shutdown. guru_arjan_gathers
+     hit its 60s screenshot timeout at 23:34 and then sat inside close() until 08:19. The
+     explicit exit is what guarantees the process actually dies: Playwright leaves handles open
+     that keep the event loop alive, so throwing is not enough. */
+  let captureError = null;
   try {
     for (let f = 0; f < total; f++) {
       await seekSettle(page, '__ep', f / FPS);
@@ -209,8 +216,14 @@ try {
         process.stdout.write(`    ${((f / total) * 100).toFixed(0)}%  ${el.toFixed(0)}s elapsed, ~${eta.toFixed(0)}s left    \r`);
       }
     }
+  } catch (e) {
+    captureError = e;
   } finally {
-    await browser.close().catch(() => { /* already gone */ });
+    await withTimeout(browser.close(), 15000, 'browser.close').catch(() => { /* wedged */ });
+  }
+  if (captureError) {
+    console.error(`\n  capture failed: ${captureError?.stack || captureError}`);
+    process.exit(1);
   }
   console.log(`\n  frames captured in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
 
