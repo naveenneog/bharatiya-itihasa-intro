@@ -81,6 +81,10 @@ const BY_HAND = {
   the_prince_who_read_the_hidden_books: 'hidden-books',
   /* the_tanks_that_fed_an_empire is built as `the-tanks` in vijayanagara, so it keeps it. */
   the_tanks_that_kept_mahoba_alive: 'mahoba-tanks',
+  /* `the-king` belongs to pallava's built the_king_who_turned_ally. */
+  the_king_who_wrote_his_copper_plate: 'copper-plate-king',
+  sangram_shah_and_the_fifty_two_forts: 'fifty-two-forts',
+  sangram_shah_s_sanskrit_court: 'sangram-sanskrit-court',
   the_man_who_read_the_sky_and_the_soil: 'sky-and-soil',
   the_man_who_asked_why: 'asked-why',
   lalitaditya_s_empire_and_its_legend: 'lalitaditya-empire',
