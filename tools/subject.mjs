@@ -113,6 +113,11 @@ Rules:
 - The torso is always covered. Indian dress is often draped over one shoulder, and describing
   the chest as bare or partly bare gets the image refused outright, so say how the cloth covers
   it — drawn across the chest, wrapped over both shoulders — never what it leaves uncovered.
+- Everyone described is an adult. A child or a teenager gets the image refused, so a figure who
+  was young at the time is "a young man in his early twenties", not "a boy".
+- "held" is never a bare weapon. A naked blade gets the image refused, and a battle is not
+  short of other objects: the standard, the seal, the drum, the parasol finial, the coin struck
+  afterwards. A sheathed hilt or a fragment of armour is fine; a glowing edge is not.
 - No text, letters, numerals or inscriptions anywhere in any description. If the real object
   is inscribed, say the marks are worn and indistinct.`;
 
@@ -165,6 +170,19 @@ const bareAfter = bareBefore
 if (bareAfter !== bareBefore) {
   got.figure = bareAfter;
   problems.push('figure asked for a bare torso — rewritten as clothed, because Azure refuses it');
+}
+
+/* Two more shapes Azure refuses at the output stage, reported rather than rewritten because
+   neither can be repaired without choosing a different subject. `second_panipat_and_hemu_s_arrow`
+   lost three of its four plates to both at once — "a clean-shaven, slim teenage boy" and "a
+   simple, curved cavalry sabre... its bare steel blade" — while the macro plate, which shows
+   neither, passed. That split is the tell. */
+if (/\b(boy|girl|child|teenage[rd]?|adolescent|youth)\b/i.test(got.figure || '')) {
+  problems.push('figure describes a minor — Azure refuses it; say "a young man/woman in their early twenties"');
+}
+if (/\b(sword|sabre|saber|blade|dagger|spear|axe|arrow|musket|knife)\b/i.test(got.held || '')
+  && !/sheath|scabbard|hilt only|fragment/i.test(got.held || '')) {
+  problems.push('held is a bare weapon — Azure refuses it; use the standard, seal, drum, finial or coin instead');
 }
 for (const k of ['figure', 'object', 'held']) {
   if (!got[k] || got[k].length < 30) problems.push(`${k} is too thin to produce a consistent image`);
