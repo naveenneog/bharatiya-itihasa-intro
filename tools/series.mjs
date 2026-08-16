@@ -83,6 +83,11 @@ const BY_HAND = {
   the_tanks_that_kept_mahoba_alive: 'mahoba-tanks',
   /* `the-king` belongs to pallava's built the_king_who_turned_ally. */
   the_king_who_wrote_his_copper_plate: 'copper-plate-king',
+  /* `copper-plates` is built from copper_plates_and_village_sabhas, so it keeps it. */
+  copper_plates_and_the_roads_of_malwa: 'malwa-roads',
+  /* Neither `what` story is built; both are named. */
+  what_the_chachnama_remembers: 'chachnama-remembers',
+  what_the_metal_knows: 'what-metal-knows',
   sangram_shah_and_the_fifty_two_forts: 'fifty-two-forts',
   sangram_shah_s_sanskrit_court: 'sangram-sanskrit-court',
   the_man_who_read_the_sky_and_the_soil: 'sky-and-soil',
