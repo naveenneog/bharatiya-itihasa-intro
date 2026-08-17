@@ -84,6 +84,9 @@ const BY_HAND = {
      chola 1259), so nothing surfaced until checkSlugs swept the whole corpus at plan time. */
   the_book_that_crossed_mountains: 'crossed-mountains',
   the_book_of_all_duties: 'all-duties',
+  /* `the-river` is already built from the_river_that_taught_the_stars in rashtrakuta, so that one
+     keeps the short slug and only its namesake is renamed. */
+  the_river_that_redrew_the_kingdom: 'redrew-the-kingdom',
   /* the_tanks_that_fed_an_empire is built as `the-tanks` in vijayanagara, so it keeps it. */
   the_tanks_that_kept_mahoba_alive: 'mahoba-tanks',
   /* `the-king` belongs to pallava's built the_king_who_turned_ally. */
