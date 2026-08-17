@@ -41,6 +41,11 @@
      - A signet ring has a face: the flat of its bezel. `amar_singh_i_makes_peace_with_jahangir`
        lost all three attempts to "a heavy Mughal-style signet ring ... its flat face catching
        and releasing glints" — the ring is the treaty, and the face is the part that seals it.
+     - A fort is architecture. The list already carried tower, pillar, dome and spire, but no
+       fortification at all, so `tarabai_outlasts_aurangzeb` — a story about hill-forts — lost
+       all three attempts to "a single rugged hill-fort silhouette". `purandar_under_jai_singh`
+       drew nearly the same image one story earlier and passed only because it happened to say
+       "carved from pale stone". The subject was never the difference; the wording was.
      - A simile is not a person. `the_giant_book_of_heroes` lost all three attempts to "the
        bristles fanning outward like many converging hands": the shot is brushes, and the hands
        exist only in the comparison.
@@ -54,7 +59,7 @@
    sat in the allowlist unable to see them. The person list had spelled out `hand|hands`, so the
    plural problem was known on one side of the test and missed on the other. */
 
-const ICONOGRAPHY = /\brelief|\bcarv|\bstruck\b|\bstamped\b|\bcast\b|\bcoin|\bmask|\bstatue|\bsculpt|\bidol|\bmedallion|\bseal|\bbronze\b|\bterracotta\b|\bstone\b|\bsandstone\b|\bgranite\b|\bmarble\b|\bschist\b|\balabaster\b|\bchiselled\b|\bchiseled\b|\bpolished\b|\bemblem|\bdinar|\beffigy|\beffigies|\bcopper|\bbrass\b|\biron\b|\bclay\b|\bivory\b|\bplate|\btablet|\bplaque|\bfinial|\bspire|\btower|\bpillar|\bcapital\b|\bshrine|\btemple|\bcornice|\bplinth|\blintel|\bfragment|\bdome\b|\bcolumn|\bvault\b|\bfrieze|\bsignet|\bring\b|\brings\b|\bbezel|\bintaglio|\bcameo|\bpuppet|\bmarionette|\bdoll\b|\bwood|\blacquer|\bpainted\b/i;
+const ICONOGRAPHY = /\brelief|\bcarv|\bstruck\b|\bstamped\b|\bcast\b|\bcoin|\bmask|\bstatue|\bsculpt|\bidol|\bmedallion|\bseal|\bbronze\b|\bterracotta\b|\bstone\b|\bsandstone\b|\bgranite\b|\bmarble\b|\bschist\b|\balabaster\b|\bchiselled\b|\bchiseled\b|\bpolished\b|\bemblem|\bdinar|\beffigy|\beffigies|\bcopper|\bbrass\b|\biron\b|\bclay\b|\bivory\b|\bplate|\btablet|\bplaque|\bfinial|\bspire|\btower|\bpillar|\bcapital\b|\bshrine|\btemple|\bcornice|\bplinth|\blintel|\bfragment|\bdome\b|\bcolumn|\bvault\b|\bfrieze|\bfort\b|\bforts\b|\bfortress|\bfortifi|\brampart|\bbastion|\bcitadel|\bbattlement|\bparapet|\bstronghold|\bmasonry\b|\bgatehouse|\bsignet|\bring\b|\brings\b|\bbezel|\bintaglio|\bcameo|\bpuppet|\bmarionette|\bdoll\b|\bwood|\blacquer|\bpainted\b/i;
 
 /* `(?!-)` keeps a compound out: a hand-drum is an object, a hand is not, and a child-sized
    slate is a slate. */
