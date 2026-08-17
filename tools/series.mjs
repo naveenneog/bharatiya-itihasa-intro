@@ -79,6 +79,11 @@ const BY_HAND = {
   /* Neither prince is built, so both are named — no folder has to be kept valid. */
   the_prince_who_would_not_die: 'would-not-die',
   the_prince_who_read_the_hidden_books: 'hidden-books',
+  /* Neither book is built either. `the-book` is the same truncation: both titles open with
+     "The Book" and the rule stops at "that"/"of". They sit in different eras (other 550,
+     chola 1259), so nothing surfaced until checkSlugs swept the whole corpus at plan time. */
+  the_book_that_crossed_mountains: 'crossed-mountains',
+  the_book_of_all_duties: 'all-duties',
   /* the_tanks_that_fed_an_empire is built as `the-tanks` in vijayanagara, so it keeps it. */
   the_tanks_that_kept_mahoba_alive: 'mahoba-tanks',
   /* `the-king` belongs to pallava's built the_king_who_turned_ally. */

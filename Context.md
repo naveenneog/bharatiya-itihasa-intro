@@ -1391,6 +1391,29 @@ touching `tools/`.** The failures look like real failures in the ledger and are 
 `series.mjs` itself is the exception — node has already loaded it, so editing it does not affect
 a run in progress, only the next one.
 
+### When an edit genuinely cannot wait — write, check, rename
+
+A rename is atomic; a write is not. So never write into `tools/` in place while a runner is
+going. Write the new text to `tools/.<name>-patch.tmp.mjs`, run `node --check` on it, and only
+then `fs.renameSync` it over the original. A stage that spawns mid-swap sees either the whole old
+file or the whole new one, never a torn half. **The temp file must end in `.mjs`** — `node --check`
+refuses an unknown extension, and that refusal is what stops the rename. That guard earned its
+keep on the first attempt here: the check failed on a `.tmp` name and the original was left
+untouched.
+
+This is the pattern that `todar-mal-counts-every-bigha` was lost for. Editing `llm.mjs` in place
+under a live runner let a stage read a half-written file.
+
+### Never `import` series.mjs to inspect it
+
+`series.mjs` runs its CLI at module scope, so `await import('./tools/series.mjs')` does not load
+it — it *starts a run*. Doing this to check `checkSlugs` began planning `gupta` and left a
+`dist/gupta/series.lock` behind. Harmless here (the pid was dead, and `series.mjs` takes over a
+lock whose pid is gone), but on a live era it would be a second runner.
+
+To read the corpus, import `tools/stories.mjs` — `loadStories`, `eraOf`, `yearOf` are all pure.
+To check slugs, run `series.mjs` as a subprocess and read its output.
+
 ---
 
 ## Two things that make an unattended run hard to debug
@@ -1473,6 +1496,26 @@ is now bucketed where it was actually built and uploaded.
 First-match-wins on an ordered keyword list stays fragile: any place, dynasty or name shared across
 two eras is claimed by whichever era is listed first. Putting a date in the story files would
 remove both this class of bug and `yearOf` altogether.
+
+### A dating fix changes era membership, so an era can grow under a live runner
+
+`eraOf` falls through to the date, so widening `yearOf` moves stories between eras. The century-range
+and lone-year fixes cut corpus-undated from 48 to 5 — and one of those newly dated stories,
+`karnal_and_the_three_hour_rout` (1739), landed in **mughal** after the mughal runner had already
+launched. A runner plans once at startup and holds that list, so it built 29 while the corpus said 30.
+
+The symptom is quiet: no error, no failed row, just a ledger one short of the corpus. Check it
+rather than trusting the count:
+
+```js
+const g = all.filter(s => eraOf(s) === era);
+const ids = new Set(Object.values(led.runs).map(r => r.id));
+for (const s of g) if (!ids.has(s.id)) console.log('missing:', s.id);
+```
+
+The era-end sweep re-plans and picks the newcomer up, so this costs nothing as long as the sweep
+actually happens. Never treat "the runner finished" as "the era is done" — compare against the
+corpus.
 
 ---
 
