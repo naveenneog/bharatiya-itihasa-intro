@@ -1497,25 +1497,38 @@ First-match-wins on an ordered keyword list stays fragile: any place, dynasty or
 two eras is claimed by whichever era is listed first. Putting a date in the story files would
 remove both this class of bug and `yearOf` altogether.
 
-### A dating fix changes era membership, so an era can grow under a live runner
+### A ledger shorter than the corpus — and a wrong explanation for it
 
-`eraOf` falls through to the date, so widening `yearOf` moves stories between eras. The century-range
-and lone-year fixes cut corpus-undated from 48 to 5 — and one of those newly dated stories,
-`karnal_and_the_three_hour_rout` (1739), landed in **mughal** after the mughal runner had already
-launched. A runner plans once at startup and holds that list, so it built 29 while the corpus said 30.
+Mughal had 30 stories in the corpus and 29 rows in `dist/mughal/series.json`. The missing one was
+`karnal_and_the_three_hour_rout` (1739), the last story chronologically.
 
-The symptom is quiet: no error, no failed row, just a ledger one short of the corpus. Check it
-rather than trusting the count:
+The first explanation was wrong and is worth keeping written down, because it was plausible.
+`eraOf` falls through to the date, so widening `yearOf` really does move stories between eras, and
+the lone-year fix really did cut corpus-undated from 48 to 5. It looked as though karnal had been
+dated into mughal *after* the runner planned, and since a runner plans once at startup, that it
+would never be seen. The conclusion was that karnal needed the era-end sweep.
+
+It did not. The runner reached karnal on its own — the story was in its plan all along. The dating
+fix landed 13 Aug, before both the runner that died in the 15 Aug reboot and the one that replaced
+it. The real cause is the reboot itself: killing a runner mid-flight writes a burst of fail rows
+for everything not yet built (18 of them inside one second here), and that write was interrupted.
+Karnal, sorted last, is exactly the row that never got written.
+
+So the gap was a **truncated bulk write**, not a stale plan. Two things follow:
+
+- A missing row is not the same as a missing story. It means no attempt was ever *recorded*, which
+  a later pass fixes by itself.
+- The check is still worth running, just not the alarm that went with it:
 
 ```js
 const g = all.filter(s => eraOf(s) === era);
 const ids = new Set(Object.values(led.runs).map(r => r.id));
-for (const s of g) if (!ids.has(s.id)) console.log('missing:', s.id);
+for (const s of g) if (!ids.has(s.id)) console.log('no row yet:', s.id);
 ```
 
-The era-end sweep re-plans and picks the newcomer up, so this costs nothing as long as the sweep
-actually happens. Never treat "the runner finished" as "the era is done" — compare against the
-corpus.
+Never treat "the runner finished" as "the era is done" — compare against the corpus. But read a
+gap as *unrecorded*, and confirm what the runner is actually doing before concluding it cannot see
+a story.
 
 ---
 
