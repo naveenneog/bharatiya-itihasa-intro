@@ -1497,38 +1497,49 @@ First-match-wins on an ordered keyword list stays fragile: any place, dynasty or
 two eras is claimed by whichever era is listed first. Putting a date in the story files would
 remove both this class of bug and `yearOf` altogether.
 
-### A ledger shorter than the corpus — and a wrong explanation for it
+### A ledger shorter than the corpus — two different causes, told apart by the runner
 
-Mughal had 30 stories in the corpus and 29 rows in `dist/mughal/series.json`. The missing one was
-`karnal_and_the_three_hour_rout` (1739), the last story chronologically.
+Mughal had 30 stories in the corpus and 29 rows in `dist/mughal/series.json`, the missing one being
+`karnal_and_the_three_hour_rout` (1739), last chronologically. The first reading was that `yearOf`
+had dated karnal into mughal *after* the runner planned, and since a runner plans once at startup,
+it could never be seen.
 
-The first explanation was wrong and is worth keeping written down, because it was plausible.
-`eraOf` falls through to the date, so widening `yearOf` really does move stories between eras, and
-the lone-year fix really did cut corpus-undated from 48 to 5. It looked as though karnal had been
-dated into mughal *after* the runner planned, and since a runner plans once at startup, that it
-would never be seen. The conclusion was that karnal needed the era-end sweep.
+That was wrong **for karnal**. The runner reached it unaided, so it had been in the plan all along —
+and the dating fix landed 13 Aug, before both the runner killed by the 15 Aug reboot and its
+replacement. The cause there is the reboot: killing a runner mid-flight writes a burst of fail rows
+for everything unbuilt (18 inside one second here) and that write was cut short. Karnal sorts last,
+so it is exactly the row that never landed.
 
-It did not. The runner reached karnal on its own — the story was in its plan all along. The dating
-fix landed 13 Aug, before both the runner that died in the 15 Aug reboot and the one that replaced
-it. The real cause is the reboot itself: killing a runner mid-flight writes a burst of fail rows
-for everything not yet built (18 of them inside one second here), and that write was interrupted.
-Karnal, sorted last, is exactly the row that never got written.
+But the *mechanism* is real, and auditing every era found it had already happened four times:
 
-So the gap was a **truncated bulk write**, not a stale plan. Two things follow:
+| era | corpus | rows | never attempted |
+|---|---|---|---|
+| gupta | 24 | 14 | **10** |
+| rashtrakuta | 10 | 8 | 2 |
+| delhi-sultanate | 30 | 29 | 1 |
+| maurya | 13 | 12 | 1 |
 
-- A missing row is not the same as a missing story. It means no attempt was ever *recorded*, which
-  a later pass fixes by itself.
-- The check is still worth running, just not the alarm that went with it:
+All four had been reported complete, because "complete" was measured against **the plan the runner
+made**, not against the corpus. `eraOf` falls through to the date, so every widening of `yearOf`
+moves stories between eras — the century-range and lone-year fixes cut corpus-undated from 48 to 5,
+and those newly dated stories landed in eras already finished. Gupta gained ten: Faxian, Harsha,
+Silabhadra, Lalitaditya, the cadaver in the lecture hall.
+
+So a short ledger has two causes, and the test that separates them is simple:
+
+- **Never attempted** — the story is in the corpus with no row at all, and no `.fail.log`. The era
+  was built before the story belonged to it. Re-run the era; the plan is rebuilt from the corpus.
+- **Row lost** — the runner demonstrably reached it. A truncated write during a kill. Also fixed by
+  re-running, but nothing was missed.
 
 ```js
 const g = all.filter(s => eraOf(s) === era);
 const ids = new Set(Object.values(led.runs).map(r => r.id));
-for (const s of g) if (!ids.has(s.id)) console.log('no row yet:', s.id);
+for (const s of g) if (!ids.has(s.id)) console.log('no row:', s.id);
 ```
 
-Never treat "the runner finished" as "the era is done" — compare against the corpus. But read a
-gap as *unrecorded*, and confirm what the runner is actually doing before concluding it cannot see
-a story.
+**Never call an era done without running this.** A runner that finishes has finished *its plan*, and
+a plan is a snapshot. Re-audit every era after any change to `yearOf` or `eraOf`.
 
 ---
 
