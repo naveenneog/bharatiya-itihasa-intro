@@ -12,6 +12,8 @@ import { readFile } from 'node:fs/promises';
 
 const APIV = '2025-01-01-preview';
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 /**
  * One chat completion.
  *
@@ -29,18 +31,40 @@ export async function chat(system, user, { model = 'gpt-5.1', json = false, maxT
   };
   if (json) body.response_format = { type: 'json_object' };
 
-  const tok = await token();
-  const r = await fetch(`${ENDPOINT}/openai/deployments/${model}/chat/completions?api-version=${APIV}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const text = await r.text();
-  if (!r.ok) throw new Error(`HTTP ${r.status} ${text.slice(0, 500)}`);
-  const j = JSON.parse(text);
-  const out = j.choices?.[0]?.message?.content;
-  if (!out) throw new Error(`no content: ${text.slice(0, 400)}`);
-  return out;
+  /* An AAD token outlives a request but not an era. `tukaroi_opens_bengal_to_akbar` reached the
+     `pack` stage thirteen hours into the run, by which time the token had expired, and this
+     function threw the 401 straight out — losing the story at stage four of twenty-two.
+     azure.mjs had always refreshed and retried on 401; this had not, and every language stage
+     in the pipeline comes through here.
+
+     Rate limits and gateway errors are retried for the same reason: at thirty-odd hours per era,
+     anything transient is certain to be met eventually. */
+  let last;
+  for (let i = 1; i <= 6; i++) {
+    const tok = await token();
+    const r = await fetch(`${ENDPOINT}/openai/deployments/${model}/chat/completions?api-version=${APIV}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const text = await r.text();
+    if (r.ok) {
+      const j = JSON.parse(text);
+      const out = j.choices?.[0]?.message?.content;
+      if (!out) throw new Error(`no content: ${text.slice(0, 400)}`);
+      return out;
+    }
+    last = `HTTP ${r.status} ${text.replace(/\s+/g, ' ').trim().slice(0, 500)}`;
+    if (r.status === 401 || r.status === 403) { await token(true); await sleep(2000); continue; }
+    if (r.status === 429) {
+      const ra = parseInt(r.headers.get('retry-after') || '', 10);
+      await sleep((Number.isFinite(ra) ? ra + 3 : 45) * 1000);
+      continue;
+    }
+    if (r.status >= 500) { await sleep(Math.min(60, 5 * i) * 1000); continue; }
+    throw new Error(last);
+  }
+  throw new Error(`gave up after 6 attempts\n  ${last}`);
 }
 
 /** Chat that must return JSON. Retries once, because a stray prose preamble is common. */
