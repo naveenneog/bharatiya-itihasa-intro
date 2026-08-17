@@ -134,6 +134,7 @@ let chosen;
 let why = 'chosen by hand';
 let rejected = null;
 let opener = null;
+let swapped = null;
 
 if (MANUAL) {
   chosen = MANUAL.split(',').map((s) => s.trim());
@@ -183,6 +184,7 @@ if (MANUAL) {
   } else if (opener !== openers[0]) {
     console.log(`  opener: ${openers[0]} ranked first but ${opener} spreads the series better`);
   }
+  if (opener !== openers[0]) swapped = openers[0];
   chosen = [opener, subject];
 }
 
@@ -211,6 +213,17 @@ if (MANUAL) {
 }
 
 await mkdir(EP, { recursive: true });
+/* `why` is the model's own reasoning, written before the spread rule ran. When that rule
+   substitutes a different opener the sentence is left describing a beat the stinger does not
+   use — three Mughal episodes recorded openers of Surat and the Taj while opening on Jahangir
+   and Nur Jahan. The choice was right each time and only the record was stale, but the record
+   is the whole reason the file is kept. The reasoning stays; the substitution is stated. */
+if (swapped) {
+  const name = (id) => have.get(id)?.era?.en || id;
+  why = `${why}${why.trim().endsWith('.') ? '' : '.'} Opener changed after this reasoning: the`
+    + ` model ranked ${swapped} (${name(swapped)}) first, and ${opener} (${name(opener)}) is used`
+    + ' instead so the era does not open on the same beat twice.';
+}
 await writeFile(FILE, `${JSON.stringify({ era: ERA, beats: chosen, why, rejected }, null, 2)}\n`);
 
 console.log('');
