@@ -73,12 +73,36 @@ HARD RULES
 Return JSON only:
 {"shots":[{"id":"kebab-case-two-words","subject":"..."} , ... exactly 7, in order]}`;
 
+/* The claims are handed over twice: in full, and then stripped if Azure refuses them.
+
+   `lal_mahal_raid_on_shaista_khan` died here at stage 19 of 22, 53 minutes in. Not the image
+   model this time and not a person in a shot — the *prompt* was refused, `param: "prompt"`,
+   `ResponsibleAIPolicyViolation`, before a single shot existed. The claim that did it reads
+   "Akhbarat letters report Shaista Khan's fingers cut, his honour wounded far worse", with
+   "wakes to Maratha steel" three lines above it. Both are accurate, both are the episode, and
+   neither is going to be rewritten to suit a filter.
+
+   But the shot planner does not need them. It is asked for objects in black water and is
+   forbidden from naming the person, the place or the era anyway — the claims are there to say
+   what each beat is *about*. The kick labels already say that: THE SHOCK, TAKEN PALACE, THE
+   WOUND. So a refusal falls back to the labels alone and the plan still lands on the right
+   seven subjects, just derived from the beat rather than its wording.
+
+   This is degradation, not repair: the full text is always tried first, and the fallback only
+   runs when the API refuses to read it. An era of battles will meet this again. */
 const user = `Episode: ${ep.title}
 Figure: ${ep.figure || '(none)'}
 Era: ${ep.era || ''}
 
 THE SEVEN CLAIMS, in order:
 ${script.lines.map((l, i) => `${i + 1}. [${l.kick}] ${l.text}`).join('\n')}`;
+
+const claimsOnly = `Episode: ${ep.title}
+Figure: ${ep.figure || '(none)'}
+Era: ${ep.era || ''}
+
+THE SEVEN BEATS, in order. Only the beat label is given; write the object each one is about:
+${script.lines.map((l, i) => `${i + 1}. ${l.kick}`).join('\n')}`;
 
 let plan = await readFile(PLANFILE, 'utf8').then(JSON.parse).catch(() => null);
 if (!plan || has('replan')) {
@@ -89,8 +113,18 @@ if (!plan || has('replan')) {
      away six good shots to punish the seventh. */
   let shots = [];
   let note = '';
+  let softened = false;
   for (let attempt = 1; ; attempt++) {
-    const got = await chatJson(SYSTEM, user + note, { maxTokens: 2000 });
+    let got;
+    try {
+      got = await chatJson(SYSTEM, (softened ? claimsOnly : user) + note, { maxTokens: 2000 });
+    } catch (e) {
+      if (softened || !/content_filter|ResponsibleAIPolicy/i.test(String(e && e.message))) throw e;
+      console.error(`the claims were refused by the content filter; planning from the beat labels alone`);
+      softened = true;
+      attempt--;
+      continue;
+    }
     shots = Array.isArray(got.shots) ? got.shots : [];
 
     /* Checked, not trusted. The writing rule is the one that matters: "worn and indistinct"
