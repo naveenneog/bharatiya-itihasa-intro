@@ -1555,6 +1555,35 @@ video.
 
 ---
 
+## An episode was built into the wrong era, and it is already made
+
+`the_debased_coin_and_the_divided_court` is dated **"Karkota decline, c. 760–855 CE"** — Kashmir,
+eighth century. It was produced as the **opening Mughal episode**, and its stinger is `02-mansab`
+and `06-nurjahan`: the Mughal rank system and Nur Jahan's coin of the 1620s, roughly eight hundred
+years after the story it is introducing.
+
+Nothing objected, because `eraOf` matches keywords first and both dates are CE. "Debased coin" and
+"divided court" are Mughal-sounding phrases. The isolation guard added later would have skipped it —
+it is 766 years from any other Mughal story — but it was already built by then, and the guard
+deliberately leaves built work alone.
+
+**It must not be uploaded as a Mughal episode.** The master exists and is technically fine; the
+framing is what is wrong, and a history channel opening its Mughal series on an eighth-century
+Kashmiri coin is the error the `eraMismatch` comment was written about in the first place. The
+decision — drop it from the Mughal set, or rebuild it under a Kashmir era — is editorial and is
+recorded as a todo rather than taken here.
+
+Worth noting how it was found: not by watching it, but by asking which stories have **no neighbour
+within four centuries in their own era**. That question found six more misfiled stories in eras not
+yet built. It costs one query and should be run whenever the corpus moves.
+
+The same sweep shows the keyword bucket has errors a date test cannot see at all — `cabral_s_
+factory_and_the_miri_fire`, the Portuguese at Calicut in 1500, sits in **bhakti** beside Mirabai
+and Purandara Dasa. It is dated close enough to them that isolation says nothing. Dates catch the
+absurd; only reading catches the merely wrong.
+
+---
+
 ## Slug collisions resolve themselves
 
 `slugFor` truncates an upstream id at its first connective, so `the_king_s_physician_under_law` and
