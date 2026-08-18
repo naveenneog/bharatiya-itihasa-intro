@@ -37,6 +37,11 @@ Standing constraints, unchanged and repeatedly verified:
 `C:\Users\navg\DailyApps\IndianHistory` is **read from and never written to**, and the Indian
 Tales repos are never touched at all.
 
+**It is read-only to us, but not to its author.** The library grew from 695 to 698 stories
+overnight on 17–18 Aug, unannounced. Treat the corpus as live: story counts move, eras gain
+members, and anything derived from it must survive that without hand-editing. See "Slug
+collisions resolve themselves" and "A ledger shorter than the corpus".
+
 ---
 
 ## Version history
@@ -1540,6 +1545,46 @@ for (const s of g) if (!ids.has(s.id)) console.log('no row:', s.id);
 
 **Never call an era done without running this.** A runner that finishes has finished *its plan*, and
 a plan is a snapshot. Re-audit every era after any change to `yearOf` or `eraOf`.
+
+One row in that audit is not what it looks like. Maurya's `the_grammar_that_watched_a_war` reads
+`failed`, but the episode is **built** — a 307 MB master from 4 Aug and a 12-file publish kit. It
+failed the *upload* stage, which was still part of the run then: the file reached YouTube, the
+upload did not finish, and `upload.mjs` refuses to send it twice. Re-running the era without
+`--upload` records it `ok`. A ledger row names the stage that failed, and not every stage makes
+video.
+
+---
+
+## Slug collisions resolve themselves
+
+`slugFor` truncates an upstream id at its first connective, so `the_king_s_physician_under_law` and
+`the_king_who_turned_ally` both want `episodes/the-king`. The old handling was to name the loser in
+`BY_HAND` — 47 entries deep by the end — and `checkSlugs` exited when it found one it did not know.
+
+That is fine while the library holds still, and the library does not. Three collisions appeared in a
+single day — `the-book`, `the-river`, `the-king` — and because the check runs across the **whole
+corpus**, each one stopped *every* era: a mughal sweep died twice on stories belonging to `other`
+and `chola`. Twice that cost a night's building, because the runner exits before it takes the lock
+and nothing looks wrong until you read the log.
+
+Resolution is now derived, in this order:
+
+1. **`BY_HAND` still wins.** Those slugs are published; they must not move.
+2. **The story already built keeps the short name.** `episodes/<slug>/episode.json` names its owner,
+   so the directory on disk *is* the record of who got there first.
+3. **Everyone else falls back to the full id**, which is unique by construction.
+
+When none of them is built they all take the long name rather than one winning arbitrarily — the
+rule the two princes already followed by hand.
+
+`checkSlugs` stays, as an assertion. If anything still collides the derivation is wrong, and telling
+the reader to edit `BY_HAND` would send them to fix the wrong thing.
+
+Verified before committing, and worth re-running after any change here: 698 stories resolve with
+**zero duplicates**, all **168 built stories keep their existing directory**, and **166 masters** on
+disk are still addressed by their slug. Note that `episodes/zero-hi` shares its story id with
+`episodes/zero` — a Hindi variant is not a second claim on a slug, and a check that assumes one
+directory per story will report a false move.
 
 ---
 
