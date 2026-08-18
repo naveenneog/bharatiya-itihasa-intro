@@ -17,7 +17,7 @@
    The ledger is dist/<era>/series.json.
 */
 import { writeFile, readFile, mkdir } from 'node:fs/promises';
-import { unlinkSync } from 'node:fs';
+import { unlinkSync, readdirSync, readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { loadStories, eraOf, yearOf } from './stories.mjs';
@@ -107,8 +107,58 @@ const BY_HAND = {
   malik_kafur_at_the_granite_walls: 'kafur-granite',
   malik_kafur_in_madurai: 'kafur-madurai',
 };
-const slugFor = (id) => BY_HAND[id]
+const baseSlug = (id) => BY_HAND[id]
   || id.replace(/_(and|at|the|of|in|through|that|who|s)_.*$/, '').replace(/_/g, '-');
+
+/* Collisions resolve themselves, because the corpus is upstream and alive.
+
+   The rule above truncates at the first connective, so "The King's Physician Under Law" and "The
+   King Who Turned Ally" both become `the-king`. That was handled by naming the loser in BY_HAND,
+   which works exactly as long as the story library holds still. It does not: IndianHistory is
+   read-only to us but not to its author, and it grew from 695 to 698 stories overnight. Three new
+   collisions surfaced in one day — the-book, the-river, the-king — and because checkSlugs runs
+   across the whole corpus and exits, **each one stopped every era from building**, including eras
+   with nothing to do with the colliding stories. A mughal sweep died twice on stories from `other`
+   and `chola`.
+
+   So the resolution is derived rather than declared:
+
+     1. BY_HAND still wins. Those entries are already published and must not move.
+     2. Otherwise, when several stories want one slug, the one that has already been BUILT keeps
+        it — `episodes/<slug>/episode.json` names its owner, so the directory itself is the record.
+     3. Everyone else falls back to the full id, which is unique by construction.
+
+   When none of them is built there is no folder to keep valid, so all of them take the long name
+   rather than one winning arbitrarily — the rule the two princes already followed by hand.
+
+   A new upstream story can now collide freely: it takes a long slug, nothing already made moves,
+   and no unrelated era is blocked. */
+const OWNER = new Map();
+for (const d of readdirSync('episodes', { withFileTypes: true }).filter((e) => e.isDirectory())) {
+  try {
+    OWNER.set(d.name, JSON.parse(readFileSync(path.join('episodes', d.name, 'episode.json'), 'utf8')).id);
+  } catch { /* a half-built directory owns nothing */ }
+}
+
+const SLUG = new Map();
+function resolveSlugs(stories) {
+  const groups = new Map();
+  for (const s of stories) {
+    if (BY_HAND[s.id]) { SLUG.set(s.id, BY_HAND[s.id]); continue; }
+    const b = baseSlug(s.id);
+    if (!groups.has(b)) groups.set(b, []);
+    groups.get(b).push(s.id);
+  }
+  for (const [b, ids] of groups) {
+    if (ids.length === 1) { SLUG.set(ids[0], b); continue; }
+    const owner = OWNER.get(b);
+    for (const id of ids) SLUG.set(id, id === owner ? b : id.replace(/_/g, '-'));
+    console.error(`  slug: ${ids.length} stories want "${b}" — `
+      + (owner ? `${owner} is built and keeps it` : 'none is built, so all take their full id'));
+  }
+}
+
+const slugFor = (id) => SLUG.get(id) || baseSlug(id);
 
 /* A story whose own dates fall outside the era it is filed under.
 
@@ -156,9 +206,9 @@ function eraStart(era) {
 const all = await loadStories();
 
 /* Two stories that share a slug share a directory, and the second one to build wins parts of the
-   first. Checked across every era rather than the one being produced, because that is the scope
-   the collision actually lives in, and checked before anything is generated rather than an hour
-   in when `rebuild` notices the episode it is rebuilding is a different story. */
+   first. Resolution happens above and is derived, so this is now an assertion rather than a
+   workflow step: if anything still collides after that, the derivation itself is wrong, and a
+   message telling the user to edit BY_HAND would be sending them to fix the wrong thing. */
 function checkSlugs(stories) {
   const by = new Map();
   for (const s of stories) {
@@ -168,14 +218,14 @@ function checkSlugs(stories) {
   }
   const clashes = [...by].filter(([, ids]) => ids.length > 1);
   if (!clashes.length) return;
-  console.error('slug collision — these stories would share one episodes/ directory:\n');
+  console.error('slug collision survived resolution — this is a bug in slugFor, not a missing entry:\n');
   for (const [slug, ids] of clashes) {
     console.error(`  ${slug}`);
     for (const id of ids) console.error(`    ${id}`);
   }
-  console.error('\nAdd an entry to BY_HAND in tools/series.mjs for all but one of each group.');
   process.exit(1);
 }
+resolveSlugs(all);
 checkSlugs(all);
 
 let stories = all.filter((s) => eraOf(s) === ERA);
