@@ -17,7 +17,7 @@
    The ledger is dist/<era>/series.json.
 */
 import { writeFile, readFile, mkdir } from 'node:fs/promises';
-import { unlinkSync, readdirSync, readFileSync } from 'node:fs';
+import { unlinkSync, readdirSync, readFileSync, existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { loadStories, eraOf, yearOf } from './stories.mjs';
@@ -191,6 +191,36 @@ function eraMismatch(story, era) {
     const y = yearOf(story);
     if (start !== null && y !== null && start - y <= 250) return null;
     return `dated ${t.trim()} — BCE, in a CE era`;
+  }
+
+  /* The same error in the other direction, which the BCE test cannot see.
+
+     `the_cadaver_in_the_lecture_hall` is Calcutta Medical College, 1835, and the keyword bucket
+     files it under **gupta** — an era whose ten beats are a gold dinar, the zero, the iron pillar,
+     Ajanta and Kalidasa, and which its own title calls "the Gupta Age". Both dates are CE, so
+     nothing above objects, and it would have been produced with a Gupta stinger. Six more sit in
+     eras not yet started: Ahom coinage of 1750 filed under sangam, Maratha textiles of 1650 under
+     satavahana, and 1918 reservations under chola.
+
+     The test is isolation, not range, because a range needs an authored period and the beats do
+     not carry one — parsing their dates reads "π ≈ 3.1416" as the year 1416. A story with no
+     neighbour within four centuries is alone in its era, and that is the thing worth acting on:
+     Brahmagupta's 628 sits beside Nalanda's 650, but 1835 sits beside nothing.
+
+     **Only unbuilt stories are skipped.** A built story has a folder, a master and a decision
+     already made, and skipping it now would neither undo that nor help. It also removes the one
+     false positive this test has: bhakti's Tamil women poet-saints, 5th-8th century, a thousand
+     years before Mirabai and genuinely the dawn the era is named for. They are built, so they
+     stay. Mis-bucketed stories that are *already* built are a separate problem — see
+     `the_debased_coin_and_the_divided_court` in Context.md. */
+  const y = yearOf(story);
+  if (y !== null && y > 0 && !existsSync(path.join('episodes', slugFor(story.id), 'episode.json'))) {
+    const others = all.filter((s) => eraOf(s) === era && s.id !== story.id)
+      .map(yearOf).filter((v) => v !== null);
+    if (others.length) {
+      const nearest = Math.min(...others.map((o) => Math.abs(o - y)));
+      if (nearest > 400) return `dated ${t.trim()} — ${nearest} years from any other ${era} story`;
+    }
   }
   return null;
 }
