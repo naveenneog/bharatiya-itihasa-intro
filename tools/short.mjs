@@ -27,7 +27,7 @@ import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { stash, recycle } from './keep.mjs';
-import { launch, seekSettle } from '../scripts/browser.mjs';
+import { launch, seekSettle, withTimeout } from '../scripts/browser.mjs';
 import { chatJson } from './llm.mjs';
 import { langOf, lineOf } from './lang.mjs';
 import { synth, seconds as mp3Seconds, foldToWritten } from './voice.mjs';
@@ -296,7 +296,7 @@ const plates = {};
     await page.goto(`${base}?layer=${layer}`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.__shortReady === true, null, { timeout: 30000 });
     const out = path.join(TMP, `${layer}.png`);
-    await page.screenshot({ path: out, omitBackground: true });
+    await page.screenshot({ path: out, omitBackground: true, timeout: 60000 });
     plates[layer] = out;
   }
   await page.close();
@@ -359,7 +359,18 @@ const plates = {};
   console.log(`  bed: ${cues.length} cues`);
   await page.close();
 }
-await browser.close();
+/* Bounded, for the reason render-episode.mjs is bounded.
+
+   `purandar_treaty_and_jai_singh_s_net` wrote its last Short asset at 23:28 and did not record
+   until 08:18 — 594 minutes for a story whose master had been finished since 23:18. Nothing was
+   burning CPU. It is the same wedge `guru_arjan_gathers` sat in from 23:34 to 08:19, and the
+   near-identical clock times are the tell: a browser that stops answering does not answer a
+   shutdown either, and close() waits for it forever.
+
+   render-episode.mjs was fixed for this and short.mjs was not, because the hunt stopped at the
+   file where the hang was first seen. Both drive a browser; both needed it. The plate capture
+   above was also the last screenshot in the codebase with no timeout at all. */
+await withTimeout(browser.close(), 15000, 'browser.close').catch(() => { /* wedged; the frames are already on disk */ });
 
 // ── 5. the picture ───────────────────────────────────────────────────────
 /* The story's own takes, not the era's.

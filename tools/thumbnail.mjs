@@ -23,7 +23,7 @@ import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { launch } from '../scripts/browser.mjs';
+import { launch, withTimeout } from '../scripts/browser.mjs';
 import { startServer } from './local-server.mjs';
 
 const execFileP = promisify(execFile);
@@ -338,7 +338,9 @@ try {
     console.log(`  ok   ${c.id.padEnd(16)} ${HEADLINES[c.head].l1} ${HEADLINES[c.head].l2}`
       + `  (${(Number(kb) / 1024).toFixed(0)} KB)`);
   }
-  await browser.close();
+  /* Bounded: a browser that has stopped answering will not answer a shutdown either, and an
+   unbounded close() waits for it for hours. See the comment in short.mjs. */
+await withTimeout(browser.close(), 15000, 'browser.close').catch(() => { /* wedged; the output is already on disk */ });
 } finally {
   await stop();
 }

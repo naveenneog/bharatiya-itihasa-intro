@@ -21,7 +21,7 @@ import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { stash } from './keep.mjs';
-import { launch } from '../scripts/browser.mjs';
+import { launch, withTimeout } from '../scripts/browser.mjs';
 import { XF, TAIL, schedule, clipSeconds, totalSeconds } from './timeline.mjs';
 import { MASTER_AF } from './score.mjs';
 import { normaliseTo, assertLoudness } from './loudness.mjs';
@@ -120,7 +120,9 @@ async function renderPlates(sched, plateDir) {
     await writeFile(plates.wav, Buffer.from(b64, 'base64'));
   }
 
-  await browser.close();
+  /* Bounded: a browser that has stopped answering will not answer a shutdown either, and an
+   unbounded close() waits for it for hours. See the comment in short.mjs. */
+await withTimeout(browser.close(), 15000, 'browser.close').catch(() => { /* wedged; the output is already on disk */ });
   return plates;
 }
 

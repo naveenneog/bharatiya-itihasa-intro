@@ -20,7 +20,7 @@ import { existsSync } from 'node:fs';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { launch } from '../scripts/browser.mjs';
+import { launch, withTimeout } from '../scripts/browser.mjs';
 import { loadFilm, ROOT } from './films.mjs';
 import { filmPage, cardsOf, scrimsOf } from './film-page.mjs';
 import { buildUnderscore } from './underscore.mjs';
@@ -177,7 +177,9 @@ try {
   }, { c: cues, d: total + 1 });
   await writeFile(bed, Buffer.from(b64, 'base64'));
 
-  await browser.close();
+  /* Bounded: a browser that has stopped answering will not answer a shutdown either, and an
+   unbounded close() waits for it for hours. See the comment in short.mjs. */
+await withTimeout(browser.close(), 15000, 'browser.close').catch(() => { /* wedged; the output is already on disk */ });
 } finally {
   await stop();
 }
