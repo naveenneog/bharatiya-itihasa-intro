@@ -114,6 +114,7 @@ if (!plan || has('replan')) {
   let shots = [];
   let note = '';
   let softened = false;
+  let lastBad = new Set();
   for (let attempt = 1; ; attempt++) {
     let got;
     try {
@@ -158,9 +159,30 @@ if (!plan || has('replan')) {
     }
     console.error(`shot plan attempt ${attempt} did not pass, asking again:`);
     for (const p of problems) console.error(`  - ${p}`);
+    /* A rejection the model answers by rewording is a rejection it has not understood.
+
+       `nana_fadnavis_and_the_twelve_pillars` is about the papers in the Peshwa Daftar, so the
+       planner reached for a writing board, was told writing comes out as gibberish glyphs, and
+       came back with the same writing board plus the words "in branching channels". Three
+       attempts, one object, 48 minutes lost at stage 20 of 22.
+
+       The first message is advice. The second, for a shot that fails twice, is an instruction:
+       change the object. Kept narrow — only shots that failed the previous attempt too. */
+    const bad = new Set();
+    for (const p of problems) { const m = /^shot (\d+):/.exec(p); if (m) bad.add(m[1]); }
+    const repeated = new Set([...bad].filter((n) => lastBad.has(n)));
+    lastBad = bad;
+
     note = '\n\nYour previous answer was rejected for these reasons:\n'
       + problems.map((p) => `- ${p}`).join('\n')
-      + '\nReturn all seven shots again with every one of them fixed.';
+      + '\nReturn all seven shots again with every one of them fixed.'
+      + (repeated.size
+        ? `\n\nShot(s) ${[...repeated].join(', ')} failed for the same reason last time. Rewording`
+          + ' is not enough: choose a DIFFERENT OBJECT for those shots. If the beat is about'
+          + ' documents, records or accounts, do not name any writing surface — use the thing the'
+          + ' paperwork acts on or travels in: a seal, a coin, a knotted cord, a folded cloth, a'
+          + ' lamp, a weight, a locked box, a bundle tie.'
+        : '');
   }
 
   plan = {
