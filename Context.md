@@ -261,6 +261,36 @@ Full brief with URLs was produced by a research sub-agent; re-run if needed.
 
 ## Environment gotchas
 
+- **The machine sleeps every night, ~23:31 to ~08:17.** Nothing else in this document explains
+  more lost wall-clock time: roughly **8¾ hours a night**, about a third of every day. It is a
+  real suspend, not throttling — the Kernel-Power log says so, and the evidence in a build is a
+  frame directory with a clean hole in it:
+
+  ```
+  08-19 23   4157 frames        Get-WinEvent -FilterHashtable @{LogName='System';
+  08-20 08    621 frames          ProviderName='Microsoft-Windows-Kernel-Power'}
+                                08-19 23:31:34  id=42  The system is entering sleep.
+                                08-20 08:16:41  id=566 session transition (resume)
+  ```
+
+  **A story that "hangs" overnight and finishes in the morning did not hang.** It slept.
+  `purandar_treaty_and_jai_singh_s_net` recorded **594 minutes** with its master finished at 23:18
+  and its last Short asset at 23:28; it was blamed on an unbounded `browser.close()` because the
+  clock times matched `guru_arjan_gathers` (23:34 → 08:19). They match because **both are the sleep
+  window**, not because both are browser wedges. The bounding work in `short.mjs`, `film-render.mjs`,
+  `render-master.mjs` and `thumbnail.mjs` is still worth having — an unbounded close on a wedged
+  browser is a genuine hazard, and `render-episode.mjs` was bounded for a demonstrated one — but it
+  did not cause those minutes.
+
+  Before calling anything an overnight hang, check three things: the Kernel-Power log, whether the
+  process actually accumulated CPU across the gap (Chromium burned **146 s in nine hours** here),
+  and whether the frame timestamps have a hole rather than a slope. A wedge burns no CPU *and*
+  never resumes; sleep burns no CPU *and* picks up exactly where it stopped.
+
+  Power policy is not ours to change — the box is shared, and the suspend is initiated by a
+  user-mode process (`SetSuspendState`), so something on the machine wants it. Plan around it:
+  an era of ~27 stories at ~1 h each takes **two calendar days, not one**.
+
 - **Playwright cache is broken on this machine.** Only `chromium-1228` and `webkit-2311` are
   complete; Firefox is absent. `scripts/browser.mjs` auto-discovers and passes `executablePath`.
 - **PowerShell has no heredoc.** Write commit messages to a temp file and `git commit -F`.
