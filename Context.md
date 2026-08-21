@@ -1281,6 +1281,47 @@ Wired into `render-episode` (frames), `render-master` (plates), `make-outro` (su
 Every generated asset keeps its **prompt in a `.txt` beside it**. A generated asset whose prompt
 was not kept cannot be varied, corrected or explained later — only replaced.
 
+### What that policy now costs — audited 21 Aug 2026
+
+The instruction was right and is not in question. But the archive it produced has grown roughly
+tenfold past the note that describes it, and the numbers are worth having in front of you before
+the disk decides for us. **C: was at 135 GB free of ~2 TB.**
+
+| | size | files |
+|---|---|---|
+| `artifacts/frames` | **678.2 GB** | 1,512,298 |
+| `dist/.ep-*` scratch | 202.6 GB | 203 dirs |
+| dist masters | 54.5 GB | 195 |
+| `episodes/` | 37.8 GB | |
+| `artifacts/.git` | 9.6 GB | |
+| films, eras, outro-clips, plates, short-frames | ~14.5 GB | |
+
+`artifacts/frames` is 99% of the archive. Its shape is
+`frames/<slug>-cut-k-page/<run-stamp>/f000000.jpg…` — 195 episode directories, ~9,000 JPEGs and
+~4 GB each, one full uncompressed frame set per episode.
+
+Two things a reader should know before touching it:
+
+- **`frames/` is gitignored, but 16,328 files under it are still tracked.** The ignore rule was
+  added after they were committed, and `.gitignore` does not untrack. It is exactly two
+  directories — `skandagupta` and `chandragupta-i`, the earliest Gupta builds. Everything else,
+  **193 directories and 661.8 GB**, is purely local: never pushed, not in history.
+- **The ignore note is stale.** It says "146,000 JPEGs weighing 76 GB is 95% of this archive".
+  It is now 1.51 M files and 678 GB. The note also contains the argument against itself —
+  *"every one of them is also present inside the encoded master beside it"* — and the 195 masters
+  come to 54.5 GB, so `frames/` is a 12× larger duplicate of video we already hold.
+
+The honest counter-argument, from the same note: a frame is only reproducible from the page *as
+it was*, and the page is edited constantly. Deleting is irreversible in a way re-rendering cannot
+undo. That is a judgement for the user, not for the pipeline, and **nothing here has been
+deleted.** If it is ever wanted, the safe order is: the 193 untracked `frames/` directories
+(662 GB), then `dist/.ep-*` (203 GB, pure scratch whose only value is reusing a body encode on
+re-render), and only then the two tracked directories — which need `git rm --cached` and still
+leave their blobs in history.
+
+`render-episode` already has `--drop-frames` for when disk is short; at one full frame set per
+episode it is the flag that stops this recurring.
+
 **Stills are generated and kept for every take.** This was not true until 2 Aug: both
 `short-shots.mjs` and `outro-shot.mjs` went straight from text to video on the reasoning that
 "a reference would cost a still per shot for no editorial gain". That was wrong twice — the still
