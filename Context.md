@@ -1313,14 +1313,29 @@ Two things a reader should know before touching it:
 
 The honest counter-argument, from the same note: a frame is only reproducible from the page *as
 it was*, and the page is edited constantly. Deleting is irreversible in a way re-rendering cannot
-undo. That is a judgement for the user, not for the pipeline, and **nothing here has been
-deleted.** If it is ever wanted, the safe order is: the 193 untracked `frames/` directories
-(662 GB), then `dist/.ep-*` (203 GB, pure scratch whose only value is reusing a body encode on
-re-render), and only then the two tracked directories — which need `git rm --cached` and still
-leave their blobs in history.
+undo. That is a judgement for the user, not for the pipeline.
 
-`render-episode` already has `--drop-frames` for when disk is short; at one full frame set per
-episode it is the flag that stops this recurring.
+### What was cleared, 21 Aug 2026, on the user's instruction
+
+*"clean up artificats/frames"*. **661.8 GB freed; free space went 135 GB → 789 GB.**
+
+The 193 untracked directories were removed. The two tracked ones — `skandagupta` and
+`chandragupta-i` — were **kept**, because deleting them would show as pending deletions in the
+`artifacts` submodule and would not free the blobs from history anyway. `artifacts/frames` is now
+16.4 GB in 2 directories.
+
+Three checks ran before anything was deleted, and are the checks to repeat next time:
+
+1. **Every directory had its master**, ≥10 MB, on disk — the whole justification is that the
+   frames are already inside the encoded master. 193 of 193 passed; had any failed it would have
+   been kept.
+2. **Every directory was untracked**, verified against `git ls-files frames` rather than assumed
+   from `.gitignore` — the two tracked ones exist precisely because the ignore rule came later.
+3. **Afterwards**: `git status` in `artifacts` is clean, 195 masters and 197 episode directories
+   are untouched.
+
+`render-episode --drop-frames` is what stops this recurring; at one full frame set per episode
+the archive regrows at ~4 GB per build.
 
 **Stills are generated and kept for every take.** This was not true until 2 Aug: both
 `short-shots.mjs` and `outro-shot.mjs` went straight from text to video on the reasoning that
