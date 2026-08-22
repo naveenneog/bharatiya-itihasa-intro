@@ -259,6 +259,52 @@ Full brief with URLs was produced by a research sub-agent; re-run if needed.
 
 ---
 
+## The subscription went down mid-run, and the pipeline waited sixteen hours for it
+
+On 22 Aug the Azure subscription was suspended for overuse. Two gupta stories died on it, and the
+two failures are worth reading together because they behaved completely differently.
+
+`lalitaditya_library` failed in **0.3 minutes**, at `subject`. That is correct: `llm.mjs` retries
+only 401/403 (token), 429 (rate) and 5xx, and throws on anything else, so a
+`400 SubscriptionNotRegistered` came straight out.
+
+`the_gate_of_questions` failed after **980 minutes**. Its log tells the story:
+
+```
+[1/7]   200s  FAIL 03-clay-monastic-courtyard-lamp   terminated
+[2/7]   200s  FAIL 00-bronze-gong-ring               terminated
+[3/7] 56644s  FAIL 05-broken-bamboo-speech-flute     HTTP 400 SubscriptionNotRegistered
+...
+0/7 in 944.1 min
+lanes: sora-2 1 (0 done, 12 throttled), sora-2b 1 (0 done, 6 throttled)
+```
+
+Two shots failed fast with `terminated` — that was the subscription going down, and it was the
+early warning. The other five then sat for **15.7 hours**. `azure.mjs` is not at fault twice over:
+it throws immediately on a non-transient 400, and its Sora poll loop is capped at 240 polls (~40
+minutes). The time went into the **lane limiter**. Both lanes had been throttled down to a
+concurrency of 1 by "too many running tasks"; when the subscription died the in-flight jobs never
+completed, so those single slots were never released, and the queued shots waited for a slot that
+could never free.
+
+So the failure mode is: **a dead upstream converts a concurrency limiter into an indefinite wait.**
+The limiter has no notion that the thing it is waiting for has become impossible. On a suspended
+subscription that is not merely slow — it is a process sitting on the API all night, which is the
+last thing wanted when the suspension is *for overuse*.
+
+Two things to consider before Azure is re-enabled:
+
+- **A lane slot needs a deadline.** If no shot in a lane has completed for far longer than a normal
+  generation, the lane should fail rather than wait. 15.7 hours against a ~4 minute median is not a
+  slow lane, it is a dead one.
+- **`terminated` inside the first minutes should be treated as a signal, not a single shot's bad
+  luck.** Two of seven terminating at 200s preceded every later failure by fifteen hours.
+
+Neither is fixed here: the fix belongs in the lane limiter and cannot be tested with the
+subscription down. It is written up so the next run does not rediscover it from a 980-minute row.
+
+---
+
 ## Environment gotchas
 
 - **The machine sleeps every night, ~23:31 to ~08:17.** Nothing else in this document explains
