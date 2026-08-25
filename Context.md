@@ -303,6 +303,31 @@ Two things to consider before Azure is re-enabled:
 Neither is fixed here: the fix belongs in the lane limiter and cannot be tested with the
 subscription down. It is written up so the next run does not rediscover it from a 980-minute row.
 
+### Diagnosing it: the control plane lies
+
+Checked again on 25 Aug, after the subscription was restored. Everything is healthy — account
+`Enabled`, provider `Registered`, `az account get-access-token` returns a Bearer, and
+`ai-contosohub530569751908` is `Succeeded` with every deployment the pipeline needs:
+
+| deployment | used by | state |
+|---|---|---|
+| `gpt-5.1` | `llm.mjs` default | Succeeded, cap 150 |
+| `gpt-image-2` | `azure.mjs` `IMG_DEPLOY` | Succeeded, cap 36 |
+| `sora-2` / `sora-2b` | `SORA_LANES` | Succeeded, cap 60 / 33 |
+
+The trap is that **none of those checks would have caught the outage**. On 22 Aug, while every
+data-plane call was failing with `SubscriptionNotRegistered`, `az provider show --namespace
+Microsoft.CognitiveServices` still answered `"Registered"` and `az account show` still said
+`"Enabled"`. The control-plane metadata is not a health check; it describes the registration, not
+whether the subscription is currently allowed to serve traffic.
+
+So the only honest test of "is Azure back" is a data-plane call, which costs money — and after a
+suspension *for overuse* that is precisely the thing to be careful with. Diagnose with the control
+plane to rule things out, then treat the first real generation as the test, not a probe run before it.
+
+Two deployments on that resource read `Disabled` and are expected to: the old `sora`
+(2025-05-02), superseded by `sora-2`, and `gpt-4o-mini-audio-preview`, retired with HTTP 410.
+
 ---
 
 ## Environment gotchas
