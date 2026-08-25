@@ -1568,6 +1568,27 @@ still processing.
 **Only one process at a time may drive `C:\Users\navg\.copilot\playwright-youtube-profile`.**
 Serialise uploads; never run a batch of them in parallel.
 
+### `upload-pending.mjs` — and the list that had gone stale
+
+`tools/upload-pending.mjs` walks every finished folder and calls `upload.mjs` for each, skipping
+what the ledger already records. It is the driver the user runs.
+
+It kept its eras in a literal — `maurya, kushan, gupta, pallava, chalukya, rashtrakuta`, the six
+that existed when it was written. Seven eras were built after it and none was added, so the queue
+could only ever see folders in those six. Measured on 25 Aug: **248 of the 284 pending uploads
+were invisible** — every Mughal, Delhi Sultanate, Maratha, Vijayanagara, Sikh, Kerala-school and
+Bhakti folder. Nothing failed and nothing warned; it just reported less work than there was.
+
+The list is now **read from `dist/`**: a directory is an era when it holds a folder with an
+`UPLOAD.md`, which is the same test used to queue them, so the two cannot disagree. Order follows
+`stories.mjs`; an unknown era is appended, never dropped. This is the third time a hand-kept list
+has drifted from the thing it described — after the slug table and the era plan. **Derive it.**
+
+`HELD` holds a finished folder back and says why. `the-debased-coin` is in it: an 8th-century
+Karkota Kashmir story built as the opening Mughal episode. Held rather than deleted, because
+whether to drop it or rebuild it under a Kashmir era is an editorial decision, and not one for
+whoever next runs an upload.
+
 **Nothing has been uploaded yet, and this is not a factory stage.** It was left out on purpose
 while `series.mjs` was mid-run — editing `factory.mjs` during a run is what broke three stories
 earlier. Adding an opt-in `upload` stage gated on `--upload` is the next step. Until then it is
@@ -1803,6 +1824,47 @@ Verified before committing, and worth re-running after any change here: 698 stor
 disk are still addressed by their slug. Note that `episodes/zero-hi` shares its story id with
 `episodes/zero` — a Hindi variant is not a second claim on a slug, and a check that assumes one
 directory per story will report a false move.
+
+---
+
+## A marker that can be true by accident
+
+Fixed 25 Aug, while Azure was off-limits. Three separate bugs, one shape: **a check that tests
+something adjacent to the thing it means.**
+
+**`short-shots.json` meant two things.** It was written the moment the model returned the plan,
+long before a clip existed, and `factory.mjs` skips the stage when it is present. So a run that
+made 6 of 7 clips and exited 1 left a complete-looking marker; the re-run skipped generation and
+failed two stages later at "no portrait clips", a long way from what actually broke. The plan is
+now `short-shots.plan.json`, and `short-shots.json` is written only when every planned shot has a
+clip **on disk** — and it lists them, so the marker cannot be true by accident. Legacy plans are
+still read from the old path, so no episode re-asks for a plan it already has.
+
+`tools/short-shots-repair.mjs` migrated the 206 existing episodes and found **three** in the bad
+state, not the one that was known. `the-gate` had a 10 KB plan and no clips. **`deogarh` and
+`the-coins-go-silent` each had 6 of 7 clips and a finished Short built from them** — so the repair
+clears the Short's `UPLOAD.md` too, or the regenerated clip would land in a cut nothing rebuilds.
+Both are in `dist/gupta`, so they are picked up when gupta resumes.
+
+**`--port` had stopped doing anything.** Every renderer moved to `local-server.mjs` and its
+os-assigned port, but all eight kept their old fixed-port constants. Nothing read them, so
+`--port 4441` was a knob that silently did nothing — worse than no knob, because it looks like the
+way out of a port clash it cannot fix. All eight removed. `scripts/serve.mjs` was the last fixed
+port and a second copy of the same request handler; it is now a thin CLI over the same
+`startServer`, which takes a requested port and moves to a free one when it is taken, saying so.
+
+**The thumbnail chip solved for its text and forgot its own padding.** `thumbnail.mjs` picks the
+chip's font size by solving for the size whose text fits the column — then the chip adds 0.024em
+of padding each side, which was never in the equation. Every long kicker came out exactly two
+paddings too wide (`kick chip +23px`). It was not only `mamallapuram`: the built-in `turnsCop`
+preset, "1,000 YEARS BEFORE COPERNICUS", overflowed by the same 34px. Padding now comes out of the
+column before the solve, with **2% kept back** — 0.8em per character is an estimate while the
+overflow check measures the real box, and solving to the exact column left 0.4px of margin, inside
+the estimate's own error. `mamallapuram`'s full 30-character kicker is restored and renders.
+
+**And read errors from both ends.** `gen-thumb-art.mjs` truncated from the head; a moderation
+refusal puts boilerplate first and the reason — `safety_violations=[sexual]` — last, so the useful
+half was always the half cut. It keeps head and tail now, as `gen-era` and `film-gen` already did.
 
 ---
 
