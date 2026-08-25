@@ -200,8 +200,20 @@ function page(c) {
   const width = h.loud ? 58 : 52;
   /* A Marcellus capital advances about 0.62em, and the chip adds 0.18em of tracking, so
      a character costs roughly 0.8em. Solve for the size that fits the column and cap it
-     at the size a short chip looks right at. */
-  const chipSize = Math.min(0.046, ((width / 100) * W) / (h.kicker.length * 0.8) / H);
+     at the size a short chip looks right at.
+
+     The padding has to come out of the column first. It did not, and that is exactly the
+     overflow mamallapuram hit twice: the solve made the *text* fit the column, then the chip
+     added its own 0.024em of padding on each side and pushed the box past the edge — reported
+     as "kick chip +23px", which is 2 × 0.024 × 720 rounded down for the tracking already
+     counted. A 30-character kicker like "MAMALLAPURAM · 7TH-8TH CENTURY" was worked around by
+     hand-shortening it in publish.json; a place name plus a century range will do this again. */
+  const chipPad = Math.round(H * 0.024);
+  /* 0.8em per character is an estimate of a real font's advance, and the overflow check measures
+     the real box. Solving to exactly the column leaves 0.4px of margin, which is inside the
+     estimate's own error — so take 2% off and fit with room to spare rather than fit on paper. */
+  const chipRoom = (((width / 100) * W) - (chipPad * 2)) * 0.98;
+  const chipSize = Math.min(0.046, chipRoom / (Math.max(1, h.kicker.length) * 0.8) / H);
   return `<!doctype html><meta charset="utf-8">
 <style>
   @font-face{font-family:"Marcellus";src:url("/vendor/fonts/marcellus-latin-1.woff2") format("woff2");font-display:block}
@@ -236,7 +248,7 @@ function page(c) {
      cannot share one font size inside a column 58% of the frame wide, and the long one
      silently overflowed at the short one's size. */
   .kick.chip{display:inline-block;background:#e8b64a;color:#120d06;
-    padding:${Math.round(H * 0.012)}px ${Math.round(H * 0.024)}px;letter-spacing:.18em;
+    padding:${Math.round(H * 0.012)}px ${chipPad}px;letter-spacing:.18em;
     font-size:${Math.round(H * chipSize)}px;border-radius:2px;
     margin-bottom:${Math.round(H * 0.032)}px;white-space:nowrap}
   .rule{width:${Math.round(W * 0.075)}px;height:2px;margin-bottom:${Math.round(H * 0.034)}px;
