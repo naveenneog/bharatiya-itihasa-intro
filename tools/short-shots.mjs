@@ -32,7 +32,21 @@ if (!SLUG) { console.error('usage: node tools/short-shots.mjs --slug <slug>'); p
 const EP = path.join('episodes', SLUG);
 const OUT = path.join(EP, 'short-clips');
 const STILLS = path.join(EP, 'short-stills');
-const PLANFILE = path.join(EP, 'short-shots.json');
+/* Two files, the way outro-shot.mjs has always had them, because one file cannot mean both
+   "here is what to generate" and "the generation finished".
+
+   It used to be one. The plan is written the moment the model returns it, long before any clip
+   exists, and factory.mjs skips this stage when that file is present — so a run that generated
+   6 of 7 clips and exited 1 left behind a complete plan that read as success. On re-run the
+   stage was skipped and the *short* stage failed instead, with "no portrait clips", several
+   steps away from the thing that actually went wrong. chandragupta-raises and prinsep-reads
+   both died that way, and the-gate is sitting in exactly that state now: a 10 KB plan and an
+   empty short-clips directory.
+
+   So the done file is written only when every planned shot has a clip on disk, and it records
+   which clips those were — a marker that cannot be true by accident. */
+const PLANFILE = path.join(EP, 'short-shots.plan.json');
+const DONEFILE = path.join(EP, 'short-shots.json');
 /* The real throttle is soraFleet inside genVideo, which finds each deployment's current cap by
    probing it. Workers here only need to be numerous enough that no lane is ever starved of
    something to start. --conc pins every lane. */
@@ -104,7 +118,15 @@ Era: ${ep.era || ''}
 THE SEVEN BEATS, in order. Only the beat label is given; write the object each one is about:
 ${script.lines.map((l, i) => `${i + 1}. ${l.kick}`).join('\n')}`;
 
+/* The plan lives in PLANFILE now, but 220 episodes were built when it lived in DONEFILE. A
+   legacy done file still holds a usable plan, so it is read rather than thrown away — otherwise
+   migrating would mean re-asking the model for 220 plans that already exist and are already on
+   screen in published films. */
 let plan = await readFile(PLANFILE, 'utf8').then(JSON.parse).catch(() => null);
+if (!plan) {
+  const legacy = await readFile(DONEFILE, 'utf8').then(JSON.parse).catch(() => null);
+  if (legacy && Array.isArray(legacy.shots)) plan = legacy;
+}
 if (!plan || has('replan')) {
   /* Three attempts, with the rejection handed back as an instruction — the same loop as closer
      and outro-shot, for the same reason. `the-four-lions` lost a whole build to one word: shot 7
@@ -207,13 +229,31 @@ if (has('plan')) { console.log('\n--plan: nothing generated'); process.exit(0); 
 
 await mkdir(OUT, { recursive: true });
 await mkdir(STILLS, { recursive: true });
+
+/* Re-reads the directory rather than trusting this run's counters, because the counters describe
+   the run and the marker describes the episode. A run that generated only the one missing clip
+   has completed the set; a --force run where every shot failed has not undone the clips that were
+   already there. Only the directory knows. */
+async function markDone() {
+  const files = await readdir(OUT).catch(() => []);
+  const clips = plan.shots.map((s) => files.find(
+    (f) => f.startsWith(`${String(s.n).padStart(2, '0')}-`) && f.endsWith('.mp4')) || null);
+  const missing = clips.filter((c) => !c).length;
+  if (missing) {
+    console.log(`  not done: ${missing} of ${plan.shots.length} shots have no clip`);
+    return false;
+  }
+  await writeFile(DONEFILE, `${JSON.stringify({ ...plan, clips, at: new Date().toISOString() }, null, 2)}\n`);
+  return true;
+}
+
 const have = await readdir(OUT).catch(() => []);
 const todo = plan.shots.filter((s) => {
   if (ONLY.length && !ONLY.includes(String(s.n + 1)) && !ONLY.includes(s.id)) return false;
   if (has('force')) return true;
   return !have.some((f) => f.startsWith(`${String(s.n).padStart(2, '0')}-`) && f.endsWith('.mp4'));
 });
-if (!todo.length) { console.log('\nall seven already generated'); process.exit(0); }
+if (!todo.length) { console.log('\nall seven already generated'); await markDone(); process.exit(0); }
 
 console.log(`\n  generating ${todo.length} across ${soraFleet.lanes.length} deployment(s): ${soraFleet.lanes.map((l) => `${l.name}@${l.limit}`).join(', ')}\n`);
 const t0 = Date.now();
@@ -294,4 +334,8 @@ await Promise.all(Array.from({ length: Math.min(CONC, queue.length) }, async () 
 console.log(`\n  ${done}/${todo.length} in ${((Date.now() - t0) / 60000).toFixed(1)} min -> ${OUT}/`);
 console.log(`  lanes: ${soraFleet.report()}`);
 await rememberConc();
-if (failed) process.exit(1);
+/* The marker is written whenever the set is complete, even if this run had a failure — a shot
+   that failed under --force still leaves the earlier clip in place, and the episode is what the
+   next stage reads. The exit code stays with the run, so a failure is still surfaced. */
+const complete = await markDone();
+if (failed || !complete) process.exit(1);
