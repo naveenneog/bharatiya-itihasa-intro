@@ -23,7 +23,6 @@ const execFileP = promisify(execFile);
 const ROOT = 'versions';
 const argv = process.argv.slice(2);
 const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : d; };
-const PORT = Number(flag('port', '4398'));
 const VARIANT = flag('variant', 'default');
 const V = variant(VARIANT);
 const BUILD = V.out;

@@ -38,7 +38,6 @@ const H = 1080;
 const argv = process.argv.slice(2);
 const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : d; };
 const FPS = Number(flag('fps', '30'));
-const PORT = Number(flag('port', '4399'));
 const OUT = flag('out', null);
 const SCORE = argv.includes('--score');
 const VARIANT = flag('variant', 'default');

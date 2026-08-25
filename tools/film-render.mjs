@@ -39,7 +39,6 @@ if (!ID) { console.error('usage: node tools/film-render.mjs --id <film-id>'); pr
 const DRAFT = has('draft');
 const FPS = Number(arg('fps', DRAFT ? '12' : '25'));
 const SCALE = Number(arg('scale', DRAFT ? '0.5' : '1'));
-const PORT = Number(arg('port', '4431'));
 const LIFT = Number(arg('lift', '0.55'));
 const XF = Number(arg('xf', '0.34'));
 const TAIL = Number(arg('tail', '4.6'));

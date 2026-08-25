@@ -26,7 +26,6 @@ const PANELS = (arg('panels', '') || '').split(',').map((s) => s.trim()).filter(
 const SCALE = Number(arg('scale', '0.5'));
 const AT = Number(arg('at', '0.55'));   // where inside a panel to sample, as a fraction
 const OUT = arg('out', null) || runDir(`capsheet/${SLUG}-${CUT}`);
-const PORT = Number(arg('port', '4463'));
 const W = 1920; const H = 1080;
 
 await mkdir(OUT, { recursive: true });

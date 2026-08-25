@@ -32,8 +32,13 @@ const TYPES = {
   '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.webm': 'video/webm', '.mp4': 'video/mp4',
 };
 
-/** Serve the repo on a free port. Resolves once it is actually accepting connections. */
-export async function startServer() {
+/** Serve the repo. Resolves once it is actually accepting connections.
+
+    `port` defaults to 0 — the operating system picks a free one, which is what every renderer
+    wants and why the fixed-port version of this deadlocked overnight runs. A caller that asks
+    for a specific port (the manual preview server does) gets told when it is taken, and is moved
+    to a free one rather than dying on an unhandled EADDRINUSE. */
+export async function startServer({ port = 0 } = {}) {
   const server = createServer(async (req, res) => {
     try {
       let rel = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -56,14 +61,24 @@ export async function startServer() {
   const sockets = new Set();
   server.on('connection', (s) => { sockets.add(s); s.on('close', () => sockets.delete(s)); });
 
-  const port = await new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => resolve(server.address().port));
+  const listen = (p) => new Promise((resolve, reject) => {
+    const onError = (e) => reject(e);
+    server.once('error', onError);
+    server.listen(p, '127.0.0.1', () => { server.removeListener('error', onError); resolve(server.address().port); });
   });
 
+  let bound;
+  try {
+    bound = await listen(port);
+  } catch (e) {
+    if (port === 0 || e?.code !== 'EADDRINUSE') throw e;
+    console.log(`  port ${port} is taken — using a free one instead`);
+    bound = await listen(0);
+  }
+
   return {
-    port,
-    base: `http://127.0.0.1:${port}`,
+    port: bound,
+    base: `http://127.0.0.1:${bound}`,
     stop: () => new Promise((resolve) => {
       for (const s of sockets) { try { s.destroy(); } catch { /* gone */ } }
       server.close(() => resolve());

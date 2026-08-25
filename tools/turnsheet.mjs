@@ -31,7 +31,6 @@ const CUT = arg('cut', 'cut-k-page');
 const PANEL = Number(arg('panel', 3));
 const STEPS = Number(arg('steps', 9));
 const SCALE = Number(arg('scale', 1));
-const PORT = Number(arg('port', 4419));
 const TURN = Number(arg('turn', 1.25));
 /* The turn is not over when the rotation is: the leaf lies on the left page for a fifth of
    a second and dissolves while the new words come up through it. Sampling only as far as

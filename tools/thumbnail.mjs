@@ -32,7 +32,6 @@ const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
 
 const SLUG = arg('slug', 'aryabhata');
-const PORT = Number(arg('port', 4421));
 const ONLY = arg('only', null);
 const PICK = arg('pick', null);
 const EP = path.join('episodes', SLUG);

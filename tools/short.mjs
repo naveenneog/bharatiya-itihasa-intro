@@ -50,7 +50,6 @@ const FPS = Number(arg('fps', DRAFT ? 12 : 25));
 const SCALE = DRAFT ? 0.5 : 1;
 const W = Math.round(1080 * SCALE);
 const H = Math.round(1920 * SCALE);
-const PORT = Number(arg('port', 4441));
 const EP = path.join('episodes', SLUG);
 const OUT = path.resolve(arg('out', path.join('dist', ERA, `${SLUG}_short`)));
 const TMP = path.resolve('dist', `.short-${SLUG}`);

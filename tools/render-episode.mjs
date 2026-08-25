@@ -44,7 +44,6 @@ const SLUG = arg('slug', 'aryabhata');
 const CUT = arg('cut', 'cut-e-framed');
 const FPS = Number(arg('fps', 25));
 const SCALE = Number(arg('scale', 1));
-const PORT = Number(arg('port', 4407));
 const LIMIT = Number(arg('limit', 0));          // seconds of body, for drafts
 const INTRO = arg('intro', 'dist/v7-gupta-ink.mp4');
 const OUTRO = arg('outro', null);
