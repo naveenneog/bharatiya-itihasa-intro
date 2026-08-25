@@ -69,6 +69,20 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
    The cap is on *running* tasks, not on request rate, so a slot is held for the whole poll loop
    rather than just the create call. Holding it across a 429 backoff is deliberate: the job that
    was rejected is the one that should wait, and everything queued behind it should stay queued. */
+
+/* Two wall-clock ceilings, both learned from one 980-minute row.
+
+   A single job was already "bounded" at 240 polls — but 240 polls is a count, not a time, and
+   each poll is itself a retrying `call()`. When the upstream turns flaky, every poll can spend
+   minutes backing off, and 240 of those compound into the better part of a day. Bounding the
+   *elapsed* time is the only bound that holds regardless of how slow a poll gets.
+
+   And a job that never ends never releases its slot, so the queue behind it needs its own
+   ceiling. Both are set far above anything healthy — the median job is about four minutes — so
+   they are never reached by a slow run, only by a stopped one. */
+const JOB_BUDGET_MS = Number(process.env.SORA_JOB_MINUTES || 45) * 60_000;
+const LANE_WAIT_MS = Number(process.env.SORA_WAIT_MINUTES || 90) * 60_000;
+
 class Lane {
   constructor(name, limit, { min = 1, max = 12, clear = 5 } = {}) {
     this.name = name;
@@ -113,11 +127,29 @@ class Fleet {
     return l;
   }
 
-  async acquire(want = null) {
+  async acquire(want = null, { deadline = LANE_WAIT_MS } = {}) {
     const named = want ? this.lane(want) : null;
     const l = named ? (named.room ? named : null) : this.#free();
     if (l) { l.active++; return l; }
-    return new Promise((r) => this.#waiters.push({ want, r }));
+    /* A waiter with no deadline is the 15.7-hour wait: when the upstream dies, in-flight jobs
+       stop finishing, no slot is ever released, and everything queued behind them sits on the
+       API all night. Against a median job of about four minutes, a wait this long is not a busy
+       lane — it is a dead one, and saying so ends the run in minutes instead of by morning. */
+    return new Promise((r, fail) => {
+      const w = { want, r, fail, done: false };
+      /* Deliberately not unref'd. An unref'd deadline lets the process exit while this promise
+         is still unsettled — the run ends with no error and no clip, which is the silent version
+         of the same bug. A waiter that is genuinely pending should keep the loop alive until
+         something settles it; being served clears the timer, so it holds nothing open. */
+      w.timer = deadline > 0 && setTimeout(() => {
+        if (w.done) return;
+        w.done = true;
+        const i = this.#waiters.indexOf(w);
+        if (i >= 0) this.#waiters.splice(i, 1);
+        fail(new Error(`no ${want || 'sora'} slot in ${Math.round(deadline / 60000)} min — treating the lane as dead, not slow`));
+      }, deadline);
+      this.#waiters.push(w);
+    });
   }
 
   release(lane) {
@@ -127,14 +159,20 @@ class Fleet {
 
   /* Claims the slot on the waiter's behalf, before resolving, so two waiters woken in the same
      turn cannot both decide the same lane had room for them. Walks the queue rather than only
-     its head, because a waiter pinned to a busy lane must not block one that would run now. */
+     its head, because a waiter pinned to a busy lane must not block one that would run now.
+     A waiter whose deadline has already fired is dropped without being handed a slot — claiming
+     first and resolving second is what makes that safe, since the slot is only ever taken for a
+     waiter that is still live. */
   #pump() {
     for (let i = 0; i < this.#waiters.length;) {
       const w = this.#waiters[i];
+      if (w.done) { this.#waiters.splice(i, 1); continue; }
       const l = w.want ? this.lanes.find((x) => x.name === w.want && x.room) : this.#free();
       if (!l) { i++; continue; }
       l.active++;
       this.#waiters.splice(i, 1);
+      w.done = true;
+      if (w.timer) clearTimeout(w.timer);
       w.r(l);
     }
   }
@@ -355,7 +393,11 @@ async function runVideo(prompt, out, { seconds, size, model, lane, ref, onTick }
   const job = await create.json();
   if (!job.id) throw new Error(`no job id: ${JSON.stringify(job).slice(0, 300)}`);
 
-  for (let i = 0; i < 240; i++) {
+  /* Elapsed time, not iterations. 240 polls looked like a 40-minute cap and was not: each poll
+     is a retrying `call()`, so a flaky upstream stretches every one of them and the "40 minutes"
+     becomes however long 240 slow polls take. */
+  const until = Date.now() + JOB_BUDGET_MS;
+  for (let i = 0; Date.now() < until; i++) {
     await sleep(i === 0 ? 5000 : 10000);
     const s = await call(`${ENDPOINT}/openai/v1/videos/${job.id}?api-version=${VID_APIV}`, {});
     const j = await s.json();
@@ -369,7 +411,7 @@ async function runVideo(prompt, out, { seconds, size, model, lane, ref, onTick }
     }
     if (j.status === 'failed') throw new Error(`sora failed: ${JSON.stringify(j.error)}`);
   }
-  throw new Error(`sora job ${job.id} did not finish in time`);
+  throw new Error(`sora job ${job.id} did not finish in ${Math.round(JOB_BUDGET_MS / 60000)} min`);
 }
 
 /** Run `jobs` with bounded concurrency; never rejects — returns per-job {ok,value|error}. */

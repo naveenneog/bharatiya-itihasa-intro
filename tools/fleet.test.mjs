@@ -67,8 +67,8 @@ const settle = () => new Promise((r) => setImmediate(r));
   const onA = await fleet.acquire('a');
   await fleet.acquire('b');
   const order = [];
-  fleet.acquire('a').then(() => order.push('pinned-a'));   // blocked: a is full
-  fleet.acquire('a').then(() => order.push('pinned-a2'));  // also blocked
+  fleet.acquire('a', { deadline: 0 }).then(() => order.push('pinned-a'));   // blocked: a is full
+  fleet.acquire('a', { deadline: 0 }).then(() => order.push('pinned-a2'));  // also blocked
   await settle();
   eq('both pinned waiters queued', order, []);
   fleet.release(onA);
@@ -122,6 +122,43 @@ const settle = () => new Promise((r) => setImmediate(r));
   const [lane] = fleet.lanes;
   for (let i = 0; i < 10; i++) fleet.throttled(lane, 'test');
   eq('floors at min', lane.limit, 1);
+}
+
+/* ── the deadline: a dead lane must end the run, not outlast it ────────────
+   These three are the 980-minute row. A waiter with no deadline sat on a lane whose in-flight
+   jobs had died with the subscription, so no slot was ever released and the queue behind it
+   waited all night. The third case is the one that is easy to get wrong: a waiter that gives up
+   at the same moment a slot frees must not be handed that slot, or the count leaks and the lane
+   narrows by one for the rest of the run. */
+{
+  reset({ a: 1 });
+  const held = await fleet.acquire('a');
+  let err = null;
+  await fleet.acquire('a', { deadline: 30 }).catch((e) => { err = e; });
+  eq('a waiter on a dead lane gives up', /treating the lane as dead/.test(err?.message || ''), true);
+  eq('and says which lane', /no a slot/.test(err?.message || ''), true);
+  eq('the holder still owns its slot', held.active, 1);
+}
+
+{
+  reset({ a: 1 });
+  const held = await fleet.acquire('a');
+  const soon = fleet.acquire('a', { deadline: 5000 });
+  fleet.release(held);
+  const got = await soon;
+  eq('a waiter served before its deadline still gets its lane', got.name, 'a');
+  await new Promise((r) => setTimeout(r, 40));
+  eq('and is not rejected afterwards', got.active, 1);
+}
+
+{
+  reset({ a: 1 });
+  const held = await fleet.acquire('a');
+  const late = fleet.acquire('a', { deadline: 20 });
+  await late.catch(() => {});
+  fleet.release(held);
+  await settle();
+  eq('a lapsed waiter does not take the slot it stopped waiting for', held.active, 0);
 }
 
 console.log(`\n  ${pass} passed${fails.length ? `, ${fails.length} FAILED` : ''}`);

@@ -303,6 +303,38 @@ Two things to consider before Azure is re-enabled:
 Neither is fixed here: the fix belongs in the lane limiter and cannot be tested with the
 subscription down. It is written up so the next run does not rediscover it from a 980-minute row.
 
+### Where the 15.7 hours actually went
+
+Tracing it properly, the wait was not one unbounded thing but two bounded-looking ones:
+
+**The poll loop counted polls, not minutes.** `runVideo` looped `for (let i = 0; i < 240; i++)`
+with a 10 s sleep, which reads as a 40-minute cap and is not one. Each iteration calls `call()`,
+which is itself a retry loop — up to 40 concurrency waits, 5xx backoff of `12s × i`, a 45 s
+rate-limit wait. A healthy poll takes 10 s; a poll against a sick upstream takes minutes. 240 of
+those is most of a day. **A count is not a timeout when each iteration's cost is unbounded.**
+Now bounded by `Date.now()`: `SORA_JOB_MINUTES`, default 45.
+
+**A waiter for a lane slot had no deadline at all.** `acquire()` returned a promise that only
+ever resolved. That is correct while jobs finish — a slot is guaranteed to free — but when the
+subscription died, the in-flight jobs stopped finishing, and the guarantee went with them. Every
+queued shot then waited on an event that could no longer happen. Now `SORA_WAIT_MINUTES`,
+default 90, against a ~4 minute median: only a stopped lane ever reaches it.
+
+Two details worth keeping:
+
+- **The deadline must not be `unref()`'d.** The first version was, and the test process exited
+  with the promise still unsettled — no error, no clip, exit code 13. An unref'd deadline is the
+  silent version of the bug it was meant to fix. A pending waiter should hold the loop open until
+  something settles it; being served clears the timer.
+- **A lapsed waiter must not be handed a slot.** `#pump` claims `active++` *before* resolving, so
+  a waiter that gives up at the same moment a slot frees would leak that claim and narrow the lane
+  for the rest of the run. Waiters now carry a `done` flag that the timeout and the pump both
+  check. Pinned in `fleet.test.mjs` — that case is the one worth having a test for, because it
+  costs one slot silently rather than failing.
+
+The second improvement — reading repeated early `terminated` as upstream-down — is still not
+made. It needs a real outage to test against, and inventing one is not worth the quota.
+
 ### Diagnosing it: the control plane lies
 
 Checked again on 25 Aug, after the subscription was restored. Everything is healthy — account
