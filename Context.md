@@ -1859,6 +1859,58 @@ disk are still addressed by their slug. Note that `episodes/zero-hi` shares its 
 `episodes/zero` — a Hindi variant is not a second claim on a slug, and a check that assumes one
 directory per story will report a false move.
 
+### The channel is not this project's channel
+
+Established 23 Sep by reading it rather than assuming. `tools/yt-scan.mjs` found **339 items**,
+of which only about **107 belong to Bhāratīya Itihāsa**. The rest are other work on the same
+channel — Telugu, Hindi and German folk tales, the Kempegowda videos, a smart-stove review.
+
+**Never treat a channel count as a project count, and never schedule by position in the list.**
+Match by title against a built folder, which is what the planner does.
+
+### Three ways the local files lie about YouTube
+
+- **`dist/uploads.json` records what this machine sent, not what exists.** 117 successful
+  uploads; **81 of those video ids are no longer on the channel**, and 232 channel videos were
+  uploaded by some other route and appear nowhere in it. `upload.mjs` refuses a re-upload by
+  content hash against this ledger, so for the 11 deleted-but-recorded episodes in the plan the
+  guard blocks a legitimate re-send. `publish-run.mjs` passes `--again` for exactly those —
+  where the channel has the video by neither id nor title. Everything else keeps the guard.
+- **Studio's `/videos/upload` tab omits every Short.** Shorts are under `/videos/short`. Scanning
+  only the first tab reported 68 uploaded Shorts as missing, which would have uploaded them all
+  a second time.
+- **A "next page" click that does not register looks exactly like the end of the list.** The
+  first scanner clicked, slept two seconds, saw no new rows and stopped — 75 of 268. Wait for
+  the first row's id to actually change instead.
+
+### The publish plan
+
+`tools/plan-publish.mjs` → `dist/publish-plan.json`, then `tools/publish-run.mjs --upload` and
+`--schedule`. One episode a day at 09:00 IST, two Shorts at 13:00 and 19:00, starting the day
+after the last date the channel already holds (31 items were scheduled through 19 Oct, so it
+starts 20 Oct).
+
+**Era order is derived from the stories' own dates**, by median year per era — median rather than
+earliest because one misfiled story, like the Karkota coin under Mughal, would otherwise move a
+whole era by a thousand years. The two older planners (`schedule-plan.mjs`,
+`schedule-plan-shorts.mjs`) carry hand-written rank maps naming four and six eras out of
+thirteen; anything unlisted sorts to the end, which on a chronological channel puts the Mughals
+before the Mauryas. They are superseded.
+
+**Shorts run ahead of their episodes**, necessarily: two a day against one episode a day, with
+roughly one Short per episode, means the Shorts stream finishes about three months earlier
+(25 Dec against 1 Apr). That is also what the channel already does — the Chalukya and
+Rashtrakuta Shorts are scheduled through October while their episodes are not yet uploaded.
+
+**Upload order follows the plan, not the directory.** A run will be stopped by a daily quota long
+before 293 videos are up, and when it stops, the ones that made it should be the ones publishing
+first.
+
+**The two phases cannot share the browser.** The agent keeps its own Edge open on the profile
+between jobs; a second `launchPersistentContext` against a live user-data-dir does not fail
+cleanly — Edge prints "Opening in existing browser session" and Playwright dies much later with
+the whole command line in the error. Upload fully, then stop the agent, then schedule.
+
 ---
 
 ## A marker that can be true by accident
