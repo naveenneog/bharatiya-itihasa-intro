@@ -1589,10 +1589,44 @@ Karkota Kashmir story built as the opening Mughal episode. Held rather than dele
 whether to drop it or rebuild it under a Kashmir era is an editorial decision, and not one for
 whoever next runs an upload.
 
-**Nothing has been uploaded yet, and this is not a factory stage.** It was left out on purpose
-while `series.mjs` was mid-run — editing `factory.mjs` during a run is what broke three stories
-earlier. Adding an opt-in `upload` stage gated on `--upload` is the next step. Until then it is
-run by hand per folder.
+**Uploading is not a factory stage.** It was left out on purpose while `series.mjs` was mid-run —
+editing `factory.mjs` during a run is what broke three stories earlier. Adding an opt-in `upload`
+stage gated on `--upload` is the next step. Until then it is run by hand per folder.
+
+### What is actually built and uploaded — measured 23 Sep 2026
+
+This paragraph used to read "nothing has been uploaded yet", which was wrong and stayed wrong for
+weeks because it was never re-measured. **Count it, do not remember it:** `dist/uploads.json` is
+the ledger, and `dist/<era>/<slug>_{book,short}/UPLOAD.md` is what finished.
+
+| | count |
+|---|---|
+| finished folders | **405** — 203 episodes + 202 Shorts, 66.2 GB, across 13 eras |
+| uploaded | **119** (49 episodes, 70 Shorts), all between 2–12 Aug 2026 |
+| pending | **286**, of which 2 are held (`the-debased-coin`) |
+
+Masters measure 115–411 MB for an episode and 21–65 MB for a Short. Anything far below that range
+is a truncated render, not a short episode.
+
+Four gaps, all from the August Azure suspension, which is why gupta reads 22/21 and not 23/23:
+`lalitaditya-library` has no episode (died at `subject`); `the-gate` has an episode but no Short
+(0 of 7 clips); `deogarh` and `the-coins-go-silent` have Shorts built from 6 of 7 clips, with
+their markers cleared so they rebuild.
+
+### The corpus is much larger than the channel's eras
+
+923 stories upstream as of 23 Sep, up from 698 in August — it is live and still being written.
+204 built, **719 remaining**, and **552 of those remaining fall into the `other` bucket**: they
+match none of the ~19 dynasty regexes in `ERAS`, so `series.mjs --era` cannot reach them at all.
+
+They are not junk. They are Mehrgarh and the Neolithic, Vedic ritual geometry, the Upanishadic
+debates, the second urbanisation, early Jainism, the Licchavi and Vajji republics — whole periods
+the era list never named because it grew dynasty by dynasty as each era was produced.
+
+So the named-era backlog is only **167** stories (9 delhi-sultanate, 10 gupta, 7 mughal,
+6 chalukya, 6 rashtrakuta, and 1–4 each elsewhere; sikh is finished at 13/13). Producing the other
+552 is not a generation problem — it needs era buckets defined first, which is an editorial
+decision about what the channel covers.
 
 ---
 
