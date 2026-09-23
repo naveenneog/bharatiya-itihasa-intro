@@ -52,7 +52,17 @@ const save = async () => {
    while a missing one is silently never published. */
 const ledger = await readFile('dist/uploads.json', 'utf8')
   .then((s) => JSON.parse(s).uploads || {}).catch(() => ({}));
-const live = new Set(JSON.parse(await readFile('dist/yt-channel.json', 'utf8')).rows.map((r) => r.id));
+const channel = JSON.parse(await readFile('dist/yt-channel.json', 'utf8'));
+const live = new Set(channel.rows.map((r) => r.id));
+/* The plan's `state` was true when the plan was written and is not true now — this campaign
+   uploads a hundred videos between one scan and the next. Matching the fresh scan by title is
+   what tells us whether the channel has this episode today, under any id. Without it, an item
+   uploaded by some other route since the plan was made looks absent, gets `--again`, and goes
+   up a second time. */
+const norm = (t) => (t || '').toLowerCase().replace(/[’'`]/g, "'").replace(/[^a-z0-9]+/g, ' ').trim();
+
+const liveByTitle = new Map();
+for (const r of channel.rows) if (!liveByTitle.has(norm(r.title))) liveByTitle.set(norm(r.title), r);
 const idOf = (u) => (u || '').replace(/^https?:\/\/(youtu\.be\/|(www\.)?youtube\.com\/shorts\/)/, '');
 const uploadedId = (dir) => {
   const rec = Object.entries(ledger).find(([k, v]) => k.replace(/\\/g, '/') === dir && v.exit === 0 && v.url);
@@ -62,8 +72,10 @@ const uploadedId = (dir) => {
 
 let ghosts = 0;
 for (const p of plan) {
-  const hasLedger = Object.entries(ledger)
-    .some(([k, v]) => k.replace(/\\/g, '/') === p.dir && v.exit === 0 && v.url);
+  /* Any record at all, successful or not. A failed attempt matters as much as a successful one,
+     because upload.mjs guards against both. */
+  const rec = Object.entries(ledger).find(([k]) => k.replace(/\\/g, '/') === p.dir)?.[1];
+  const hasLedger = !!rec;
   const mine = log[p.dir]?.id || null;
   const claimed = p.id || uploadedId(p.dir);
 
@@ -76,17 +88,29 @@ for (const p of plan) {
 
      So: what this tool recorded wins outright, because it is the most recent thing that
      happened. Only when the tool has no record does the snapshot get consulted. */
-  p.id = mine || claimed || null;
-  p.scheduled = !!(p.state === 'SCHEDULED' || log[p.dir]?.scheduled);
+  /* The channel as it is now, by title, rather than as the plan remembers it. Taking the id
+     from here as a last resort means an episode uploaded by some other route gets a date
+     instead of a second upload. */
+  const here = liveByTitle.get(norm(p.title)) || null;
+  const onChannelNow = !!here;
+  p.id = mine || claimed || (here ? here.id : null);
+  p.scheduled = !!(here?.state === 'SCHEDULED' || p.state === 'SCHEDULED' || log[p.dir]?.scheduled);
 
-  /* upload.mjs refuses a master it has already sent, by content hash, which is right: running
-     it twice otherwise puts two copies on the channel. But the guard reads the ledger, and the
-     ledger is wrong for 81 entries whose videos were deleted after upload. Eleven of them are
-     in this plan — uploaded 12 Aug, absent from the channel by both id and title.
-     So `--again` is passed for exactly those: not "send a second copy", but "the first one is
-     gone". Anything this tool uploaded, or that the channel still has, keeps the guard. */
-  p.stale = hasLedger && !mine && !p.id && !p.state;
-  if (!mine && claimed === null && hasLedger) ghosts++;
+  /* upload.mjs refuses to send a master twice, and has two separate guards for it:
+       - already uploaded (exit 0, url recorded) — by content hash
+       - already attempted and left unfinished (exit non-zero, no url) — because a half-done
+         upload usually leaves a draft, and sending again would make two copies
+
+     Both guards read the ledger, and the ledger is not the channel. 81 recorded uploads have
+     been deleted since. And the second guard is the more conservative of the two: three
+     uploads failed on a click timeout at the *title box*, which happens before the video is
+     committed, so nothing was left behind at all — confirmed by scanning for their titles.
+
+     The channel settles it. If it has neither the id nor the title, there is nothing to
+     duplicate, so `--again` is correct: not "send a second copy", but "there is no first one".
+     Anything this tool uploaded, or that the channel still has, keeps the guard. */
+  p.stale = hasLedger && !mine && !p.id && !onChannelNow;
+  if (!mine && claimed === null && hasLedger && !onChannelNow) ghosts++;
 }
 
 const toUpload = plan.filter((p) => !p.id);
