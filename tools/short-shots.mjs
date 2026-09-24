@@ -104,18 +104,23 @@ Return JSON only:
 
    This is degradation, not repair: the full text is always tried first, and the fallback only
    runs when the API refuses to read it. An era of battles will meet this again. */
+
+/* One shot per line, however many lines there are. The count used to be spelled "seven" in the
+   prompt and asserted as `!== 7` below, which was true of every script until the feed format
+   made it six — and then the planner read script.lines[6], got undefined, and threw. */
+const N = script.lines.length;
 const user = `Episode: ${ep.title}
 Figure: ${ep.figure || '(none)'}
 Era: ${ep.era || ''}
 
-THE SEVEN CLAIMS, in order:
+THE ${N} CLAIMS, in order:
 ${script.lines.map((l, i) => `${i + 1}. [${l.kick}] ${l.text}`).join('\n')}`;
 
 const claimsOnly = `Episode: ${ep.title}
 Figure: ${ep.figure || '(none)'}
 Era: ${ep.era || ''}
 
-THE SEVEN BEATS, in order. Only the beat label is given; write the object each one is about:
+THE ${N} BEATS, in order. Only the beat label is given; write the object each one is about:
 ${script.lines.map((l, i) => `${i + 1}. ${l.kick}`).join('\n')}`;
 
 /* The plan lives in PLANFILE now, but 220 episodes were built when it lived in DONEFILE. A
@@ -154,7 +159,7 @@ if (!plan || has('replan')) {
        reduces fake writing and does not stop it, so the only rule that holds is never to
        mention writing at all — see the skill's bug log. */
     const problems = [];
-    if (shots.length !== 7) problems.push(`${shots.length} shots, expected 7`);
+    if (shots.length !== N) problems.push(`${shots.length} shots, expected ${N}`);
     const seen = new Set();
     for (const [i, s] of shots.entries()) {
       const subj = String(s?.subject || '').trim();
@@ -197,7 +202,7 @@ if (!plan || has('replan')) {
 
     note = '\n\nYour previous answer was rejected for these reasons:\n'
       + problems.map((p) => `- ${p}`).join('\n')
-      + '\nReturn all seven shots again with every one of them fixed.'
+      + '\nReturn all  shots again with every one of them fixed.'
       + (repeated.size
         ? `\n\nShot(s) ${[...repeated].join(', ')} failed for the same reason last time. Rewording`
           + ' is not enough: choose a DIFFERENT OBJECT for those shots. If the beat is about'
@@ -236,8 +241,10 @@ await mkdir(STILLS, { recursive: true });
    already there. Only the directory knows. */
 async function markDone() {
   const files = await readdir(OUT).catch(() => []);
+  /* By full name, for the same reason the todo filter is: a clip at position 0 is not this
+     plan's shot 0 unless its subject matches too. */
   const clips = plan.shots.map((s) => files.find(
-    (f) => f.startsWith(`${String(s.n).padStart(2, '0')}-`) && f.endsWith('.mp4')) || null);
+    (f) => f.startsWith(`${String(s.n).padStart(2, '0')}-${s.id}-`) && f.endsWith('.mp4')) || null);
   const missing = clips.filter((c) => !c).length;
   if (missing) {
     console.log(`  not done: ${missing} of ${plan.shots.length} shots have no clip`);
@@ -248,12 +255,22 @@ async function markDone() {
 }
 
 const have = await readdir(OUT).catch(() => []);
+/* Matched on the shot's full name, not on its index.
+
+   `00-` is a position, and a re-planned Short has entirely different subjects at the same
+   positions. Checking the prefix alone meant a six-shot replan of iron-pillar reported "all 6
+   already generated" against seven clips of the previous plan — sensor rings and phosphorus
+   veins silently replaced by whatever the old shot 1 happened to be. Nothing failed; the cut
+   would simply have had nothing to do with its script.
+
+   The same mistake as short-audio keyed by line index. Position is not identity. */
 const todo = plan.shots.filter((s) => {
   if (ONLY.length && !ONLY.includes(String(s.n + 1)) && !ONLY.includes(s.id)) return false;
   if (has('force')) return true;
-  return !have.some((f) => f.startsWith(`${String(s.n).padStart(2, '0')}-`) && f.endsWith('.mp4'));
+  const base = `${String(s.n).padStart(2, '0')}-${s.id}`;
+  return !have.some((f) => f.startsWith(`${base}-`) && f.endsWith('.mp4'));
 });
-if (!todo.length) { console.log('\nall seven already generated'); await markDone(); process.exit(0); }
+if (!todo.length) { console.log(`\nall ${plan.shots.length} already generated`); await markDone(); process.exit(0); }
 
 console.log(`\n  generating ${todo.length} across ${soraFleet.lanes.length} deployment(s): ${soraFleet.lanes.map((l) => `${l.name}@${l.limit}`).join(', ')}\n`);
 const t0 = Date.now();
