@@ -46,6 +46,9 @@ const SLUG = arg('slug', null);
 if (!SLUG) { console.error('usage: node tools/short.mjs --slug <slug> --era <era>'); process.exit(1); }
 const ERA = arg('era', 'gupta');
 const DRAFT = has('draft');
+/* Feed styling: the whole caption legible from frame one. See short-page.mjs for why the
+   default — unsaid words at 30% opacity — measured as a 7-second cliff. */
+const FEED = has('feed');
 const FPS = Number(arg('fps', DRAFT ? 12 : 25));
 const SCALE = DRAFT ? 0.5 : 1;
 const W = Math.round(1080 * SCALE);
@@ -236,18 +239,34 @@ await mkdir(path.join(EP, 'short-audio'), { recursive: true });
 const beats = [];
 for (const [i, l] of script.lines.entries()) {
   const mp3 = path.join(EP, 'short-audio', `${String(i).padStart(2, '0')}.mp3`);
+  const side = mp3.replace(/\.mp3$/, '.json');
   const written = l.text.trim();
   /* speakYears returns { text, changed } — the spoken form is `text`. Destructuring it as
      `spoken` gave undefined, which reached the synthesiser as an SSML body and threw there
      rather than here. */
   const { text: spoken } = speakYears(written);
-  if (!existsSync(mp3) || has('revoice')) {
+
+  /* The cache is keyed by position, and position is not identity.
+
+     `00.mp3` exists, so line 1 is never re-voiced — even when line 1 is now a different
+     sentence. Rewriting the script and re-rendering produced a Short whose subtitles and
+     description were the new words, whose kickers were the new kickers, and whose voice and
+     on-screen type were still the old ones. Nothing failed; it just shipped the wrong video.
+
+     So the sidecar records what was actually said, and a line whose text has changed is
+     re-voiced. Old sidecars have no `written` field and are treated as stale once, which
+     costs one re-synthesis per line and buys certainty. */
+  const cached = await readFile(side, 'utf8').then(JSON.parse).catch(() => null);
+  const stale = !existsSync(mp3) || !cached || cached.written !== written;
+  if (stale || has('revoice')) {
     const { audio, words } = await synth(spoken, { role: 'narrator', mood: i === 0 ? 'suspense' : 'calm', lang: LANG.code });
     await writeFile(mp3, audio);
-    await writeFile(mp3.replace(/\.mp3$/, '.json'), JSON.stringify(foldToWritten(written, spoken, words)));
+    await writeFile(side, JSON.stringify({ written, words: foldToWritten(written, spoken, words) }));
   }
   const dur = await mp3Seconds(mp3);
-  const words = JSON.parse(await readFile(mp3.replace(/\.mp3$/, '.json'), 'utf8'));
+  const sidecar = JSON.parse(await readFile(side, 'utf8'));
+  /* Sidecars written before the `written` field was added are a bare array. */
+  const words = Array.isArray(sidecar) ? sidecar : sidecar.words;
   /* A held beat after each line. Without it the lines run into one another and the piece
      reads as one long sentence; the hook gets the longest, because the first silence is
      where a viewer decides. */
@@ -266,7 +285,7 @@ await mkdir(path.join(TMP, 'type'), { recursive: true });
 const build = path.join(EP, 'short-build');
 await mkdir(build, { recursive: true });
 await writeFile(path.join(build, 'index.html'),
-  shortPage({ title: ep.title, beats, runtime, tail: TAIL }));
+  shortPage({ title: ep.title, beats, runtime, tail: TAIL, feed: FEED }));
 
 /* Served in-process — see tools/local-server.mjs.
 
@@ -496,10 +515,13 @@ const srt = beats.map((b, k) => {
 }).join('\n');
 await writeFile(path.join(OUT, `${SLUG}-short.en.srt`), srt);
 
-const title = (meta.titles?.[0] || ep.title).slice(0, 90);
+const title = (meta.titles?.[0] || script.title || ep.title).slice(0, 90);
 await writeFile(path.join(OUT, 'title.txt'), `${title}\n`);
+/* First line and last line, by position rather than by index. `lines[6]` assumed the script
+   was always seven lines and threw the moment a six-line hook script ran — after the whole
+   render had already been paid for. */
 await writeFile(path.join(OUT, 'description.txt'),
-  `${script.lines[0].text}\n\n${script.lines[6].text}\n\n#Shorts #IndianHistory #${ERA}\n`);
+  `${script.lines[0].text}\n\n${script.lines.at(-1).text}\n\n#Shorts #IndianHistory #${ERA}\n`);
 await writeFile(path.join(OUT, 'tags.txt'), (meta.tags || []).join(', ') + '\n');
 const thumb = path.join(EP, 'thumb-art', 'hold-r1.png');
 if (existsSync(thumb)) await copyFile(thumb, path.join(OUT, `${SLUG}-short-cover.png`));

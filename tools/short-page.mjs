@@ -63,6 +63,26 @@ export const shortPage = (short) => `<!doctype html>
   #line .w.said{color:rgba(232,182,74,.62)}
   #line .w.now{color:#fff;text-shadow:0 0 34px rgba(232,182,74,.62)}
 
+  /* FEED MODE — the same page, made to survive a phone in daylight.
+
+     The styling above is built for someone who has chosen to watch: unsaid words sit at 30%
+     opacity so the line resolves as it is spoken, which is a lovely effect in a dark room.
+     Measured in a feed it is fatal. At any instant roughly 85% of the sentence is nearly
+     invisible, and a viewer deciding in under two seconds whether to stay sees dim brown
+     serif on near-black and swipes. The channel's best Shorts hold 0:07 of a 45-second cut.
+
+     So in feed mode the whole line is legible from the first frame and the spoken word is
+     marked by colour rather than by hiding everything else. Weight 600 and a hard shadow,
+     because the type has to hold over bright footage as well as dark. */
+  #stage.feed #line{font-weight:600;font-size:9.6cqw;line-height:1.14;
+    color:rgba(255,255,255,.93);
+    text-shadow:0 .22cqw 1.6cqw rgba(0,0,0,.92), 0 0 .5cqw rgba(0,0,0,.8)}
+  #stage.feed #line .w.said{color:rgba(255,255,255,.93)}
+  #stage.feed #line .w.now{color:#ffd77a;text-shadow:0 .22cqw 1.6cqw rgba(0,0,0,.95), 0 0 2.2cqw rgba(232,182,74,.55)}
+  #stage.feed #scrim{top:4%;height:74%;
+    background:linear-gradient(180deg,rgba(6,5,4,0) 0%,rgba(6,5,4,.80) 18%,rgba(6,5,4,.86) 60%,rgba(6,5,4,0) 100%)}
+  #stage.feed #kick{font-size:2.5cqw;letter-spacing:.34em;color:#ffb347}
+
   /* the kicker — what kind of beat this is, set small above the line */
   #kick{position:absolute;left:7.5%;right:7.5%;top:11.4%;z-index:3;pointer-events:none;
     font-size:1.95cqw;letter-spacing:.42em;text-transform:uppercase;
@@ -107,7 +127,7 @@ export const shortPage = (short) => `<!doctype html>
 }());</script>
 </head>
 <body>
-<div id="stage">
+<div id="stage" class="${short.feed ? 'feed' : ''}">
   <div id="scrim"></div>
   <div id="kick"></div>
   <div id="type"><div id="line"></div></div>
