@@ -56,14 +56,15 @@ THE HOOK CARRIES THE WHOLE VIDEO. A scene is not a hook. "A shy dot rests on
 birch-bark" is a scene: nothing is at stake and the thumb keeps moving. A hook needs a
 TENSION the viewer wants resolved — one of:
   - a contradiction: something that plainly should not be true
-      "A six-ton iron pillar stands in the rain and never rusts."
+      "A six-ton iron pillar stands in the rain and never rusts."   (11 words)
   - a number that is wrong-sounding
-      "A clerk worked out the size of the Earth with a stick."
+      "A clerk measured the Earth with a stick."                     (8 words)
   - an act with a cost
-      "A king watched a hundred thousand die, then never fought again."
+      "A king watched a hundred thousand die, then stopped."         (9 words)
   - a thing that means nothing and changes everything
-      "A dot for nothing became the most useful number ever written."
+      "A dot for nothing became our most useful number."             (9 words)
 Say the hook aloud. If a stranger would not want the next sentence, it has failed.
+COUNT THE WORDS IN LINE 1. It must be 5 to 11. Shorter is better than longer.
 
 HARD RULES
 - The hook is never a generic question. Never "Did you know", never "What if", never "Imagine".
@@ -119,7 +120,14 @@ function faults(got) {
     const n = words(l?.text);
     const role = ROLES[i];
     if (l?.role !== role) bad.push(`line ${i + 1} must have role "${role}"`);
-    if (i === 0 && (n < 5 || n > 11)) bad.push(`line 1 (hook) is ${n} words, needs 5-11`);
+    if (i === 0 && (n < 5 || n > 11)) {
+      /* Naming the surplus rather than the rule. Four consecutive re-rolls came back at 12
+         words against a stated limit of 11, because "needs 5-11" is a constraint the model
+         re-reads and re-violates; "cut 1 word" is an edit it can perform. */
+      bad.push(n > 11
+        ? `line 1 (hook) is ${n} words — CUT ${n - 11} WORD${n - 11 > 1 ? 'S' : ''}. Rewrite it shorter, do not rephrase at the same length.`
+        : `line 1 (hook) is ${n} words, needs at least 5`);
+    }
     if (i > 0 && (n < 8 || n > 18)) bad.push(`line ${i + 1} is ${n} words, needs 8-18`);
     if (/^(and|so|then|but|meanwhile|however|yet|thus)\b/i.test(String(l?.text || '').trim())) {
       bad.push(`line ${i + 1} opens with connective tissue — start on the thing itself`);
