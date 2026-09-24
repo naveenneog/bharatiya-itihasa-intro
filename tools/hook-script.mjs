@@ -52,6 +52,19 @@ SHAPE — exactly 6 lines:
              previous one MORE surprising, not merely add to it.
   6. PAYOFF  8-18 words. Resolves the hook. It should make line 1 land harder on a rewatch.
 
+THE HOOK CARRIES THE WHOLE VIDEO. A scene is not a hook. "A shy dot rests on
+birch-bark" is a scene: nothing is at stake and the thumb keeps moving. A hook needs a
+TENSION the viewer wants resolved — one of:
+  - a contradiction: something that plainly should not be true
+      "A six-ton iron pillar stands in the rain and never rusts."
+  - a number that is wrong-sounding
+      "A clerk worked out the size of the Earth with a stick."
+  - an act with a cost
+      "A king watched a hundred thousand die, then never fought again."
+  - a thing that means nothing and changes everything
+      "A dot for nothing became the most useful number ever written."
+Say the hook aloud. If a stranger would not want the next sentence, it has failed.
+
 HARD RULES
 - The hook is never a generic question. Never "Did you know", never "What if", never "Imagine".
   Open on the object, the number, or the act. "A clerk in Kerala wrote calculus in verse."
