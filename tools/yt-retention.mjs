@@ -53,9 +53,31 @@ try {
       avgPercent: (body.match(/Average percentage viewed\s*([\d.]+%)/i) || [])[1] || null,
       impressions: (body.match(/Impressions\s*([\d.,]+[KM]?)/i) || [])[1] || null,
       ctr: (body.match(/click-through rate\s*([\d.]+%)/i) || [])[1] || null,
+      /* The two Shorts metrics that answer the questions actually being asked.
+         "Shown in feed" says whether YouTube is testing the Short at all; "viewed vs swiped
+         away" says whether the first moment works. Average view duration is slower and needs
+         far more views before it means anything — two views produced no figure at all. */
+      shownInFeed: (body.match(/Shown in feed\s*([\d.,]+[KM]?)/i) || [])[1] || null,
+      viewedPct: (body.match(/([\d.]+)%\s*viewed/i) || body.match(/Viewed\s*([\d.]+)%/i) || [])[1] || null,
+      /* The labels are read from a page that changes; keep the raw text around the one that
+         matters so a missed match is visible rather than silently null. */
+      swipeContext: (body.match(/.{0,80}swiped.{0,80}/i) || [])[0] || null,
     };
+
+    /* The hook metric lives on the Engagement tab, not the overview: Studio renders it as
+       "How viewers engaged … 66.7% 33.3% Stayed to watch Swiped away" — two percentages first,
+       labels after. Searched for on the overview and reach tabs first and found on neither. */
+    await page.goto(`https://studio.youtube.com/video/${id}/analytics/tab-interest_viewers/period-default`,
+      { waitUntil: 'domcontentloaded' });
+    await sleep(7000);
+    const eng = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ');
+    const sw = eng.match(/([\d.]+)%\s*([\d.]+)%\s*Stayed to watch\s*Swiped away/i);
+    rec.stayedPct = sw ? Number(sw[1]) : null;
+    rec.swipedPct = sw ? Number(sw[2]) : null;
+
     out.push(rec);
-    console.log(`  ${id}  views=${rec.views ?? '?'}  avgDur=${rec.avgViewDuration ?? '?'}  avg%=${rec.avgPercent ?? '?'}  ${rec.title.slice(0, 40)}`);
+    console.log(`  ${id}  views=${String(rec.views ?? '?').split(' ')[0].padStart(4)}  stayed=${rec.stayedPct ?? '?'}%  avgDur=${rec.avgViewDuration ?? '?'}  ${rec.title.slice(0, 40)}`);
+    out.push(rec);
   }
   await writeFile('dist/yt-retention.json', `${JSON.stringify({ at: new Date().toISOString(), out }, null, 2)}\n`);
   console.log('\n  -> dist/yt-retention.json');

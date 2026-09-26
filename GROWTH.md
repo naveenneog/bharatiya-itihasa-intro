@@ -54,9 +54,15 @@ arriving between two videos that are already moving. It gets swiped past before 
 
 Two things follow. The regional-language folk tales out-perform the English history roughly two
 to one — though that confounds language with format, since the folk tales are stories and the
-history is documentary. And the German set is 35 videos carrying 69 views between them; it is not
-merely unsuccessful, it actively teaches the recommendation system that this channel has no
-coherent audience to match.
+history is documentary. And the German set is 35 videos carrying 69 views between them.
+
+*Corrected 26 Sep.* An earlier version said the German set "actively teaches the recommendation
+system that this channel has no coherent audience to match". YouTube's stated position is that it
+recommends videos to viewers rather than promoting channels, and that an underperforming video
+does not count against the next one ([Creator Insider, "Will one underperforming video hurt your
+channel?"](https://www.youtube.com/watch?v=AeZVgj7XDls); [YouTube Help, performance
+FAQ](https://support.google.com/youtube/answer/141805)). The German set does not drag the other
+videos down. What the mix does affect is a person deciding whether to subscribe, below.
 
 The channel also presents as three things at once: it is named **AI4Good**, its avatar is
 **Togalu Gombe Aata**, and its content is Indian history plus multilingual folk tales plus a
@@ -64,13 +70,17 @@ smart-stove review. A viewer who enjoys one video has no idea what subscribing w
 
 ## What this rules out
 
-**Publishing the backlog does not serve the goal.** 297 more long-form episodes at three a day
-would add videos whose median sibling gets 3 views, and every one of them that is opened and
-abandoned is another signal that the channel is not worth serving. The campaign is paused for
-that reason, not because it failed — 121 uploaded cleanly and 38 are scheduled.
+**The backlog was paused on a false premise, and is resumed.** This section originally argued
+that every backlog video opened and abandoned would be "another signal that the channel is not
+worth serving", and the user's publish schedule was stopped on that basis. YouTube says the
+opposite: each video is judged on its own, and a weak one does not penalise the next (sources
+above). The backlog costs nothing further to publish, adds watch time, and gives search something
+to find, so it resumes on the user's original cadence — one episode and two Shorts a day from
+20 Oct. 121 were uploaded before the pause and 53 are already scheduled.
 
-**Volume is already disproven.** 431 videos produced 42 subscribers. Another 300 will not change
-the ratio; it is not a supply problem.
+**Volume alone is not the lever.** 431 videos produced 42 subscribers. More of the same will not
+change that ratio. The backlog is published because it is free and harmless, not because it will
+move the number.
 
 ## The arithmetic of the target
 
@@ -90,12 +100,46 @@ genuinely good attempts into the feed to give the thing a real chance. That is t
 ## The plan
 
 1. **Fix the Shorts hook.** A legible, moving or human first frame; a spoken curiosity gap inside
-   1.5 seconds; cuts every 1.5–2.5 s; 25–35 s total; a payoff that loops. Measured against
-   average view percentage, not views.
+   1.5 seconds; cuts every 1.5–2.5 s; 25–35 s total; a payoff that loops. Measured by *stayed to
+   watch* (below), not by views.
 2. **One lane.** Indian history and myth, told as story rather than as lecture, in the languages
    the data already favours.
-3. **Retire German**, and stop diluting the signal.
-4. **Publish Shorts at a steady, unremarkable cadence** — 3–5 a day, spaced, never in bursts. The
-   upload failures on 23 Sep came after ~120 uploads in one day, which is the shape of activity
-   that attracts review. Nothing here is worth risking the channel for.
-5. **Measure average view percentage after every batch** and keep only what holds viewers.
+3. **A coherent channel is the user's decision.** Splitting Itihāsa onto its own channel, or
+   retiring the German set, changes work that belongs to other projects. The case for it is the
+   subscribe decision, not the algorithm.
+4. **Publish at a steady cadence, and upload at most ~60 a day.** The 23 Sep upload failures were
+   most likely YouTube's daily upload limit: 121 uploads succeeded, then every one failed at the
+   title box, including after a browser restart, and uploads worked again the next day. The
+   probe that seemed to rule a limit out opened the upload dialog without selecting a file, so it
+   could never have shown one.
+5. **Measure *stayed to watch* after every batch**, once a Short has enough exposure to mean
+   something, and keep only what holds viewers.
+
+## Measured, 26 Sep — the first pilots, and a flaw in the test
+
+Studio reports the hook metric on a Short's **Engagement** tab as "Stayed to watch / Swiped away"
+— not on the overview or reach tabs (`tools/yt-retention.mjs` reads it from there).
+
+| Short | format | views | stayed to watch |
+|---|---|---|---|
+| Copper Plates and Village Sabhas | old | 104 | **14.4%** |
+| Huvishka's Amitabha in Mathura | old | 85 | **11.5%** |
+| Aryabhata Turns the Earth | old | 63 | 28.6% |
+| The Pallava Alphabet Goes Overseas | old | 24 | 68.4% |
+| The Dot That Became Zero | new | 22 | 63.6% |
+| Why Delhi's Iron Pillar Refuses To Rust | new | 5 | 60% |
+| The Surgeon Who Rebuilt a Nose | new | 8 | 37.5% |
+
+The two old Shorts that reached the most people confirm the diagnosis: shown to several hundred
+viewers each, **85–89% swiped away**.
+
+The new pilots look far better, and **that comparison is not yet valid**. They have been shown to
+roughly 10–35 people each, and at that exposure an *old-format* Short scored 68.4%. The first
+viewers of a Short are the warmest; the rate falls as the feed widens to strangers. So a pilot is
+only comparable once it has around 100 views, against old Shorts at similar exposure — which puts
+the bar at roughly 12–15%, and anything holding 30%+ at that scale would mean the fix is real.
+
+The test as first designed also had a timing flaw. It waited for each pilot to be judged before
+making more, but the feed showed the iron-pillar Short to about eight people in its first 27
+hours. At that rate a verdict takes days, and waiting was spending the 2–3 week window rather than
+buying information. Production therefore continues at two a day while the measurement matures.
