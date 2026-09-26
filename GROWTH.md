@@ -143,3 +143,25 @@ The test as first designed also had a timing flaw. It waited for each pilot to b
 making more, but the feed showed the iron-pillar Short to about eight people in its first 27
 hours. At that rate a verdict takes days, and waiting was spending the 2–3 week window rather than
 buying information. Production therefore continues at two a day while the measurement matures.
+
+## Spend, measured 27 Sep — and why new generation is on hold
+
+Read from Azure Cost Management (`tools/spend.ps1`), not estimated. The estimate it replaced was
+twice too high per Short and missed about $650 of usage entirely.
+
+| | USD, month to date |
+|---|---|
+| **the whole subscription** | **2,283** |
+| the Azure AI resource this pipeline uses (`ai-contosohub530569751908`) | 686 |
+| of which on days this repo generated anything (24 Sep, the five pilots) | 29 |
+| of which on days it generated nothing (1–5 Sep images, 14–19 Sep Sora) | 657 |
+
+A feed-format Short costs about **$5.90**: $4.80 of Sora (48 s at $0.10/s) and $1 of stills; the
+voice and script are cents. Two a day is about $360 a month.
+
+The campaign's own spend is small. The problem is the number around it. The $2,000 monthly budget
+and the subscription's total are different figures, and the subscription passed $2,000 on its own
+this month — driven by other projects, including $549 of image generation on 1–5 Sep that nothing
+in this repo wrote. The subscription was suspended for overuse in August. So new Sora and image
+generation is held until the user confirms which figure is the ceiling. Uploading, scheduling
+and measuring cost nothing on Azure and continue.

@@ -1,55 +1,125 @@
-/* Give the five pilot Shorts their publish times.
+/* The register of feed-format Shorts: record each one, give it a slot, schedule it.
 
-   Peak audience for this channel is Indian evening, and the pilots finished at one in the
-   morning. Publishing them straight away would have the Shorts feed run its first test — the
-   one that decides whether a video gets a second audience — against the quietest hours of the
-   day. So they are dated instead: at most two a day, at 13:00 and 19:00 IST.
+   The five pilots were scheduled from ids typed into this file. That does not survive a second
+   day. The register is dist/feed-shorts.json, one entry per Short, and everything reads it: the
+   daily measurement takes its ids from here, and the scheduler takes its slots from here.
 
-   Spacing also keeps the account's activity unremarkable. The upload failures on 23 Sep came
-   after roughly 120 uploads in a day.
+     node tools/pilot-schedule.mjs add --slug copper-plates --era pallava
+         reads the uploaded id from dist/uploads.json and gives the Short the next free slot
+     node tools/pilot-schedule.mjs schedule [--dry]
+         dates every entry not yet scheduled, and marks the verified ones
+     node tools/pilot-schedule.mjs ids
+         prints the ids, comma-joined, for tools/yt-retention.mjs --ids
 
-     node tools/pilot-schedule.mjs --dry
-     node tools/pilot-schedule.mjs
+   Slots are 17:00 and 21:00 IST, never on a day that already has a feed-format Short, and never
+   before tomorrow. The backlog uses 09:00, 13:00 and 19:00 from 20 Oct, so the two never meet.
 */
-import { chromium } from 'playwright-core';
-import { schedulePublish } from '../../yt-agent/lib/upload.mjs';
+import { readFile, writeFile, rename } from 'node:fs/promises';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 
-const DRY = process.argv.includes('--dry');
-const PROFILE = 'C:\\Users\\navg\\.copilot\\playwright-youtube-profile';
+const argv = process.argv.slice(2);
+const cmd = argv[0];
+const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
+const DRY = argv.includes('--dry');
+const REG = 'dist/feed-shorts.json';
+const HOURS = [17, 21];
+const TZ = '+05:30';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const PILOTS = [
-  { id: '5cP0OLSYbjY', title: 'Why Delhi’s Iron Pillar Refuses To Rust', when: { year: 2026, month: 9, day: 25, hour: 19, minute: 0 } },
-  { id: 'tk2o89qLIM0', title: 'The Dot That Became Zero', when: { year: 2026, month: 9, day: 26, hour: 13, minute: 0 } },
-  { id: 'fXuNrAyOnEA', title: 'The Surgeon Who Rebuilt a Nose', when: { year: 2026, month: 9, day: 26, hour: 19, minute: 0 } },
-  { id: 'p4CRJYYrtYs', title: 'The King Who Built a School That Lasted 700 Years', when: { year: 2026, month: 9, day: 27, hour: 13, minute: 0 } },
-  { id: '2H3oaeRNPLo', title: 'The Mud-Brick Rooms That Never Reopened', when: { year: 2026, month: 9, day: 27, hour: 19, minute: 0 } },
-];
+const load = async () => JSON.parse(await readFile(REG, 'utf8').catch(() => '[]'));
+const save = async (rows) => {
+  await writeFile(`${REG}.tmp`, `${JSON.stringify(rows, null, 2)}\n`);
+  await rename(`${REG}.tmp`, REG);
+};
 
-for (const p of PILOTS) {
-  const { year, month, day, hour } = p.when;
-  console.log(`  ${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:00  ${p.id}  ${p.title}`);
+/* IST calendar date, so "tomorrow" means tomorrow where the audience is. */
+const istDay = (d = new Date()) => new Date(d.getTime() + 5.5 * 3600e3).toISOString().slice(0, 10);
+const addDay = (iso) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+function nextSlot(rows) {
+  const taken = new Map();
+  for (const r of rows) {
+    const day = (r.publishLocal || '').slice(0, 10);
+    if (day) taken.set(day, (taken.get(day) || []).concat(Number(r.publishLocal.slice(11, 13))));
+  }
+  /* The last day that holds feed Shorts, if it still has a free slot, else the day after it —
+     but never earlier than tomorrow. */
+  const days = [...taken.keys()].sort();
+  let day = days.at(-1) || istDay();
+  const tomorrow = addDay(istDay());
+  if (day < tomorrow) day = tomorrow;
+  for (;;) {
+    const used = taken.get(day) || [];
+    const pilotDay = rows.some((r) => r.pilot && (r.publishLocal || '').startsWith(day));
+    const free = pilotDay ? [] : HOURS.filter((h) => !used.includes(h));
+    if (free.length) return `${day}T${String(free[0]).padStart(2, '0')}:00:00${TZ}`;
+    day = addDay(day);
+  }
 }
-if (DRY) { console.log('\n  --dry: nothing scheduled'); process.exit(0); }
 
-const ctx = await chromium.launchPersistentContext(PROFILE,
-  { channel: 'msedge', headless: false, viewport: { width: 1300, height: 950 } });
-const page = ctx.pages()[0] || await ctx.newPage();
-try {
-  await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded' });
-  await sleep(3000);
+if (cmd === 'ids') {
+  console.log((await load()).map((r) => r.id).filter(Boolean).join(','));
+  process.exit(0);
+}
+
+if (cmd === 'add') {
+  const slug = arg('slug', null); const era = arg('era', null);
+  if (!slug || !era) { console.error('usage: add --slug <slug> --era <era>'); process.exit(1); }
+  const dir = `dist/${era}/${slug}_short`;
+  const title = readFileSync(path.join(dir, 'title.txt'), 'utf8').trim().split('\n')[0];
+  const ledger = JSON.parse(readFileSync('dist/uploads.json', 'utf8')).uploads || {};
+  const rec = Object.entries(ledger).find(([k, v]) => k.replace(/\\/g, '/') === dir && v.exit === 0 && v.url);
+  if (!rec) { console.error(`${dir} has no successful upload in dist/uploads.json — upload it first`); process.exit(1); }
+  const id = rec[1].url.replace(/^https?:\/\/(youtu\.be\/|(www\.)?youtube\.com\/shorts\/)/, '');
+  const rows = await load();
+  if (rows.some((r) => r.id === id)) { console.log(`  ${id} already registered`); process.exit(0); }
+  const publishLocal = nextSlot(rows);
+  rows.push({ id, slug, era, title, publishLocal, scheduled: false, addedAt: new Date().toISOString() });
+  await save(rows);
+  console.log(`  registered ${id}  ${publishLocal}  ${title}`);
+  process.exit(0);
+}
+
+if (cmd === 'schedule') {
+  const rows = await load();
+  const todo = rows.filter((r) => r.id && r.publishLocal && !r.scheduled);
+  for (const r of todo) console.log(`  ${r.publishLocal.slice(0, 16).replace('T', ' ')}  ${r.id}  ${r.title}`);
+  if (!todo.length) { console.log('  nothing to schedule'); process.exit(0); }
+  if (DRY) { console.log('\n  --dry: nothing scheduled'); process.exit(0); }
+
+  const { chromium } = await import('playwright-core');
+  const { schedulePublish } = await import('../../yt-agent/lib/upload.mjs');
+  const ctx = await chromium.launchPersistentContext('C:\\Users\\navg\\.copilot\\playwright-youtube-profile',
+    { channel: 'msedge', headless: false, viewport: { width: 1300, height: 950 } });
+  const page = ctx.pages()[0] || await ctx.newPage();
   let ok = 0; let pending = 0; let bad = 0;
-  for (const p of PILOTS) {
-    process.stdout.write(`\n  ${p.id} -> ${p.when.day}/${p.when.month} ${p.when.hour}:00 ... `);
-    try {
-      const r = await schedulePublish(page, p.id, p.when, (m) => process.stdout.write(`\n      ${m}`));
-      if (r.verified) { ok++; process.stdout.write('ok'); }
-      else if (r.pending) { pending++; process.stdout.write('still processing — retry later'); }
-      else { bad++; process.stdout.write('not verified'); }
-    } catch (e) { bad++; process.stdout.write(`ERROR ${String(e.message).slice(0, 70)}`); }
-    await sleep(2500);
+  try {
+    await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded' });
+    await sleep(3000);
+    for (const r of todo) {
+      const m = r.publishLocal.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      const when = { year: +m[1], month: +m[2], day: +m[3], hour: +m[4], minute: +m[5] };
+      process.stdout.write(`\n  ${r.id} -> ${r.publishLocal.slice(0, 16)} ... `);
+      try {
+        const res = await schedulePublish(page, r.id, when, (msg) => process.stdout.write(`\n      ${msg}`));
+        if (res.verified) { r.scheduled = true; r.scheduledAt = new Date().toISOString(); ok++; process.stdout.write('ok'); }
+        else if (res.pending) { pending++; process.stdout.write('still processing — next pass'); }
+        else { bad++; process.stdout.write('not verified'); }
+      } catch (e) { bad++; process.stdout.write(`ERROR ${String(e.message).slice(0, 70)}`); }
+      await save(rows);
+      await sleep(2500);
+    }
+  } finally {
+    await ctx.close();
   }
   console.log(`\n\n  scheduled ${ok}, still processing ${pending}, failed ${bad}`);
-} finally {
-  await ctx.close();
+  process.exit(bad ? 1 : 0);
 }
+
+console.error('usage: node tools/pilot-schedule.mjs add|schedule|ids  (see header)');
+process.exit(1);

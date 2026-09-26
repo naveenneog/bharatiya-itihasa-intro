@@ -33,7 +33,19 @@ const PLAN = arg('plan', 'dist/publish-plan.json');
 const LOG = arg('log', 'dist/publish-log.json');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const { plan } = JSON.parse(await readFile(PLAN, 'utf8'));
+const { plan: fullPlan } = JSON.parse(await readFile(PLAN, 'utf8'));
+/* A feed-format remake overwrites dist/<era>/<slug>_short in place, and it has its own slot in
+   dist/feed-shorts.json. If that folder were also in this backlog plan, --schedule would re-date
+   a video that already has a date — or, for one that is already public, open its visibility
+   dialog and try to schedule it, which is how a live video goes private. Remakes are chosen from
+   Shorts whose old version is already public precisely so this cannot happen; this makes it a
+   guarantee rather than a habit. */
+const feed = JSON.parse(await readFile('dist/feed-shorts.json', 'utf8').catch(() => '[]'));
+const feedDirs = new Set(feed.map((f) => `dist/${f.era}/${f.slug}_short`));
+const plan = fullPlan.filter((p) => !feedDirs.has(p.dir));
+if (plan.length !== fullPlan.length) {
+  console.log(`  ${fullPlan.length - plan.length} plan item(s) skipped — they are feed-format remakes with their own slot`);
+}
 const log = JSON.parse((await readFile(LOG, 'utf8').catch(() => '')).trim() || '{}');
 const save = async () => {
   await writeFile(`${LOG}.tmp`, `${JSON.stringify(log, null, 2)}\n`);
