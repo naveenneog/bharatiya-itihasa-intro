@@ -147,7 +147,7 @@ if (!UPLOAD && !SCHEDULE) {
 if (UPLOAD) {
   const work = toUpload.slice(0, MAX);
   console.log(`\n  uploading ${work.length}, private, in plan order\n`);
-  let ok = 0; let bad = 0;
+  let ok = 0; let bad = 0; let streak = 0;
   for (const [i, p] of work.entries()) {
     console.log(`${'─'.repeat(70)}\n  [${i + 1}/${work.length}] ${p.publishLocal.slice(0, 10)}  ${p.kind}  ${p.title}`);
     if (p.stale) console.log('      (ledger says uploaded, channel does not have it — re-sending)');
@@ -160,18 +160,24 @@ if (UPLOAD) {
       .then((s) => JSON.parse(s).uploads || {}).catch(() => ({}));
     const rec = Object.entries(fresh).find(([k, v]) => k.replace(/\\/g, '/') === p.dir && v.exit === 0 && v.url);
     if (code === 0 && rec) {
-      log[p.dir] = { ...(log[p.dir] || {}), id: idOf(rec[1].url), uploadedAt: new Date().toISOString() };
+      /* Rebuilt rather than spread-merged: carrying the old record forward kept a stale
+         `uploadExit` from a failed attempt on 23 Sep, so three items that uploaded cleanly
+         today still looked failed, and the streak check below stopped a healthy batch. */
+      const { uploadExit, failedAt, ...kept } = log[p.dir] || {};
+      log[p.dir] = { ...kept, id: idOf(rec[1].url), uploadedAt: new Date().toISOString() };
       ok++;
+      streak = 0;
     } else {
       log[p.dir] = { ...(log[p.dir] || {}), uploadExit: code, failedAt: new Date().toISOString() };
       bad++;
+      streak++;
       console.log(`      upload did not land (exit ${code})`);
     }
     await save();
-    /* Three consecutive failures is a quota or a sign-out, not three unlucky videos. Stopping
-       beats burning the rest of the list against a wall. */
-    const tail = work.slice(Math.max(0, i - 2), i + 1);
-    if (tail.length === 3 && tail.every((t) => log[t.dir]?.uploadExit !== undefined)) {
+    /* Three consecutive failures in THIS run is a quota or a sign-out, not three unlucky
+       videos. Counted here rather than read back from the log, which remembers every past
+       failure and cannot tell this run's from last week's. */
+    if (streak >= 3) {
       console.log('\n  three failed in a row — stopping. Check the channel for a daily limit.');
       break;
     }

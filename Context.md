@@ -1883,6 +1883,26 @@ Match by title against a built folder, which is what the planner does.
   first scanner clicked, slept two seconds, saw no new rows and stopped — 75 of 268. Wait for
   the first row's id to actually change instead.
 
+### Growing the channel — read `GROWTH.md`
+
+Since 23 Sep the user's directive is growth: 42 → 1,000 legitimate subscribers, more watch time,
+never risk the channel. `GROWTH.md` holds the diagnosis, the measurements and the corrections.
+The load-bearing facts, each measured rather than assumed:
+
+- **The Shorts hook metric is "stayed to watch"**, on a Short's *Engagement* tab — not the overview
+  or reach tabs. `tools/yt-retention.mjs` reads it. Judge a Short only at ~100 views; low exposure
+  flatters the number (an old-format Short scored 68% at 24 views, against 11–14% at scale).
+- **Feed-format Shorts**: `tools/hook-script.mjs` (six-line script) → `tools/short-shots.mjs --replan`
+  → `tools/short.mjs --feed` (legible captions). Registered in `dist/feed-shorts.json` via
+  `tools/pilot-schedule.mjs add|schedule|ids`, slotted at 17:00 and 21:00 IST.
+- **Spend is measured with `tools/spend.ps1`** (Azure Cost Management). A feed Short costs about
+  $5.90. The Azure AI resource is shared with other projects, and the subscription passed $2,000
+  on its own in September — so generation is held until the user says which figure is the ceiling.
+- **YouTube's daily upload limit was hit on 23 Sep after 121 uploads.** The three that failed
+  that day went straight through on 27 Sep. Keep uploads under ~60 a day.
+- **A weak video does not hurt the channel** — YouTube judges each video on its own. An earlier
+  version of the plan assumed otherwise and paused the backlog; that was wrong and is reversed.
+
 ### The publish plan
 
 `tools/plan-publish.mjs` → `dist/publish-plan.json`, then `tools/publish-run.mjs --upload` and
