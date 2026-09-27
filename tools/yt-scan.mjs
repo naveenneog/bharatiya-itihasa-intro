@@ -98,7 +98,17 @@ async function scanTab(tab) {
       };
     }));
     let fresh = 0;
-    for (const b of batch) if (b.id && !seen.has(b.id)) { seen.set(b.id, b); fresh++; }
+    for (const b of batch) {
+      if (b.id && !seen.has(b.id)) { seen.set(b.id, b); fresh++; }
+      /* A row whose upload broke has no video link, so keying on the link dropped every one of
+         them: 44 broken episodes were simply absent from the scan, and the tools went on
+         believing the ids they had recorded. Keep them, keyed by title, so a broken copy is
+         visible as broken rather than invisible. */
+      if (!b.id && b.title && /processing abandoned|upload interrupted|could not be processed|failed to upload/i.test(b.rowText)) {
+        const k = `broken:${b.title}`;
+        if (!seen.has(k)) { seen.set(k, { ...b, id: null }); fresh++; }
+      }
+    }
     console.log(`  ${tab} page ${pages + 1}: ${batch.length} row(s), ${fresh} new, ${seen.size} total`);
 
     const next = page.locator('#navigate-after, ytcp-icon-button[aria-label="Go to next page"], button[aria-label="Go to next page"]').first();

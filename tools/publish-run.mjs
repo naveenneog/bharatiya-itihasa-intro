@@ -74,7 +74,13 @@ const live = new Set(channel.rows.map((r) => r.id));
 const norm = (t) => (t || '').toLowerCase().replace(/[’'`]/g, "'").replace(/[^a-z0-9]+/g, ' ').trim();
 
 const liveByTitle = new Map();
-for (const r of channel.rows) if (!liveByTitle.has(norm(r.title))) liveByTitle.set(norm(r.title), r);
+/* Broken rows are kept out of this map on purpose. A copy whose upload was aborted is on the
+   channel only in the sense that it takes up a row; it cannot be processed, played or dated. */
+const brokenTitles = new Set();
+for (const r of channel.rows) {
+  if (!r.id) { brokenTitles.add(norm(r.title)); continue; }
+  if (!liveByTitle.has(norm(r.title))) liveByTitle.set(norm(r.title), r);
+}
 const idOf = (u) => (u || '').replace(/^https?:\/\/(youtu\.be\/|(www\.)?youtube\.com\/shorts\/)/, '');
 const uploadedId = (dir) => {
   const rec = Object.entries(ledger).find(([k, v]) => k.replace(/\\/g, '/') === dir && v.exit === 0 && v.url);
@@ -83,12 +89,28 @@ const uploadedId = (dir) => {
 };
 
 let ghosts = 0;
+let broken = 0;
 for (const p of plan) {
   /* Any record at all, successful or not. A failed attempt matters as much as a successful one,
      because upload.mjs guards against both. */
   const rec = Object.entries(ledger).find(([k]) => k.replace(/\\/g, '/') === p.dir)?.[1];
   const hasLedger = !!rec;
-  const mine = log[p.dir]?.id || null;
+  let mine = log[p.dir]?.id || null;
+  const here0 = liveByTitle.get(norm(p.title)) || null;
+
+  /* A recorded id whose only copy on the channel is broken. The yt-agent navigated away while
+     large files were still transferring, which left 44 of 57 episodes as "Processing abandoned"
+     or "Upload interrupted" — and this tool, trusting its own record, then tried to date them.
+     Set the id aside and send the episode again. The scan must be newer than the upload for
+     this to be trusted, or an upload made since the scan would read as broken. */
+  const scanAt = Date.parse(channel.at || 0);
+  const upAt = Date.parse(log[p.dir]?.uploadedAt || 0);
+  if (mine && !log[p.dir]?.scheduled && !here0 && brokenTitles.has(norm(p.title)) && scanAt > upAt) {
+    log[p.dir] = { brokenIds: [...(log[p.dir].brokenIds || []), mine], brokenAt: new Date().toISOString() };
+    mine = null;
+    broken++;
+    p.wasBroken = true;
+  }
   const claimed = p.id || uploadedId(p.dir);
 
   /* Order matters here, and getting it wrong duplicates videos.
@@ -103,7 +125,7 @@ for (const p of plan) {
   /* The channel as it is now, by title, rather than as the plan remembers it. Taking the id
      from here as a last resort means an episode uploaded by some other route gets a date
      instead of a second upload. */
-  const here = liveByTitle.get(norm(p.title)) || null;
+  const here = here0;
   const onChannelNow = !!here;
   p.id = mine || claimed || (here ? here.id : null);
   p.scheduled = !!(here?.state === 'SCHEDULED' || p.state === 'SCHEDULED' || log[p.dir]?.scheduled);
@@ -122,7 +144,7 @@ for (const p of plan) {
      duplicate, so `--again` is correct: not "send a second copy", but "there is no first one".
      Anything this tool uploaded, or that the channel still has, keeps the guard. */
   p.stale = hasLedger && !mine && !p.id && !onChannelNow;
-  if (!mine && claimed === null && hasLedger && !onChannelNow) ghosts++;
+  if (!mine && claimed === null && hasLedger && !onChannelNow && !p.wasBroken) ghosts++;
 }
 
 const toUpload = plan.filter((p) => !p.id);
@@ -133,6 +155,7 @@ console.log(`    ${plan.length - toUpload.length} on the channel`);
 console.log(`    ${toUpload.length} still to upload`);
 console.log(`    ${toSchedule.length} uploaded but with no date yet`);
 if (ghosts) console.log(`    ${ghosts} ledger id(s) ignored — recorded as uploaded but not on the channel`);
+if (broken) console.log(`    ${broken} broken upload(s) set aside — only an aborted copy is on the channel; they will be sent again`);
 
 if (!UPLOAD && !SCHEDULE) {
   console.log('\n  --upload to send them, --schedule to date them. Nothing done.');

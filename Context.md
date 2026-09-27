@@ -1900,6 +1900,17 @@ The load-bearing facts, each measured rather than assumed:
   on its own in September — so generation is held until the user says which figure is the ceiling.
 - **YouTube's daily upload limit was hit on 23 Sep after 121 uploads.** The three that failed
   that day went straight through on 27 Sep. Keep uploads under ~60 a day.
+- **The yt-agent was aborting large uploads.** After clicking Save it did a full `page.goto()` to
+  verify, and the next job started with another one; a full page load kills a transfer still in
+  flight. Shorts finish transferring before the form is filled in, so they never broke. Episodes
+  often had not: **44 of 57 episodes uploaded on 23 and 27 Sep were left "Processing abandoned" or
+  "Upload interrupted"**. Fixed 27 Sep in `C:\Users\navg\DailyApps\yt-agent\lib\upload.mjs`
+  (not a git repo; the original is kept as `upload.mjs.bak-20260927`): it now waits while the
+  dialog reads "Uploading N%". Verified on a 279 MB episode, which processed to SD and HD.
+- **A broken upload has no video link in Studio's list**, so a scanner keyed on the link cannot
+  see it. `yt-scan.mjs` now records broken rows by title, and `publish-run.mjs` sets aside any
+  recorded id whose only copy is broken and sends the episode again. The broken copies stay in
+  Studio as private, unplayable rows; deleting them is the user's call.
 - **A weak video does not hurt the channel** — YouTube judges each video on its own. An earlier
   version of the plan assumed otherwise and paused the backlog; that was wrong and is reversed.
 
