@@ -165,3 +165,27 @@ this month — driven by other projects, including $549 of image generation on 1
 in this repo wrote. The subscription was suspended for overuse in August. So new Sora and image
 generation is held until the user confirms which figure is the ceiling. Uploading, scheduling
 and measuring cost nothing on Azure and continue.
+
+## Measured, 28 Sep — two pilots past the exposure bar
+
+| Short | views | stayed to watch | avg view duration |
+|---|---|---|---|
+| **The Dot That Became Zero** (new) | **267** | **65.8%** | 0:12 of 0:38 |
+| **The King Who Built a School That Lasted 700 Years** (new) | **103** | **58.4%** | — |
+| The Surgeon Who Rebuilt a Nose (new) | 14 | 42.9% | — |
+| Why Delhi's Iron Pillar Refuses To Rust (new) | 5 | 60% | — |
+| Copper Plates and Village Sabhas (old) | 104 | 14.4% | 0:07 |
+| Huvishka's Amitabha in Mathura (old) | 85 | 11.5% | 0:08 |
+
+At comparable exposure, the two new Shorts past 100 views hold **four to five times** the stay rate
+of the old format's best. The rule set on 26 Sep asks for three Shorts past ~100 views before
+calling it, so this is recorded as strong early evidence rather than a verdict.
+
+Two things the numbers also say. Distribution is uneven: the iron-pillar Short has sat at 5 views
+for three days while the zero Short reached 267 — the feed tested one and not the other, and
+nothing in these metrics says why. Subscribers went from 42 to 48 in the four days the pilots
+have been live, against +4 in the 28 days before 23 Sep. That is too few to attribute to any
+one video.
+
+Spend on 28 Sep: subscription $2,373 month to date; this campaign $35.15 in total, of which the
+one Short made on 27 Sep cost $5.87.
