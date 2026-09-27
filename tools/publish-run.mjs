@@ -110,6 +110,10 @@ for (const p of plan) {
     mine = null;
     broken++;
     p.wasBroken = true;
+  } else if (!mine && log[p.dir]?.brokenIds?.length) {
+    /* Set aside on an earlier run and not yet re-sent. */
+    broken++;
+    p.wasBroken = true;
   }
   const claimed = p.id || uploadedId(p.dir);
 
@@ -155,7 +159,7 @@ console.log(`    ${plan.length - toUpload.length} on the channel`);
 console.log(`    ${toUpload.length} still to upload`);
 console.log(`    ${toSchedule.length} uploaded but with no date yet`);
 if (ghosts) console.log(`    ${ghosts} ledger id(s) ignored — recorded as uploaded but not on the channel`);
-if (broken) console.log(`    ${broken} broken upload(s) set aside — only an aborted copy is on the channel; they will be sent again`);
+if (broken) console.log(`    ${broken} broken upload(s) — only an aborted copy is on the channel; queued to send again`);
 
 if (!UPLOAD && !SCHEDULE) {
   console.log('\n  --upload to send them, --schedule to date them. Nothing done.');
@@ -233,9 +237,19 @@ if (SCHEDULE) {
     process.exit(2);
   }
 
-  /* Re-read: an --upload phase in this same process has just changed who has an id. */
-  const work = plan.filter((p) => (p.id || log[p.dir]?.id) && !p.scheduled && !log[p.dir]?.scheduled)
-    .slice(0, MAX);
+  /* Re-read: an --upload phase in this same process has just changed who has an id.
+
+     Only what publishes within HORIZON days. Scheduling from late September, every November
+     date took (27 of 27) and every December date failed (20 of 20) at the calendar's day cell.
+     Whether that is Studio's own limit or the date picker's navigation, dating in a rolling
+     window avoids it: the daily pass picks items up as their dates come into range, and they
+     sit private until then, which is where they would be anyway. */
+  const HORIZON = Number(arg('horizon', 60));
+  const until = new Date(Date.now() + HORIZON * 86400e3).toISOString().slice(0, 10);
+  const due = plan.filter((p) => (p.id || log[p.dir]?.id) && !p.scheduled && !log[p.dir]?.scheduled);
+  const work = due.filter((p) => p.publishLocal.slice(0, 10) <= until).slice(0, MAX);
+  const later = due.length - due.filter((p) => p.publishLocal.slice(0, 10) <= until).length;
+  if (later) console.log(`\n  ${later} uploaded item(s) publish after ${until} — dated on a later pass`);
   if (!work.length) { console.log('\n  nothing to schedule'); process.exit(0); }
 
   console.log(`\n  scheduling ${work.length}\n`);
