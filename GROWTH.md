@@ -189,3 +189,27 @@ one video.
 
 Spend on 28 Sep: subscription $2,373 month to date; this campaign $35.15 in total, of which the
 one Short made on 27 Sep cost $5.87.
+
+## Measured, 29 Sep — the feed shows some Shorts and not others
+
+| Short | published (IST) | views | stayed to watch |
+|---|---|---|---|
+| The Dot That Became Zero | 26 Sep 13:00 | 276 | 66.4% |
+| The King Who Built a School That Lasted 700 Years | 27 Sep 13:00 | 167 | 60.8% |
+| The Mud-Brick Rooms That Never Reopened | 27 Sep 19:00 | 12 | 56.3% |
+| The Surgeon Who Rebuilt a Nose | 26 Sep 19:00 | 14 | 42.9% |
+| Why Delhi's Iron Pillar Refuses To Rust | 25 Sep 19:00 | 5 | 60% |
+| Chandragupta's Final Battle with Hunger | 28 Sep 17:00 | 4 | 50% |
+
+The two Shorts past 100 views keep holding 60%+ as they widen, against 11–14% for the old
+format's best at similar exposure. The third needed for a verdict has not arrived, because the
+other four have stalled at 4–14 views. So the pattern is: **when the feed shows a new-format
+Short, viewers stay; the feed shows most of them to almost no one.**
+
+One pattern in those six, recorded as a question rather than a finding: both Shorts that broke
+out were published at 13:00 IST, and all four that stalled at 17:00 or 19:00. With six Shorts,
+that split happens by chance about one time in fifteen. If generation resumes, alternating the
+publish time is a free way to test it.
+
+Subscribers: 49. Spend: subscription $2,455 month to date; this campaign unchanged at $35.15,
+since nothing has been generated during the hold.

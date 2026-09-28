@@ -1910,8 +1910,11 @@ The load-bearing facts, each measured rather than assumed:
 - **Studio serves two different upload layouts, and switches between them per upload.** Usually
   the stepped wizard with Next buttons; sometimes the full-page "Video details" editor, which has
   no Next and saves from a button at the top. The agent knew only the wizard, so on 28 Sep six
-  uploads timed out looking for Next — each had transferred 100% and was abandoned unsaved,
-  leaving a private copy titled with its filename. Fixed 28 Sep (backup `upload.mjs.bak-20260928`):
+  uploads timed out looking for Next — each had transferred 100% and was abandoned unsaved. They
+  were *not* left titled with their filenames (an earlier note here said so): Studio kept the
+  title the agent had typed, so each became a second private copy of its episode. The tools
+  schedule only the copy recorded in `dist/publish-log.json`, so the extras never publish;
+  `dist/studio-cleanup.md` lists them for the user. Fixed 28 Sep (backup `upload.mjs.bak-20260928`):
   it detects the layout and saves from the page, waiting for the panel's "Upload complete".
   Verified on *Malik Kafur in Madurai*, which landed on the details page and saved with its title,
   thumbnail and description, private, processed to SD and HD. The agent also now screenshots the

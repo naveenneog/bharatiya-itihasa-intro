@@ -17,18 +17,39 @@ $sub = (az account show --query id -o tsv).Trim()
 $rid = "/subscriptions/$sub/resourceGroups/rg-contosohub/providers/Microsoft.CognitiveServices/accounts/ai-contosohub530569751908"
 $url = "https://management.azure.com/subscriptions/$sub/providers/Microsoft.CostManagement/query?api-version=2023-03-01"
 $tmp = Join-Path $env:TEMP "itihasa-cost-body.json"
+$errf = Join-Path $env:TEMP "itihasa-cost-err.txt"
 
 function Query($body) {
   # The body goes through a file: the Cost Management filter is JSON full of quotes and braces,
   # and passing it inline through az's .cmd shim is how an argument gets re-parsed by cmd.exe.
   $body | Set-Content $tmp -Encoding ascii
-  $raw = az rest --method post --url $url --body "@$tmp" -o json
-  return ($raw | Out-String | ConvertFrom-Json).properties
+  # Cost Management throttles hard, and the tenant is shared: on 29 Sep the first query of the
+  # day came back 429. az exits non-zero with nothing on stdout, and the old version parsed that
+  # nothing and failed three lines later on a null array, which reads like a bug in this script
+  # rather than a busy API. So: retry 429 with a growing wait, and fail with the real message.
+  for ($try = 1; $try -le 6; $try++) {
+    # Windows PowerShell 5.1 turns a native command's redirected stderr into a terminating error
+    # under 'Stop', so the preference is relaxed for exactly this call.
+    $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    $raw = az rest --method post --url $url --body "@$tmp" -o json 2> $errf
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = $prev
+    if ($code -eq 0) { return ($raw | Out-String | ConvertFrom-Json).properties }
+    $err = (Get-Content $errf -Raw -ErrorAction SilentlyContinue) -as [string]
+    if ($err -notmatch '429|Too Many Requests') { throw "Cost Management query failed: $($err.Trim())" }
+    $wait = 20 * $try
+    Write-Host ("  Cost Management is throttling (429); retry {0}/6 in {1}s" -f $try, $wait)
+    Start-Sleep -Seconds $wait
+  }
+  throw 'Cost Management was still throttling after 6 attempts; run again later'
 }
 
 $all = Query '{"type":"ActualCost","timeframe":"MonthToDate","dataset":{"granularity":"None","aggregation":{"totalCost":{"name":"Cost","function":"Sum"}}}}'
 $total = ($all.rows | ForEach-Object { $_[0] } | Measure-Object -Sum).Sum
 "subscription month-to-date: {0:N2} USD" -f $total
+
+# A pause between the two queries, so the second does not land in the same throttling window.
+Start-Sleep -Seconds 5
 
 $daily = Query ('{"type":"ActualCost","timeframe":"MonthToDate","dataset":{"granularity":"Daily","aggregation":{"totalCost":{"name":"Cost","function":"Sum"}},"grouping":[{"type":"Dimension","name":"Meter"}],"filter":{"dimensions":{"name":"ResourceId","operator":"In","values":["' + $rid + '"]}}}}')
 $cols = $daily.columns.name
@@ -66,4 +87,4 @@ foreach ($d in ($days.Keys | Sort-Object)) {
 "  resource total:            {0,8:N2}" -f $res
 "  on days this repo worked:  {0,8:N2}   (an upper bound: other projects may share those days)" -f $mine
 "  on days it did not:        {0,8:N2}" -f ($res - $mine)
-Remove-Item $tmp -ErrorAction SilentlyContinue
+Remove-Item $tmp, $errf -ErrorAction SilentlyContinue
