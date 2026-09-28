@@ -1907,6 +1907,16 @@ The load-bearing facts, each measured rather than assumed:
   "Upload interrupted"**. Fixed 27 Sep in `C:\Users\navg\DailyApps\yt-agent\lib\upload.mjs`
   (not a git repo; the original is kept as `upload.mjs.bak-20260927`): it now waits while the
   dialog reads "Uploading N%". Verified on a 279 MB episode, which processed to SD and HD.
+- **Studio serves two different upload layouts, and switches between them per upload.** Usually
+  the stepped wizard with Next buttons; sometimes the full-page "Video details" editor, which has
+  no Next and saves from a button at the top. The agent knew only the wizard, so on 28 Sep six
+  uploads timed out looking for Next — each had transferred 100% and was abandoned unsaved,
+  leaving a private copy titled with its filename. Fixed 28 Sep (backup `upload.mjs.bak-20260928`):
+  it detects the layout and saves from the page, waiting for the panel's "Upload complete".
+  Verified on *Malik Kafur in Madurai*, which landed on the details page and saved with its title,
+  thumbnail and description, private, processed to SD and HD. The agent also now screenshots the
+  page on any failure (`yt-agent\logs\fail-<job>.png`; backup `agent.mjs.bak-20260928`) — that
+  screenshot is how the second layout was found.
 - **A broken upload has no video link in Studio's list**, so a scanner keyed on the link cannot
   see it. `yt-scan.mjs` now records broken rows by title, and `publish-run.mjs` sets aside any
   recorded id whose only copy is broken and sends the episode again. The broken copies stay in
