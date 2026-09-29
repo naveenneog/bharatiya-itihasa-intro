@@ -406,10 +406,47 @@ const own = (await readdir(ownDir).catch(() => [])).filter((f) => f.endsWith('.m
 const eraDir = path.join('eras', ERA, 'clips-v');
 const eraClips = (await readdir(eraDir).catch(() => [])).filter((f) => f.endsWith('.mp4')).sort();
 
+/* The clips come from the done file, which names this plan's take for each line — never from
+   the directory's sort order.
+
+   A re-planned Short keeps the previous plan's takes beside the new ones, so position 00 is two
+   different shots. Sorted, the thirteen files interleave — 00-crowned-ash-dot, 00-birch-bark,
+   01-counting-rods, 01-desert-ink-stone — and the first six are half one plan and half the
+   other, each a line out of step. All six feed-format Shorts of 24–28 Sep were cut that way:
+   iron-pillar and nalanda matched their plan on 0 of 6 lines, the other four on 1. Nothing
+   failed; the picture just had nothing to do with the words. The third time position has been
+   mistaken for identity here, after short-audio and short-shots' own cache. */
+const done = await readFile(path.join(EP, 'short-shots.json'), 'utf8').then(JSON.parse).catch(() => null);
+let planned = null;
+if (done?.clips?.length) {
+  const missing = done.clips.map((c, k) => (c && own.includes(c) ? 0 : k + 1)).filter(Boolean);
+  if (missing.length || done.clips.length < beats.length) {
+    console.error(`the shot plan for ${SLUG} is incomplete: ${missing.length ? `line(s) ${missing.join(', ')} have no clip on disk` : `${done.clips.length} clips for ${beats.length} lines`}`);
+    console.error(`  run: node tools/short-shots.mjs --slug ${SLUG}`);
+    process.exit(1);
+  }
+  const drift = (done.shots || []).slice(0, beats.length)
+    .map((s, k) => (s.claim && s.claim.trim() !== beats[k].text ? k + 1 : 0)).filter(Boolean);
+  if (drift.length) {
+    console.warn(`  ! line(s) ${drift.join(', ')} were reworded after their shots were planned; the picture`);
+    console.warn(`    was chosen for the old words. To re-plan: node tools/short-shots.mjs --slug ${SLUG} --replan`);
+  }
+  planned = done.clips.slice(0, beats.length);
+}
+
 let vdir; let clips;
-if (own.length >= beats.length) {
+if (planned) {
+  vdir = ownDir; clips = planned;
+  console.log(`  picture: this story's ${planned.length} planned takes (${own.length} on disk)`);
+} else if (own.length >= beats.length) {
   vdir = ownDir; clips = own;
   console.log(`  picture: ${own.length} takes of this story's own`);
+  const prefixes = own.map((f) => f.slice(0, 3));
+  if (new Set(prefixes).size < prefixes.length) {
+    console.error(`  ${SLUG} has no short-shots.json and its takes come from more than one plan;`);
+    console.error(`  the sort order would mix them. Run: node tools/short-shots.mjs --slug ${SLUG}`);
+    process.exit(1);
+  }
 } else if (eraClips.length) {
   vdir = eraDir; clips = eraClips;
   console.warn(`  ! picture: falling back to ${ERA}'s shared beats — every Short in this era will`);

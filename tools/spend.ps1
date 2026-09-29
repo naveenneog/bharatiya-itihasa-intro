@@ -11,6 +11,14 @@
 # Cost data lags by about a day, so today's work does not appear until tomorrow.
 #
 #   powershell -ExecutionPolicy Bypass -File tools\spend.ps1
+#   powershell -ExecutionPolicy Bypass -File tools\spend.ps1 -NeedToday 60   # exit 3 if not affordable
+
+param(
+  [double]$CampaignCap = 2000,
+  [double]$SubscriptionCap = 5000,
+  [double]$Margin = 0.9,
+  [double]$NeedToday = 50
+)
 
 $ErrorActionPreference = 'Stop'
 $sub = (az account show --query id -o tsv).Trim()
@@ -44,8 +52,18 @@ function Query($body) {
   throw 'Cost Management was still throttling after 6 attempts; run again later'
 }
 
-$all = Query '{"type":"ActualCost","timeframe":"MonthToDate","dataset":{"granularity":"None","aggregation":{"totalCost":{"name":"Cost","function":"Sum"}}}}'
-$total = ($all.rows | ForEach-Object { $_[0] } | Measure-Object -Sum).Sum
+$all = Query '{"type":"ActualCost","timeframe":"MonthToDate","dataset":{"granularity":"Daily","aggregation":{"totalCost":{"name":"Cost","function":"Sum"}},"grouping":[{"type":"Dimension","name":"ResourceId"}]}}'
+$acols = $all.columns.name
+$aci = [array]::IndexOf($acols, 'Cost'); $adi = [array]::IndexOf($acols, 'UsageDate'); $ari = [array]::IndexOf($acols, 'ResourceId')
+$subDay = @{}
+$total = 0.0
+foreach ($r in $all.rows) {
+  $d = [string]$r[$adi]; $c = [double]$r[$aci]
+  $total += $c
+  if (-not $subDay.ContainsKey($d)) { $subDay[$d] = @{ all = 0.0; shared = 0.0 } }
+  $subDay[$d].all += $c
+  if ([string]$r[$ari] -match 'ai-contosohub530569751908') { $subDay[$d].shared += $c }
+}
 "subscription month-to-date: {0:N2} USD" -f $total
 
 # A pause between the two queries, so the second does not land in the same throttling window.
@@ -87,4 +105,37 @@ foreach ($d in ($days.Keys | Sort-Object)) {
 "  resource total:            {0,8:N2}" -f $res
 "  on days this repo worked:  {0,8:N2}   (an upper bound: other projects may share those days)" -f $mine
 "  on days it did not:        {0,8:N2}" -f ($res - $mine)
+
+# ── the two limits, stated by the user on 29 Sep ─────────────────────────────────────────────
+# This campaign has $2,000 a month; the subscription as a whole is capped at $5,000. Other
+# projects share the subscription and their rate is not ours to set -- in September it went from
+# about $45 a day to about $100 a day in the last week -- so the subscription side is projected
+# from their recent rate, with a margin, because this data runs about a day behind.
+$today = (Get-Date).ToUniversalTime()
+$daysInMonth = [DateTime]::DaysInMonth($today.Year, $today.Month)
+$left = $daysInMonth - $today.Day + 1
+$complete = $subDay.Keys | Sort-Object | Where-Object { $_ -lt $today.ToString('yyyyMMdd') } | Select-Object -Last 7
+$otherRate = 0.0
+if ($complete) {
+  $otherRate = ($complete | ForEach-Object {
+    $v = $subDay[$_]; $v.all - $(if ($wrote.ContainsKey($_)) { $v.shared } else { 0 })
+  } | Measure-Object -Average).Average
+}
+$projected = $total + $left * $otherRate
+$campaignLeft = $CampaignCap - $mine
+$subscriptionLeft = ($SubscriptionCap * $Margin) - $projected
+$allowance = [Math]::Min($campaignLeft, $subscriptionLeft)
+""
+"limits:"
+"  campaign        {0,8:N2} of {1:N0} spent            -> {2,8:N2} left" -f $mine, $CampaignCap, $campaignLeft
+"  subscription    {0,8:N2} so far; other projects at {1:N2}/day over the last {2} complete days" -f $total, $otherRate, @($complete).Count
+"                  projected month-end {0:N2} + this campaign  vs {1:N0} x {2} = {3:N0}  -> {4,8:N2} left" -f $projected, $SubscriptionCap, $Margin, ($SubscriptionCap * $Margin), $subscriptionLeft
+"  allowance for the rest of the month: {0:N2} USD  ({1} day(s) left, {2:N2}/day)" -f $allowance, $left, ($allowance / [Math]::Max(1, $left))
+if ($allowance -ge $NeedToday) {
+  "GO: {0:N2} available, {1:N2} needed for today's work" -f $allowance, $NeedToday
+  Remove-Item $tmp, $errf -ErrorAction SilentlyContinue
+  exit 0
+}
+"STOP: {0:N2} available, {1:N2} needed -- do not generate" -f $allowance, $NeedToday
 Remove-Item $tmp, $errf -ErrorAction SilentlyContinue
+exit 3

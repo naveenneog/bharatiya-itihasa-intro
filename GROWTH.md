@@ -213,3 +213,50 @@ publish time is a free way to test it.
 
 Subscribers: 49. Spend: subscription $2,455 month to date; this campaign unchanged at $35.15,
 since nothing has been generated during the hold.
+
+## 29 Sep, evening — the budget, a picture bug in all six pilots, and the remakes
+
+**Budget.** The user set the limit as "the whole subscription" with a $5,000 cap. Read here as:
+this campaign stays within $2,000 a month, and the subscription within $5,000 × 0.9.
+`tools/spend.ps1` applies both and exits 0 (GO) or 3 (STOP); it projects the other projects'
+month-end from their last seven complete days (115.30 USD/day on 29 Sep). Generation resumed on
+29 Sep under that check: GO, 1,741 USD available.
+
+**The six feed-format Shorts of 24–28 Sep were cut from the wrong clips.** `short.mjs` took its
+clips from `short-clips/` in sort order. Every pilot had been re-planned in place, so its folder
+held 13 takes from two plans, and the sorted list interleaved them. Iron-pillar and Nalanda
+matched their plan on 0 of 6 lines; the other four on 1 of 6. `tools/short-verify.mjs` compares
+each line's frame with every take. It found the same thing in the published Zero render: lines
+2–6 show old-plan takes, at correlation 0.56–0.70, against 0.03–0.39 for the planned takes.
+
+So the pilots' 60%+ stay rates were measured on pictures out of step with the words. The
+words and captions held viewers without the picture-to-word match. Remakes carry the fix
+(`short.mjs` now reads the clip list from `short-shots.json`), which is a difference from the
+pilots when the two are compared. The published pilots cannot be re-cut without a new upload.
+
+**Remakes.** The next 21 scheduled Shorts (30 Sep–19 Oct) were old-format. Each one is remade
+in the feed format, scheduled at 13:00 IST on the old version's day
+(`pilot-schedule.mjs add --at … --replaces <old id>`), and the old version, never public, is
+deleted once the remake holds the slot (`tools/yt-delete.mjs`, audit in `dist/yt-deleted.json`).
+Remakes alternate standard (6 lines, ~35 s) and short (5 lines, ~24 s) as a length test. All
+publish at 13:00, which also tests the 13:00 pattern above.
+
+| day | remake | length | id | replaced |
+|---|---|---|---|---|
+| 30 Sep | Two Stone Poems, One Burning War | standard, 36.6 s | pmc9_sQYk80 | 91lAMk9AoNg, deleted |
+| 1 Oct | A Queen Builds in Two Stone Languages | short, 23.8 s | q3nBR8XO_HQ | ltoF2FF5duQ, deleted |
+
+Generated scripts were checked line by line against each episode's narration
+(`episodes/<slug>/episode.json`). Of the first seven, six needed hand edits, recorded in the
+script's `edited` or `editedHook` field. The faults were invented scenes ("hears a boast and
+quietly smiles"), invented stakes, a non-word, a line contradicting the record (Harsha "neither
+daring a full crossing"), and "farm talk" for Kannada.
+
+**Accuracy note.** The Mangalesa episode says the Badami Cave 3 inscription is in Kannada. The
+inscription (578 CE) is Sanskrit written in early Kannada script. The remake says that; the
+long-form episode and its old Short did not.
+
+**Deleted, 29 Sep.** The six duplicate private copies left by the 28 Sep details-page uploads
+(`dist/studio-cleanup.md`); each one's kept copy was confirmed in `dist/publish-log.json` first.
+The 23 broken rows are left: they cannot publish, and deleting by title could hit a healthy
+video of the same name.

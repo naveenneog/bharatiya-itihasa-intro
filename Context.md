@@ -1892,12 +1892,24 @@ The load-bearing facts, each measured rather than assumed:
 - **The Shorts hook metric is "stayed to watch"**, on a Short's *Engagement* tab — not the overview
   or reach tabs. `tools/yt-retention.mjs` reads it. Judge a Short only at ~100 views; low exposure
   flatters the number (an old-format Short scored 68% at 24 views, against 11–14% at scale).
-- **Feed-format Shorts**: `tools/hook-script.mjs` (six-line script) → `tools/short-shots.mjs --replan`
-  → `tools/short.mjs --feed` (legible captions). Registered in `dist/feed-shorts.json` via
-  `tools/pilot-schedule.mjs add|schedule|ids`, slotted at 17:00 and 21:00 IST.
-- **Spend is measured with `tools/spend.ps1`** (Azure Cost Management). A feed Short costs about
-  $5.90. The Azure AI resource is shared with other projects, and the subscription passed $2,000
-  on its own in September — so generation is held until the user says which figure is the ceiling.
+- **Feed-format Shorts**: `tools/hook-script.mjs --length standard|short` (six or five lines) →
+  check every line against `episodes/<slug>/episode.json` and hand-edit (record it in `edited`) →
+  `tools/short-shots.mjs --replan` → `tools/short.mjs --feed` → `tools/short-verify.mjs` (exit 0
+  means each line shows its planned take). Registered in `dist/feed-shorts.json` via
+  `tools/pilot-schedule.mjs add|schedule|ids`; new Shorts slot at 17:00 and 21:00 IST.
+- **`short.mjs` takes its clips from `short-shots.json`, never from the folder's sort order.** A
+  re-planned folder holds two plans' takes, and before 29 Sep the sorted list mixed them: all six
+  feed Shorts of 24–28 Sep show takes from the wrong line or the old plan (see `GROWTH.md`).
+- **Remaking a scheduled old-format Short**: build it as above, upload private
+  (`tools/upload.mjs`, which overwrites the folder's record in `dist/uploads.json`), then
+  `pilot-schedule.mjs add --slug <s> --era <e> --at <day>T13:00 --replaces <old id>` and
+  `schedule`, then `tools/yt-delete.mjs --ids <old id> --expect-title "<old title>" --go`.
+  `yt-delete` refuses public videos, ids still in either register, and old versions whose
+  remake is not scheduled yet. It records every deletion in `dist/yt-deleted.json`.
+- **Spend is measured with `tools/spend.ps1`** (Azure Cost Management), which is also the gate:
+  exit 0 (GO) or 3 (STOP) against both the campaign's $2,000 a month and the subscription's
+  $5,000 × 0.9, given `-NeedToday <USD>`. A feed Short costs about $5.90. The Azure AI resource is
+  shared with other projects, whose rate sets most of the subscription's headroom.
 - **YouTube's daily upload limit was hit on 23 Sep after 121 uploads.** The three that failed
   that day went straight through on 27 Sep. Keep uploads under ~60 a day.
 - **The yt-agent was aborting large uploads.** After clicking Save it did a full `page.goto()` to
@@ -1914,7 +1926,7 @@ The load-bearing facts, each measured rather than assumed:
   were *not* left titled with their filenames (an earlier note here said so): Studio kept the
   title the agent had typed, so each became a second private copy of its episode. The tools
   schedule only the copy recorded in `dist/publish-log.json`, so the extras never publish;
-  `dist/studio-cleanup.md` lists them for the user. Fixed 28 Sep (backup `upload.mjs.bak-20260928`):
+  `dist/studio-cleanup.md` listed them, and they were deleted on 29 Sep. Fixed 28 Sep (backup `upload.mjs.bak-20260928`):
   it detects the layout and saves from the page, waiting for the panel's "Upload complete".
   Verified on *Malik Kafur in Madurai*, which landed on the details page and saved with its title,
   thumbnail and description, private, processed to SD and HD. The agent also now screenshots the
@@ -1923,7 +1935,8 @@ The load-bearing facts, each measured rather than assumed:
 - **A broken upload has no video link in Studio's list**, so a scanner keyed on the link cannot
   see it. `yt-scan.mjs` now records broken rows by title, and `publish-run.mjs` sets aside any
   recorded id whose only copy is broken and sends the episode again. The broken copies stay in
-  Studio as private, unplayable rows; deleting them is the user's call.
+  Studio as private, unplayable rows. The user left clean-up to this campaign on 29 Sep; they are
+  kept, because they cannot publish and a title match could hit a healthy video of the same name.
 - **"Upload interrupted" is not always final.** Five episodes set aside as interrupted on 27 Sep
   were healthy private videos under their original ids by 29 Sep — Studio finished them in a
   later browser session (verified: 5:53 and 5:33, SD and HD, thumbnail and description intact).

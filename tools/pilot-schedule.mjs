@@ -6,6 +6,10 @@
 
      node tools/pilot-schedule.mjs add --slug copper-plates --era pallava
          reads the uploaded id from dist/uploads.json and gives the Short the next free slot
+     node tools/pilot-schedule.mjs add --slug five-generations-across --era chalukya \
+         --at 2026-09-30T13:00 --replaces 91lAMk9AoNg
+         a remake: takes the old version's day at the given IST time, and records the old id,
+         which tools/yt-delete.mjs removes once the remake is scheduled
      node tools/pilot-schedule.mjs schedule [--dry]
          dates every entry not yet scheduled, and marks the verified ones
      node tools/pilot-schedule.mjs ids
@@ -69,19 +73,38 @@ if (cmd === 'ids') {
 
 if (cmd === 'add') {
   const slug = arg('slug', null); const era = arg('era', null);
-  if (!slug || !era) { console.error('usage: add --slug <slug> --era <era>'); process.exit(1); }
+  const at = arg('at', null); const replaces = arg('replaces', null);
+  if (!slug || !era) { console.error('usage: add --slug <slug> --era <era> [--at YYYY-MM-DDTHH:MM] [--replaces <old id>]'); process.exit(1); }
   const dir = `dist/${era}/${slug}_short`;
   const title = readFileSync(path.join(dir, 'title.txt'), 'utf8').trim().split('\n')[0];
   const ledger = JSON.parse(readFileSync('dist/uploads.json', 'utf8')).uploads || {};
   const rec = Object.entries(ledger).find(([k, v]) => k.replace(/\\/g, '/') === dir && v.exit === 0 && v.url);
   if (!rec) { console.error(`${dir} has no successful upload in dist/uploads.json — upload it first`); process.exit(1); }
   const id = rec[1].url.replace(/^https?:\/\/(youtu\.be\/|(www\.)?youtube\.com\/shorts\/)/, '');
+  /* The ledger is keyed by folder and a remake renders into the old version's folder, so until
+     the remake is uploaded the record still names the video it is meant to replace. */
+  if (replaces && id === replaces) {
+    console.error(`${dir}'s upload record is still the old version (${id}) — upload the remake first`);
+    process.exit(1);
+  }
   const rows = await load();
   if (rows.some((r) => r.id === id)) { console.log(`  ${id} already registered`); process.exit(0); }
-  const publishLocal = nextSlot(rows);
-  rows.push({ id, slug, era, title, publishLocal, scheduled: false, addedAt: new Date().toISOString() });
+  let publishLocal = nextSlot(rows);
+  if (at) {
+    const m = String(at).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/);
+    if (!m) { console.error(`--at takes IST local time as YYYY-MM-DDTHH:MM, not "${at}"`); process.exit(1); }
+    publishLocal = `${m[1]}T${m[2]}:${m[3]}:00${TZ}`;
+    if (new Date(publishLocal).getTime() < Date.now() + 2 * 3600e3) {
+      console.error(`--at ${at} IST is less than two hours away; Studio needs time to process first`);
+      process.exit(1);
+    }
+    const clash = rows.find((r) => r.publishLocal === publishLocal);
+    if (clash) { console.error(`${publishLocal} already belongs to ${clash.id} (${clash.slug})`); process.exit(1); }
+  }
+  rows.push({ id, slug, era, title, publishLocal, scheduled: false, addedAt: new Date().toISOString(),
+    ...(replaces ? { replaces } : {}) });
   await save(rows);
-  console.log(`  registered ${id}  ${publishLocal}  ${title}`);
+  console.log(`  registered ${id}  ${publishLocal}  ${title}${replaces ? `  (replaces ${replaces})` : ''}`);
   process.exit(0);
 }
 
