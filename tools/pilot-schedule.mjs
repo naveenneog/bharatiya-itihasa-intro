@@ -12,8 +12,9 @@
          which tools/yt-delete.mjs removes once the remake is scheduled
      node tools/pilot-schedule.mjs schedule [--dry]
          dates every entry not yet scheduled, and marks the verified ones
-     node tools/pilot-schedule.mjs ids
-         prints the ids, comma-joined, for tools/yt-retention.mjs --ids
+     node tools/pilot-schedule.mjs ids [--published]
+         prints the ids, comma-joined, for tools/yt-retention.mjs --ids; --published keeps only
+         those whose publish time has passed
 
    Slots are 17:00 and 21:00 IST, never on a day that already has a feed-format Short, and never
    before tomorrow. The backlog uses 09:00, 13:00 and 19:00 from 20 Oct, so the two never meet.
@@ -67,7 +68,12 @@ function nextSlot(rows) {
 }
 
 if (cmd === 'ids') {
-  console.log((await load()).map((r) => r.id).filter(Boolean).join(','));
+  /* --published: only Shorts whose publish time has passed. Analytics for a scheduled video are
+     empty, and each one costs the measurement two page loads. */
+  const pub = argv.includes('--published');
+  console.log((await load())
+    .filter((r) => !pub || (r.publishLocal && Date.parse(r.publishLocal) <= Date.now()))
+    .map((r) => r.id).filter(Boolean).join(','));
   process.exit(0);
 }
 

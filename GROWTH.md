@@ -295,3 +295,33 @@ Compared on views 7 days after publishing and on stayed-to-watch (English: 276 v
 (`dist/studio-cleanup.md`); each one's kept copy was confirmed in `dist/publish-log.json` first.
 The 23 broken rows are left: they cannot publish, and deleting by title could hit a healthy
 video of the same name.
+
+## Measured, 30 Sep
+
+| Short | published (IST) | views | stayed to watch | 7 days after publishing |
+|---|---|---|---|---|
+| The Dot That Became Zero | 26 Sep 13:00 | 276 | 66.4% | 3 Oct |
+| The King Who Built a School That Lasted 700 Years | 27 Sep 13:00 | 204 | 61.3% | 4 Oct |
+| The Mud-Brick Rooms That Never Reopened | 27 Sep 19:00 | 29 | 61.8% | 4 Oct |
+| Chandragupta's Final Battle with Hunger | 28 Sep 17:00 | 27 | 51.9% | 5 Oct |
+| The Surgeon Who Rebuilt a Nose | 26 Sep 19:00 | 15 | 46.7% | 3 Oct |
+| Why Delhi's Iron Pillar Refuses To Rust | 25 Sep 19:00 | 5 | 60% | 2 Oct |
+
+Read at 04:48 IST (`dist/yt-retention-history.json`). Nalanda went from 167 to 204 views in a
+day and still holds 61%; Zero has stopped at 276. Under the rule set on 26 Sep, two pilots were
+shown and none has yet reached the "not shown" date. Subscribers: 50 (49 on 29 Sep).
+
+Spend: subscription $2,640.59 month to date (Cost Management lags about a day); this campaign
+$99.36 in total, of which $64.21 on 29 Sep (twelve remakes' clips and the Hindi render).
+
+`tools/yt-retention.mjs` now reads the subscriber count from the Studio dashboard and appends
+each run to a history file; `pilot-schedule.mjs ids --published` leaves out Shorts that have not
+published yet, whose analytics are empty.
+
+**Accuracy notes, 12–16 Oct scripts:**
+- The Dantidurga episode stages the Hiranyagarbha ("golden womb") rite at Ellora and cites the
+  Samangad plates. The Sanjan plates of Amoghavarsha I (871) place it at Ujjain, with the
+  Gurjara king as door-keeper. The remake follows the Sanjan plates.
+- The Arab-merchants episode says Arab merchants ranked Amoghavarsha "beside the caliphs and the
+  emperors of China". Sulaiman (851) lists four great kings of the world: the Caliph, the Emperor
+  of China, the Byzantine emperor and the Balhara. The remake says that, without ranking them.

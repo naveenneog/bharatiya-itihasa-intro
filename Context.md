@@ -1892,6 +1892,9 @@ The load-bearing facts, each measured rather than assumed:
 - **The Shorts hook metric is "stayed to watch"**, on a Short's *Engagement* tab — not the overview
   or reach tabs. `tools/yt-retention.mjs` reads it. Judge a Short only at ~100 views; low exposure
   flatters the number (an old-format Short scored 68% at 24 views, against 11–14% at scale).
+  The daily measurement is `node tools/yt-retention.mjs --ids <node tools/pilot-schedule.mjs ids
+  --published>`; it also reads the subscriber count ("Current subscribers" on the dashboard) and
+  appends every run to `dist/yt-retention-history.json`.
 - **Feed-format Shorts**: `tools/hook-script.mjs --length standard|short` (six or five lines) →
   check every line against `episodes/<slug>/episode.json` and hand-edit (record it in `edited`) →
   `tools/short-shots.mjs --replan` → `tools/short.mjs --feed` → `tools/short-verify.mjs` (exit 0

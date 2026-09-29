@@ -77,10 +77,29 @@ try {
 
     out.push(rec);
     console.log(`  ${id}  views=${String(rec.views ?? '?').split(' ')[0].padStart(4)}  stayed=${rec.stayedPct ?? '?'}%  avgDur=${rec.avgViewDuration ?? '?'}  ${rec.title.slice(0, 40)}`);
-    out.push(rec);
   }
-  await writeFile('dist/yt-retention.json', `${JSON.stringify({ at: new Date().toISOString(), out }, null, 2)}\n`);
-  console.log('\n  -> dist/yt-retention.json');
+
+  /* The channel's subscriber count, from the dashboard card "Current subscribers N". Read here
+     because this is the daily measurement and the browser is already open. */
+  await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded' });
+  let subscribers = null;
+  for (let t = 0; t < 10 && subscribers === null; t++) {
+    await sleep(1500);
+    const dash = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ');
+    const m = dash.match(/Current subscribers\s*([\d,]+)/i);
+    if (m) subscribers = Number(m[1].replace(/,/g, ''));
+  }
+  console.log(`\n  subscribers: ${subscribers ?? '? (card not found)'}`);
+
+  const at = new Date().toISOString();
+  await writeFile('dist/yt-retention.json', `${JSON.stringify({ at, subscribers, out }, null, 2)}\n`);
+  /* Each run is also appended to a history, since the decision rule reads a Short's views on a
+     given day after it published, and the file above is overwritten every run. */
+  const HIST = 'dist/yt-retention-history.json';
+  const hist = JSON.parse(await readFile(HIST, 'utf8').catch(() => '[]'));
+  hist.push({ at, subscribers, out: out.map(({ swipeContext, ...r }) => r) });
+  await writeFile(HIST, `${JSON.stringify(hist, null, 2)}\n`);
+  console.log('\n  -> dist/yt-retention.json, dist/yt-retention-history.json');
 } finally {
   await ctx.close();
 }
