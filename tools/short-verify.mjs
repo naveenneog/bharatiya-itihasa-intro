@@ -80,4 +80,12 @@ for (const b of beats) {
     + `${ok ? `, next ${scored[1]?.t} (r=${scored[1]?.r.toFixed(2)})` : `; planned ${want} (r=${mine ? mine.r.toFixed(2) : 'n/a'})`}`);
 }
 console.log(`\n  ${bad ? `${bad} of ${beats.length} lines show the wrong take` : `every line shows its planned take`}`);
+/* Recorded beside the render, against the render's own mtime, so a later render is not taken
+   as verified by an earlier pass (tools/remake-queue.mjs reads it). */
+if (!arg('file', null)) {
+  const { stat, writeFile } = await import('node:fs/promises');
+  const s = await stat(FILE);
+  await writeFile(path.join(path.dirname(FILE), 'verify.json'),
+    `${JSON.stringify({ ok: !bad, bad, lines: beats.length, mp4MtimeMs: s.mtimeMs, at: new Date().toISOString() }, null, 2)}\n`);
+}
 process.exit(bad ? 1 : 0);

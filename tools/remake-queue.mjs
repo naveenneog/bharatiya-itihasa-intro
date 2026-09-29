@@ -8,11 +8,13 @@
      node tools/remake-queue.mjs              # the next 7 days
      node tools/remake-queue.mjs --days 14
      node tools/remake-queue.mjs --json
+     node tools/remake-queue.mjs --slug the-copper-plate --era chalukya   # one folder's state
 
    Per row: whether the folder already holds a hand-checked feed script (short.json with an
-   `edited` or `editedHook` record) — the step that cannot be automated. */
+   `edited` or `editedHook` record) — the step that cannot be automated — and `next`, the first
+   step not yet done: script, clips, render, verify, upload, register (add, schedule, delete). */
 import { readFile } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
@@ -50,18 +52,42 @@ for (const r of scan.rows || []) {
 }
 
 const until = Date.now() + DAYS * 86400e3;
-const rows = [...byDir.values()]
-  .filter((r) => Date.parse(r.publishLocal) > Date.now() && Date.parse(r.publishLocal) <= until)
-  .sort((a, b) => a.publishLocal.localeCompare(b.publishLocal));
+const ONE = arg('slug', null);
+const rows = ONE
+  ? [{ dir: `dist/${arg('era', '?')}/${ONE}_short`, slug: ONE, era: arg('era', '?'), publishLocal: '(any)', oldId: null }]
+  : [...byDir.values()]
+    .filter((r) => Date.parse(r.publishLocal) > Date.now() && Date.parse(r.publishLocal) <= until)
+    .sort((a, b) => a.publishLocal.localeCompare(b.publishLocal));
 for (const r of rows) {
   const f = `episodes/${r.slug}/short.json`;
   const s = existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
   r.script = !s ? 'none' : (s.edited || s.editedHook) ? `checked, ${s.length || 'standard'}` : (s.format === 'hook-v1' ? 'feed, NOT checked' : 'old');
+  r.next = nextStep(r, s);
+}
+
+/* The first step not yet done, so a pass resumes rather than redoes. Each check compares against
+   the current script, so an edit after a step sends the Short back to that step. */
+function nextStep(r, s) {
+  if (!s || !(s.edited || s.editedHook)) return 'script';
+  const ep = `episodes/${r.slug}`;
+  const done = existsSync(`${ep}/short-shots.json`) ? JSON.parse(readFileSync(`${ep}/short-shots.json`, 'utf8')) : null;
+  const claimsMatch = done?.shots?.length >= s.lines.length
+    && s.lines.every((l, k) => (done.shots[k]?.claim || '').trim() === l.text.trim());
+  const clipsThere = done?.clips?.every((c) => c && existsSync(`${ep}/short-clips/${c}`));
+  if (!claimsMatch || !clipsThere) return 'clips';
+  const mp4 = `${r.dir}/${r.slug}-short.mp4`;
+  if (!existsSync(mp4) || statSync(mp4).mtimeMs < statSync(`${ep}/short-shots.json`).mtimeMs
+    || statSync(mp4).mtimeMs < statSync(`${ep}/short.json`).mtimeMs) return 'render';
+  const v = existsSync(`${r.dir}/verify.json`) ? JSON.parse(readFileSync(`${r.dir}/verify.json`, 'utf8')) : null;
+  if (!v?.ok || Math.abs(v.mp4MtimeMs - statSync(mp4).mtimeMs) > 1) return 'verify';
+  const up = uploads[r.dir];
+  if (!up || up.exit !== 0 || !up.url || Date.parse(up.at) < statSync(mp4).mtimeMs) return 'upload';
+  return 'register';
 }
 
 if (argv.includes('--json')) { console.log(JSON.stringify(rows, null, 2)); process.exit(0); }
 console.log(`old-format Shorts publishing in the next ${DAYS} days (scan ${scan.at || '?'}):\n`);
 for (const r of rows) {
-  console.log(`  ${r.publishLocal.slice(0, 16).replace('T', ' ')}  ${String(r.oldId || '-').padEnd(11)}  ${r.era}/${r.slug}  [${r.script}]`);
+  console.log(`  ${r.publishLocal.slice(0, 16).replace('T', ' ')}  ${String(r.oldId || '-').padEnd(11)}  ${r.era}/${r.slug}  [${r.script}]  next: ${r.next}`);
 }
 if (!rows.length) console.log('  none');

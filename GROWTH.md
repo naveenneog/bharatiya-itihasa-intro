@@ -245,6 +245,13 @@ publish at 13:00, which also tests the 13:00 pattern above.
 |---|---|---|---|---|
 | 30 Sep | Two Stone Poems, One Burning War | standard, 36.6 s | pmc9_sQYk80 | 91lAMk9AoNg, deleted |
 | 1 Oct | A Queen Builds in Two Stone Languages | short, 23.8 s | q3nBR8XO_HQ | ltoF2FF5duQ, deleted |
+| 2 Oct | The Son Who Took the Enemy's Capital | standard, 33.7 s | mn4XQlav_OA | J7_wkXE6FvI, deleted |
+| 3 Oct | Sanskrit Words in Kannada Letters | short, 27.9 s | UAD7Ok0tOEI | WVK5x3rjKaU, deleted |
+| 4 Oct | A General Who Carried Home a God | standard, 31.1 s | NIpaJP9TfSE | Ys9ChVkNsgI, deleted |
+| 5 Oct | This Cliff Is an Empire's Birth Certificate | short, 25.6 s | tHS4ShgCefY | yQKnvziDbIE, deleted |
+| 6 Oct | The Day Harsha Stopped at the Narmada | standard, 31.2 s | i4484gZru5U | ECPklRaY58c, deleted |
+
+Every remake passed `short-verify.mjs` (each line over its planned take) before upload.
 
 Generated scripts were checked line by line against each episode's narration
 (`episodes/<slug>/episode.json`). Of the first seven, six needed hand edits, recorded in the
