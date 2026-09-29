@@ -256,6 +256,13 @@ daring a full crossing"), and "farm talk" for Kannada.
 inscription (578 CE) is Sanskrit written in early Kannada script. The remake says that; the
 long-form episode and its old Short did not.
 
+**Hindi test.** The 23 Sep diagnosis found an audience split across five languages. The test
+translates Zero's script line by line into Hindi (`episodes/zero-hi`) and cuts it over Zero's
+planned clips, `bWacqjE9uh8`, 30 Sep 12:00 IST. The first translation ran 46.3 s of voice
+against English 33.3 s, and was tightened to 40.5 s in total against 38.0 s. One other
+difference: the English Zero render shows mismatched clips on lines 2–6, the Hindi one does not.
+Compared on views 7 days after publishing and on stayed-to-watch (English: 276 views, 66.4%).
+
 **Deleted, 29 Sep.** The six duplicate private copies left by the 28 Sep details-page uploads
 (`dist/studio-cleanup.md`); each one's kept copy was confirmed in `dist/publish-log.json` first.
 The 23 broken rows are left: they cannot publish, and deleting by title could hit a healthy

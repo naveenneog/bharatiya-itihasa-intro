@@ -22,7 +22,7 @@
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 export const shortPage = (short) => `<!doctype html>
-<html lang="en">
+<html lang="${short.lang === 'hi' ? 'hi' : 'en'}">
 <head>
 <meta charset="utf-8">
 <title>${esc(short.title)} — short</title>
@@ -83,6 +83,13 @@ export const shortPage = (short) => `<!doctype html>
     background:linear-gradient(180deg,rgba(6,5,4,0) 0%,rgba(6,5,4,.80) 18%,rgba(6,5,4,.86) 60%,rgba(6,5,4,0) 100%)}
   #stage.feed #kick{font-size:2.5cqw;letter-spacing:.34em;color:#ffb347}
 
+  /* HINDI. Cormorant has no Devanagari, so without this each glyph falls back to whatever face
+     the machine has. Tiro Devanagari Hindi is vendored at weight 400 only; feed mode's 600 is
+     synthesised from it. Devanagari needs more leading for its matras, and letter-spacing
+     breaks the headline stroke that joins a word, so the kicker is set almost tight. */
+  #stage.hi #line{font-family:"Tiro Devanagari Hindi","Cormorant Garamond",serif;line-height:1.34}
+  #stage.hi #kick{font-family:"Tiro Devanagari Hindi",serif;letter-spacing:.04em}
+
   /* the kicker — what kind of beat this is, set small above the line */
   #kick{position:absolute;left:7.5%;right:7.5%;top:11.4%;z-index:3;pointer-events:none;
     font-size:1.95cqw;letter-spacing:.42em;text-transform:uppercase;
@@ -127,7 +134,7 @@ export const shortPage = (short) => `<!doctype html>
 }());</script>
 </head>
 <body>
-<div id="stage" class="${short.feed ? 'feed' : ''}">
+<div id="stage" class="${[short.feed ? 'feed' : '', short.lang === 'hi' ? 'hi' : ''].filter(Boolean).join(' ')}">
   <div id="scrim"></div>
   <div id="kick"></div>
   <div id="type"><div id="line"></div></div>

@@ -285,7 +285,7 @@ await mkdir(path.join(TMP, 'type'), { recursive: true });
 const build = path.join(EP, 'short-build');
 await mkdir(build, { recursive: true });
 await writeFile(path.join(build, 'index.html'),
-  shortPage({ title: ep.title, beats, runtime, tail: TAIL, feed: FEED }));
+  shortPage({ title: ep.title, beats, runtime, tail: TAIL, feed: FEED, lang: LANG.code }));
 
 /* Served in-process — see tools/local-server.mjs.
 
@@ -550,15 +550,17 @@ const srt = beats.map((b, k) => {
   };
   return `${k + 1}\n${t(start)} --> ${t(start + b.say)}\n${b.text}\n`;
 }).join('\n');
-await writeFile(path.join(OUT, `${SLUG}-short.en.srt`), srt);
+await writeFile(path.join(OUT, `${SLUG}-short.${LANG.code}.srt`), srt);
 
 const title = (meta.titles?.[0] || script.title || ep.title).slice(0, 90);
 await writeFile(path.join(OUT, 'title.txt'), `${title}\n`);
 /* First line and last line, by position rather than by index. `lines[6]` assumed the script
    was always seven lines and threw the moment a six-line hook script ran — after the whole
    render had already been paid for. */
+/* Hashtags follow the Short's language; a Hindi Short keeps the English channel tag as well. */
+const hashtags = LANG.code === 'hi' ? '#Shorts #इतिहास #भारतीयइतिहास #IndianHistory' : `#Shorts #IndianHistory #${ERA}`;
 await writeFile(path.join(OUT, 'description.txt'),
-  `${script.lines[0].text}\n\n${script.lines.at(-1).text}\n\n#Shorts #IndianHistory #${ERA}\n`);
+  `${script.lines[0].text}\n\n${script.lines.at(-1).text}\n\n${hashtags}\n`);
 await writeFile(path.join(OUT, 'tags.txt'), (meta.tags || []).join(', ') + '\n');
 const thumb = path.join(EP, 'thumb-art', 'hold-r1.png');
 if (existsSync(thumb)) await copyFile(thumb, path.join(OUT, `${SLUG}-short-cover.png`));
@@ -575,7 +577,7 @@ loudness reference as the long form.
 | | |
 |---|---|
 | video | \`${SLUG}-short.mp4\` |
-| captions | \`${SLUG}-short.en.srt\` |
+| captions | \`${SLUG}-short.${LANG.code}.srt\` |
 | title | \`title.txt\` |
 | description | \`description.txt\` |
 

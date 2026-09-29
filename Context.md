@@ -1900,12 +1900,23 @@ The load-bearing facts, each measured rather than assumed:
 - **`short.mjs` takes its clips from `short-shots.json`, never from the folder's sort order.** A
   re-planned folder holds two plans' takes, and before 29 Sep the sorted list mixed them: all six
   feed Shorts of 24–28 Sep show takes from the wrong line or the old plan (see `GROWTH.md`).
-- **Remaking a scheduled old-format Short**: build it as above, upload private
-  (`tools/upload.mjs`, which overwrites the folder's record in `dist/uploads.json`), then
-  `pilot-schedule.mjs add --slug <s> --era <e> --at <day>T13:00 --replaces <old id>` and
+- **Remaking a scheduled old-format Short**: `node tools/remake-queue.mjs --days 8` lists the
+  old-format Shorts due soon, with their old id, slot and whether a checked script exists. Build
+  each as above, upload private (`tools/upload.mjs`, which overwrites the folder's record in
+  `dist/uploads.json`), then
+  `pilot-schedule.mjs add --slug <s> --era <e> --at <day>T<time> --replaces <old id>` and
   `schedule`, then `tools/yt-delete.mjs --ids <old id> --expect-title "<old title>" --go`.
+  `add --replaces` also hands a backlog Short's `dist/publish-log.json` entry to the remake (the
+  old id moves to `replacedId`); `publish-run` skips folders in `feed-shorts.json`.
   `yt-delete` refuses public videos, ids still in either register, and old versions whose
   remake is not scheduled yet. It records every deletion in `dist/yt-deleted.json`.
+- **Hindi Shorts**: an episode with `lang: hi` renders its captions in Tiro Devanagari Hindi
+  (`short-page.mjs`, class `hi`), with Hindi hashtags and a `.hi.srt`. The title comes from
+  `short.json`'s `title` (the folder's `publish.json` has no `titles`). The first, `zero-hi`, is
+  Zero's script translated line by line over Zero's planned clips.
+- **Scheduling minutes after an upload can fail to hold**: the Hindi Short's first attempt saved
+  and read back Private; a second pass a few minutes later verified. `pilot-schedule` reports
+  it as "not verified" and leaves the entry unscheduled, so the next pass retries it.
 - **Spend is measured with `tools/spend.ps1`** (Azure Cost Management), which is also the gate:
   exit 0 (GO) or 3 (STOP) against both the campaign's $2,000 a month and the subscription's
   $5,000 × 0.9, given `-NeedToday <USD>`. A feed Short costs about $5.90. The Azure AI resource is

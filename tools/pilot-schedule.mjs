@@ -104,6 +104,21 @@ if (cmd === 'add') {
   rows.push({ id, slug, era, title, publishLocal, scheduled: false, addedAt: new Date().toISOString(),
     ...(replaces ? { replaces } : {}) });
   await save(rows);
+  /* A backlog Short's old id is also in dist/publish-log.json, which tools/yt-delete.mjs treats
+     as "still in use". The remake takes over the folder, and publish-run skips folders in this
+     register, so the log entry is handed over: the old id is kept as replacedId. */
+  if (replaces) {
+    const LOG = 'dist/publish-log.json';
+    const log = JSON.parse(readFileSync(LOG, 'utf8'));
+    const hit = Object.entries(log).find(([, v]) => v?.id === replaces);
+    if (hit) {
+      const [dir, v] = hit;
+      log[dir] = { ...v, id: undefined, replacedId: replaces, replacedBy: id, replacedAt: new Date().toISOString() };
+      await writeFile(`${LOG}.tmp`, `${JSON.stringify(log, null, 2)}\n`);
+      await rename(`${LOG}.tmp`, LOG);
+      console.log(`  publish-log ${dir}: ${replaces} handed over to ${id}`);
+    }
+  }
   console.log(`  registered ${id}  ${publishLocal}  ${title}${replaces ? `  (replaces ${replaces})` : ''}`);
   process.exit(0);
 }
