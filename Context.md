@@ -1917,6 +1917,18 @@ The load-bearing facts, each measured rather than assumed:
 - **Scheduling minutes after an upload can fail to hold**: the Hindi Short's first attempt saved
   and read back Private; a second pass a few minutes later verified. `pilot-schedule` reports
   it as "not verified" and leaves the entry unscheduled, so the next pass retries it.
+- **`yt-scan` reads visibility from the row's `.tablecell-visibility` cell** (fixed 29 Sep). It
+  used to match the whole row, description excerpt included, with "public" tested before
+  "private". Two private episodes whose descriptions contain "public" were recorded as PUBLIC,
+  and `plan-publish.mjs` leaves out anything PUBLIC, so "Mamallapuram: India's Stone Theater"
+  (`qAIM-8fiWGY`) was never planned. It was scheduled by hand for 1 Oct 09:00 and recorded in
+  `dist/publish-log.json`. The other, Firuz Shah (`V8ufJPLjt_o`), is in the plan for 17 Dec.
+- **Related video links** (Short → its full episode): `tools/yt-related.mjs --short <id>
+  --target <id> [--go]` picks the target by id, because titles are not unique on this channel
+  (two public long-form "Brahmagupta and the Birth of Zero"). Studio's picker cards
+  (`ytcp-entity-card`) carry the id in `.video.videoId`; the field is `#linked-video-editor-link`.
+  `tools/related-plan.mjs [--run]` pairs each public Short with its public episode (same slug)
+  from the latest scan and links those not yet in `dist/related-links.json`.
 - **Spend is measured with `tools/spend.ps1`** (Azure Cost Management), which is also the gate:
   exit 0 (GO) or 3 (STOP) against both the campaign's $2,000 a month and the subscription's
   $5,000 × 0.9, given `-NeedToday <USD>`. A feed Short costs about $5.90. The Azure AI resource is

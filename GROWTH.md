@@ -253,15 +253,36 @@ publish at 13:00, which also tests the 13:00 pattern above.
 
 Every remake passed `short-verify.mjs` (each line over its planned take) before upload.
 
+**Shorts now link to their full episodes.** A Short's "Related video" field puts a link to a
+long-form video on the Short. None of the channel's Shorts had one. On 29 Sep every public Short
+whose episode is also public was linked to it (`tools/related-plan.mjs --run`), starting with
+Zero, Sushruta and Shravanabelagola among the pilots; each link was confirmed on a fresh page
+load. The other three pilots' episodes publish 23 Oct–2 Nov and are linked as they go public.
+This adds a path from Shorts into long-form watch time; its effect is not yet measured.
+
+**A finished episode that would never have published.** The channel scanner read "public" from a
+video's description excerpt. The private long-form "Mamallapuram: India's Stone Theater"
+(description: "...became one public stone theater") was recorded as public, so the backlog
+planner left it out. Found when its Short could not be linked to it. The scanner now reads the
+visibility cell; a fresh scan found one other misread (Firuz Shah, already in the plan).
+Mamallapuram is scheduled for 1 Oct 09:00.
+
 Generated scripts were checked line by line against each episode's narration
 (`episodes/<slug>/episode.json`). Of the first seven, six needed hand edits, recorded in the
 script's `edited` or `editedHook` field. The faults were invented scenes ("hears a boast and
 quietly smiles"), invented stakes, a non-word, a line contradicting the record (Harsha "neither
 daring a full crossing"), and "farm talk" for Kannada.
 
-**Accuracy note.** The Mangalesa episode says the Badami Cave 3 inscription is in Kannada. The
+**Accuracy notes.** The Mangalesa episode says the Badami Cave 3 inscription is in Kannada. The
 inscription (578 CE) is Sanskrit written in early Kannada script. The remake says that; the
-long-form episode and its old Short did not.
+long-form episode and its old Short did not. Found while checking the 7–11 Oct scripts:
+- The lion-banner episode dates Mangalesa's inscription to Saka 465 (543). Saka 465 is
+  Pulakeshin I's Badami cliff inscription; Mangalesa's is Saka 500 (578). The remake does not
+  repeat it.
+- The Vikramaditya II episode says "a son must answer where a father had failed". The generated
+  script made that literal ("his father fell"). Pulakeshin II was his great-great-grandfather.
+- The copper-plate episode dates the Navsari plate to c. 745. The plate is dated Kalachuri year
+  490, 738–739 CE. The remake gives no year.
 
 **Hindi test.** The 23 Sep diagnosis found an audience split across five languages. The test
 translates Zero's script line by line into Hindi (`episodes/zero-hi`) and cuts it over Zero's

@@ -27,10 +27,21 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
    "draft", and a scheduled video also says "private" in some locales, so the more specific
    condition has to be tested first. Taken from the one-off scanner that already proved these
    strings against this channel. */
-function stateOf(rowText) {
+function stateOf(rowText, vis = '') {
   const t = rowText || '';
   if (/processing abandoned|failed to upload|could not be processed/i.test(t)) return 'PROC_ABANDONED';
   if (/upload interrupted|resume upload/i.test(t)) return 'UPLOAD_INTERRUPTED';
+  /* Visibility comes from its own cell. Matching the whole row read the description excerpt
+     too, and "public" is tested before "private": the private "Mamallapuram: India's Stone
+     Theater", whose description ends "became one public stone theater", was recorded as
+     PUBLIC — and a video the tools believe is public is never scheduled. */
+  if (vis) {
+    if (/\bscheduled\b/i.test(vis)) return 'SCHEDULED';
+    if (/\bpublic\b/i.test(vis)) return 'PUBLIC';
+    if (/\bunlisted\b/i.test(vis)) return 'UNLISTED';
+    if (/\bdraft\b/i.test(t)) return 'DRAFT';
+    if (/\bprivate\b/i.test(vis)) return 'PRIVATE';
+  }
   if (/\bdraft\b/i.test(t)) return 'DRAFT';
   if (/\bscheduled\b/i.test(t)) return 'SCHEDULED';
   if (/\bpublic\b/i.test(t)) return 'PUBLIC';
@@ -95,6 +106,7 @@ async function scanTab(tab) {
         id,
         title: (t ? t.textContent : '').trim(),
         rowText: (row.innerText || row.textContent || '').replace(/\s+/g, ' ').trim(),
+        vis: (row.querySelector('.tablecell-visibility')?.innerText || '').replace(/\s+/g, ' ').trim(),
       };
     }));
     let fresh = 0;
@@ -142,7 +154,8 @@ try {
         id: v.id,
         kind,
         title: v.title,
-        state: stateOf(v.rowText),
+        state: stateOf(v.rowText, v.vis),
+        vis: v.vis || null,
         /* The scheduled date as YouTube renders it, so a plan can be compared against what the
            channel actually holds rather than against what a local file hoped for. */
         when: (v.rowText.match(/Scheduled\s*[:\-]?\s*([A-Z][a-z]{2}\s+\d{1,2},?\s+\d{4})/i) || [])[1] || null,
