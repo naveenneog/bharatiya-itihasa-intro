@@ -90,6 +90,7 @@ const uploadedId = (dir) => {
 
 let ghosts = 0;
 let broken = 0;
+let recovered = 0;
 for (const p of plan) {
   /* Any record at all, successful or not. A failed attempt matters as much as a successful one,
      because upload.mjs guards against both. */
@@ -108,12 +109,6 @@ for (const p of plan) {
   if (mine && !log[p.dir]?.scheduled && !here0 && brokenTitles.has(norm(p.title)) && scanAt > upAt) {
     log[p.dir] = { brokenIds: [...(log[p.dir].brokenIds || []), mine], brokenAt: new Date().toISOString() };
     mine = null;
-    broken++;
-    p.wasBroken = true;
-  } else if (!mine && log[p.dir]?.brokenIds?.length) {
-    /* Set aside on an earlier run and not yet re-sent. */
-    broken++;
-    p.wasBroken = true;
   }
   const claimed = p.id || uploadedId(p.dir);
 
@@ -133,6 +128,18 @@ for (const p of plan) {
   const onChannelNow = !!here;
   p.id = mine || claimed || (here ? here.id : null);
   p.scheduled = !!(here?.state === 'SCHEDULED' || p.state === 'SCHEDULED' || log[p.dir]?.scheduled);
+
+  /* A set-aside id can come back. "Upload interrupted" is not always final: five episodes set
+     aside on 27 Sep turned up on 29 Sep as healthy private videos under their original ids —
+     Studio finished them in a later browser session (5:53 and 5:33, SD and HD, verified). If a
+     set-aside id is on the channel again, it is the copy to keep: restore it, and send nothing.
+     "Processing abandoned" has not been seen to recover. */
+  if (!mine && p.id && log[p.dir]?.brokenIds?.includes(p.id)) {
+    log[p.dir] = { ...log[p.dir], id: p.id, recoveredAt: new Date().toISOString() };
+    recovered++;
+  }
+  /* Counted after the id is settled, so a recovered episode is not reported as broken. */
+  if (!p.id && log[p.dir]?.brokenIds?.length) { broken++; p.wasBroken = true; }
 
   /* upload.mjs refuses to send a master twice, and has two separate guards for it:
        - already uploaded (exit 0, url recorded) — by content hash
@@ -160,6 +167,7 @@ console.log(`    ${toUpload.length} still to upload`);
 console.log(`    ${toSchedule.length} uploaded but with no date yet`);
 if (ghosts) console.log(`    ${ghosts} ledger id(s) ignored — recorded as uploaded but not on the channel`);
 if (broken) console.log(`    ${broken} broken upload(s) — only an aborted copy is on the channel; queued to send again`);
+if (recovered) console.log(`    ${recovered} set-aside upload(s) finished after all — restored, nothing re-sent`);
 
 if (!UPLOAD && !SCHEDULE) {
   console.log('\n  --upload to send them, --schedule to date them. Nothing done.');

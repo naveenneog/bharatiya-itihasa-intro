@@ -1924,6 +1924,11 @@ The load-bearing facts, each measured rather than assumed:
   see it. `yt-scan.mjs` now records broken rows by title, and `publish-run.mjs` sets aside any
   recorded id whose only copy is broken and sends the episode again. The broken copies stay in
   Studio as private, unplayable rows; deleting them is the user's call.
+- **"Upload interrupted" is not always final.** Five episodes set aside as interrupted on 27 Sep
+  were healthy private videos under their original ids by 29 Sep — Studio finished them in a
+  later browser session (verified: 5:53 and 5:33, SD and HD, thumbnail and description intact).
+  `publish-run.mjs` restores a set-aside id that reappears, and sends nothing. "Processing
+  abandoned" has not been seen to recover.
 - **A weak video does not hurt the channel** — YouTube judges each video on its own. An earlier
   version of the plan assumed otherwise and paused the backlog; that was wrong and is reversed.
 
