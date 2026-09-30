@@ -325,3 +325,41 @@ published yet, whose analytics are empty.
 - The Arab-merchants episode says Arab merchants ranked Amoghavarsha "beside the caliphs and the
   emperors of China". Sulaiman (851) lists four great kings of the world: the Caliph, the Emperor
   of China, the Byzantine emperor and the Balhara. The remake says that, without ranking them.
+
+**Remakes, 30 Sep.** Thirteen more old-format Shorts were replaced, 7–19 Oct, all at 13:00 IST;
+every old version was deleted after its remake was scheduled and verified.
+
+| day | remake | label, length | id | replaced |
+|---|---|---|---|---|
+| 7 Oct | The Boar Seal That Decided Who Held the Land | short, 24.0 s | NMWtoPBadwU | IVjyoB29izU |
+| 8 Oct | The Copper Grant That Records a Win Over the Caliphate | standard, 33.4 s | BikRwCGrs_s | mo4XP0qCNgc |
+| 9 Oct | The Vassal Who Toppled a 200-Year Empire | short, 26.6 s | fRWkYDShL08 | ah2_XeUmGsg |
+| 10 Oct | The Rivals Who Claimed the Same Ancestors | standard, 33.4 s | kGSoIO_TB6Y | OOwysjNaiTE |
+| 11 Oct | The Conqueror Who Refused To Loot Kanchi | short, 26.1 s | 6Yx7s5gbzGY | bEviyjfljZ4 |
+| 12 Oct | The Oldest Kannada Book Is a Guide for Poets | standard, 29.4 s | moVmDNemeAo | EvZCYyoPb1E |
+| 13 Oct | The Deccan King Among the World's Four Great Kings | short, 26.7 s | wkputBXtXKQ | rMVrl89jrIg |
+| 14 Oct | The King Reborn From a Golden Womb | standard, 28.4 s | caBeyMzJQ4k | Gf6MG8fU24Y |
+| 15 Oct | The Deccan King Who Won the North and Went Home | short, 24.8 s | C68vMG9mkyU | _OtV47fKogg |
+| 16 Oct | The Temple Carved Down Into a Hill | standard, 29.6 s | oRidqg8G03U | mxdRQpDWtiQ |
+| 17 Oct | India's Earliest Book Devoted to Mathematics Alone | short, 28.8 s | XO9WLd8EJDU | lUDfeHzedg4 |
+| 18 Oct | How Kerala Hid Numbers Inside Poems | standard, 32.3 s | wm6g9UH5wa4 | 4J5u1xOq8Vc |
+| 19 Oct | The Prince Who Died on an Elephant | short, 25.8 s | ChORa_FGtF8 | qm9yOhUeluI |
+
+The length labels no longer separate the Shorts cleanly: hand-edited "standard" scripts render at
+28.4–36.6 s and "short" ones at 23.8–28.8 s, so the two ranges touch. The length test is read on
+each Short's measured duration, not its label.
+
+One remake was uploaded twice. Its first title and kicker said "pure mathematics", which means
+abstract as opposed to applied, while the book's problems are practical; the verified claim is
+"devoted entirely to mathematics". It was re-rendered from the same clips and voice, re-uploaded,
+and the first private copy (`bLEePOnRrPw`) deleted before it was ever scheduled.
+
+The old-format Shorts in the old schedule (through 19 Oct) are all replaced. From 20 Oct the
+backlog publishes two Shorts a day (13:00 and 19:00), so remakes continue at two a day.
+
+Backlog, 30 Sep: 40 uploaded, none failed; 12 left. Uploads today: 54 in total.
+
+**Next lever found: playlists.** The channel has 18 playlists. The only history one, "Indian
+History - Gupta Period", holds 2 videos. The 145 history episodes matched to their folders (35
+public, 42 scheduled, 68 private awaiting dates) are otherwise in no playlist. Era playlists in
+story order would let a viewer who finishes one episode continue to the next. Not built yet.
