@@ -21,9 +21,14 @@ import { readFile, readdir } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { seconds as mp3Seconds } from './voice.mjs';
 
 const execFileP = promisify(execFile);
+/* The same ffprobe call as seconds() in voice.mjs, so beat timing matches short.mjs exactly.
+   Not imported from there: voice.mjs loads the Azure Speech SDK at startup, and on 30 Sep this
+   process aborted at exit ("Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)", libuv
+   async.c) after writing a passing verify.json. */
+const mp3Seconds = async (file) => Number((await execFileP('ffprobe', ['-v', 'error',
+  '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', file])).stdout.trim());
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
 const SLUG = arg('slug', null);
@@ -88,4 +93,5 @@ if (!arg('file', null)) {
   await writeFile(path.join(path.dirname(FILE), 'verify.json'),
     `${JSON.stringify({ ok: !bad, bad, lines: beats.length, mp4MtimeMs: s.mtimeMs, at: new Date().toISOString() }, null, 2)}\n`);
 }
-process.exit(bad ? 1 : 0);
+/* exitCode rather than exit(): lets pending child-process handles close before Node leaves. */
+process.exitCode = bad ? 1 : 0;
