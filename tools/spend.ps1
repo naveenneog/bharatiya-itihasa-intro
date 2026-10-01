@@ -52,33 +52,47 @@ function Query($body) {
   throw 'Cost Management was still throttling after 6 attempts; run again later'
 }
 
-$all = Query '{"type":"ActualCost","timeframe":"MonthToDate","dataset":{"granularity":"Daily","aggregation":{"totalCost":{"name":"Cost","function":"Sum"}},"grouping":[{"type":"Dimension","name":"ResourceId"}]}}'
+# Cost Management buckets usage by UTC day. The query covers the month so far *and* the nine days
+# before today, whichever starts earlier: the other projects' rate is an average of their last
+# seven complete days, and on the 1st of a month "MonthToDate" holds no complete days at all.
+# Run that way on 1 Oct, the old version found no rate, projected the other projects' October at
+# $0 against a September that ended near $115 a day, and would have allowed the whole campaign
+# cap against a subscription that could not afford it.
+$today = (Get-Date).ToUniversalTime().Date
+$monthStart = $today.AddDays(1 - $today.Day)
+$windowStart = if ($monthStart -lt $today.AddDays(-9)) { $monthStart } else { $today.AddDays(-9) }
+$period = '"timeframe":"Custom","timePeriod":{"from":"' + $windowStart.ToString('yyyy-MM-dd') + 'T00:00:00Z","to":"' + $today.ToString('yyyy-MM-dd') + 'T23:59:59Z"}'
+$ms = $monthStart.ToString('yyyyMMdd')
+
+# The subscription by day, ungrouped: a handful of rows, so no page of results can be cut short.
+$all = Query ('{"type":"ActualCost",' + $period + ',"dataset":{"granularity":"Daily","aggregation":{"totalCost":{"name":"Cost","function":"Sum"}}}}')
 $acols = $all.columns.name
-$aci = [array]::IndexOf($acols, 'Cost'); $adi = [array]::IndexOf($acols, 'UsageDate'); $ari = [array]::IndexOf($acols, 'ResourceId')
+$aci = [array]::IndexOf($acols, 'Cost'); $adi = [array]::IndexOf($acols, 'UsageDate')
 $subDay = @{}
 $total = 0.0
 foreach ($r in $all.rows) {
   $d = [string]$r[$adi]; $c = [double]$r[$aci]
-  $total += $c
   if (-not $subDay.ContainsKey($d)) { $subDay[$d] = @{ all = 0.0; shared = 0.0 } }
   $subDay[$d].all += $c
-  if ([string]$r[$ari] -match 'ai-contosohub530569751908') { $subDay[$d].shared += $c }
+  if ($d -ge $ms) { $total += $c }
 }
-"subscription month-to-date: {0:N2} USD" -f $total
+"subscription month-to-date ({0:yyyy-MM}): {1:N2} USD" -f $monthStart, $total
 
 # A pause between the two queries, so the second does not land in the same throttling window.
 Start-Sleep -Seconds 5
 
-$daily = Query ('{"type":"ActualCost","timeframe":"MonthToDate","dataset":{"granularity":"Daily","aggregation":{"totalCost":{"name":"Cost","function":"Sum"}},"grouping":[{"type":"Dimension","name":"Meter"}],"filter":{"dimensions":{"name":"ResourceId","operator":"In","values":["' + $rid + '"]}}}}')
+$daily = Query ('{"type":"ActualCost",' + $period + ',"dataset":{"granularity":"Daily","aggregation":{"totalCost":{"name":"Cost","function":"Sum"}},"grouping":[{"type":"Dimension","name":"Meter"}],"filter":{"dimensions":{"name":"ResourceId","operator":"In","values":["' + $rid + '"]}}}}')
 $cols = $daily.columns.name
 $ci = [array]::IndexOf($cols, 'Cost'); $mi = [array]::IndexOf($cols, 'Meter'); $di = [array]::IndexOf($cols, 'UsageDate')
 
 $days = @{}
 foreach ($r in $daily.rows) {
-  $d = [string]$r[$di]; $m = [string]$r[$mi]
+  $d = [string]$r[$di]; $m = [string]$r[$mi]; $c = [double]$r[$ci]
   $k = if ($m -match 'Image 2') { 'image' } elseif ($m -match 'Sora') { 'sora' } elseif ($m -match 'Speech') { 'tts' } else { 'other' }
   if (-not $days.ContainsKey($d)) { $days[$d] = @{ image = 0.0; sora = 0.0; tts = 0.0; other = 0.0 } }
-  $days[$d][$k] += [double]$r[$ci]
+  $days[$d][$k] += $c
+  if (-not $subDay.ContainsKey($d)) { $subDay[$d] = @{ all = 0.0; shared = 0.0 } }
+  $subDay[$d].shared += $c
 }
 
 # A day counts as this campaign's only if the repo wrote generated output on it. Stills and
@@ -86,14 +100,14 @@ foreach ($r in $daily.rows) {
 $root = Split-Path $PSScriptRoot -Parent
 $wrote = @{}
 Get-ChildItem (Join-Path $root 'episodes'), (Join-Path $root 'eras') -Recurse -Include *.png, *.mp4 -ErrorAction SilentlyContinue |
-  Where-Object { $_.LastWriteTime -ge (Get-Date -Day 1).Date } |
-  ForEach-Object { $wrote[$_.LastWriteTime.ToUniversalTime().ToString('yyyyMMdd')] = $true }
+  Where-Object { $_.LastWriteTimeUtc -ge $windowStart } |
+  ForEach-Object { $wrote[$_.LastWriteTimeUtc.ToString('yyyyMMdd')] = $true }
 
 ""
-"shared resource ai-contosohub530569751908, by day (USD):"
+"shared resource ai-contosohub530569751908, by day this month (USD):"
 "  day          image     sora      tts    other    total   this repo wrote output?"
 $res = 0.0; $mine = 0.0
-foreach ($d in ($days.Keys | Sort-Object)) {
+foreach ($d in ($days.Keys | Where-Object { $_ -ge $ms } | Sort-Object)) {
   $v = $days[$d]; $t = $v.image + $v.sora + $v.tts + $v.other
   $res += $t
   if ($t -lt 0.5) { continue }
@@ -111,25 +125,32 @@ foreach ($d in ($days.Keys | Sort-Object)) {
 # projects share the subscription and their rate is not ours to set -- in September it went from
 # about $45 a day to about $100 a day in the last week -- so the subscription side is projected
 # from their recent rate, with a margin, because this data runs about a day behind.
-$today = (Get-Date).ToUniversalTime()
 $daysInMonth = [DateTime]::DaysInMonth($today.Year, $today.Month)
 $left = $daysInMonth - $today.Day + 1
-$complete = $subDay.Keys | Sort-Object | Where-Object { $_ -lt $today.ToString('yyyyMMdd') } | Select-Object -Last 7
+# Complete means before yesterday: data lags about a day, and a part-reported yesterday would
+# pull the average down. Yesterday's missing part is covered by counting one extra day below.
+$cutoff = $today.AddDays(-1).ToString('yyyyMMdd')
+$complete = $subDay.Keys | Sort-Object | Where-Object { $_ -lt $cutoff } | Select-Object -Last 7
 $otherRate = 0.0
 if ($complete) {
   $otherRate = ($complete | ForEach-Object {
     $v = $subDay[$_]; $v.all - $(if ($wrote.ContainsKey($_)) { $v.shared } else { 0 })
   } | Measure-Object -Average).Average
+} else {
+  "  ! no complete days in the window: the other projects' rate is unknown, so nothing is allowed"
+  $otherRate = [double]::PositiveInfinity
 }
-$projected = $total + $left * $otherRate
+$lag = if ($today.Day -gt 1) { 1 } else { 0 }
+$projected = $total + ($left + $lag) * $otherRate
 $campaignLeft = $CampaignCap - $mine
 $subscriptionLeft = ($SubscriptionCap * $Margin) - $projected
 $allowance = [Math]::Min($campaignLeft, $subscriptionLeft)
 ""
 "limits:"
 "  campaign        {0,8:N2} of {1:N0} spent            -> {2,8:N2} left" -f $mine, $CampaignCap, $campaignLeft
-"  subscription    {0,8:N2} so far; other projects at {1:N2}/day over the last {2} complete days" -f $total, $otherRate, @($complete).Count
-"                  projected month-end {0:N2} + this campaign  vs {1:N0} x {2} = {3:N0}  -> {4,8:N2} left" -f $projected, $SubscriptionCap, $Margin, ($SubscriptionCap * $Margin), $subscriptionLeft
+"  subscription    {0,8:N2} so far; other projects at {1:N2}/day over {2} complete days ({3} to {4})" -f $total, $otherRate, @($complete).Count, (@($complete) | Select-Object -First 1), (@($complete) | Select-Object -Last 1)
+"                  projected month-end {0:N2} ({1} day(s) at that rate, incl. {2} for reporting lag)" -f $projected, ($left + $lag), $lag
+"                  + this campaign  vs {0:N0} x {1} = {2:N0}  -> {3,8:N2} left" -f $SubscriptionCap, $Margin, ($SubscriptionCap * $Margin), $subscriptionLeft
 "  allowance for the rest of the month: {0:N2} USD  ({1} day(s) left, {2:N2}/day)" -f $allowance, $left, ($allowance / [Math]::Max(1, $left))
 if ($allowance -ge $NeedToday) {
   "GO: {0:N2} available, {1:N2} needed for today's work" -f $allowance, $NeedToday
