@@ -363,3 +363,81 @@ Backlog, 30 Sep: 40 uploaded, none failed; 12 left. Uploads today: 54 in total.
 History - Gupta Period", holds 2 videos. The 145 history episodes matched to their folders (35
 public, 42 scheduled, 68 private awaiting dates) are otherwise in no playlist. Era playlists in
 story order would let a viewer who finishes one episode continue to the next. Not built yet.
+
+## Measured, 1 Oct — the Hindi Short
+
+| Short | language | published (IST) | live when read | views | stayed to watch |
+|---|---|---|---|---|---|
+| बिंदु जो बना शून्य (Zero, translated) | Hindi | 30 Sep 12:00 | 17.9 h | **476** | **74.8%** |
+| Two Stone Poems, One Burning War (remake) | English | 30 Sep 13:00 | 16.9 h | 54 | 55.6% |
+| The Dot That Became Zero | English | 26 Sep 13:00 | 4.7 days | 276 | 66.4% |
+| The King Who Built a School That Lasted 700 Years | English | 27 Sep 13:00 | 3.7 days | 204 | 60.9% |
+| The Mud-Brick Rooms That Never Reopened | English | 27 Sep 19:00 | 3.5 days | 30 | 61.8% |
+| Chandragupta's Final Battle with Hunger | English | 28 Sep 17:00 | 2.5 days | 28 | 53.6% |
+| The Surgeon Who Rebuilt a Nose | English | 26 Sep 19:00 | 4.5 days | 15 | 46.7% |
+| Why Delhi's Iron Pillar Refuses To Rust | English | 25 Sep 19:00 | 5.5 days | 5 | 60% |
+
+Read at 05:53 IST (`dist/yt-retention-history.json`). Subscribers: 51.
+
+The Hindi translation of Zero reached 476 views in under 18 hours. No other Short on the channel
+had passed 104 by 23 Sep (`dist/yt-stats.json`) or 276 since, and it kept 74.8% of viewers past
+the opening. Its English original reached 276 views and stopped growing after about two days;
+Nalanda also stopped at 204. One
+pair is one data point. Two differences besides language: the Hindi render shows each line over
+its planned clip (the English one does not, lines 2–6), and it published at 12:00, not 13:00.
+
+**The replication test.** Two more Hindi Shorts, written from the episodes' English and Hindi
+narration and web-checked. Both reuse their English pilots' clips, so they cost only speech, and
+both publish at 12:00 IST:
+
+| Hindi Short | publishes | English counterpart | its result |
+|---|---|---|---|
+| नालंदा: जहाँ द्वार पर ही परीक्षा होती थी (`nalanda-hi`) | 2 Oct 12:00 | Nalanda, 43.2 s | shown: 204 views |
+| सुश्रुत: पत्ते के नाप से बनी नई नाक (`sushruta-hi`) | 3 Oct 12:00 | Sushruta, 41.7 s | not shown: 15 views |
+
+They are not translations of the English pilot scripts, whose opening lines invent scenes; they
+make the same claims more plainly. If Sushruta, not shown in English, is shown in Hindi, language
+is the more likely cause than topic. Read at 24 hours and at 7 days, on the same rule as the
+pilots.
+
+**Spend, October.** `tools/spend.ps1` had a month-boundary bug, fixed 1 Oct (commit `7e27e10`):
+on the 1st, "month to date" held no complete days, so the other projects' rate came out as $0
+and the guard would have allowed the full $2,000. Fixed, it reads the other projects at $124.88
+a day (23–29 Sep), projects them to $3,871 for October, and leaves this campaign **$628.80 for
+the month**, about $20 a day, under the $5,000 × 0.9 subscription limit. That covers remakes at
+two a day ($12) and Hindi versions (speech only). It does not cover the twelve-a-day catch-up
+pace of 29–30 Sep.
+
+**Subscribers per view.** The overview card "Subscribers +N" counts the change in subscriber
+count from people who watched a video; `yt-retention.mjs` reads it from 1 Oct, with the share of
+views from the Shorts feed. Read at 07:05 IST:
+
+| Short | views | subscribers gained | from the Shorts feed |
+|---|---|---|---|
+| The Dot That Became Zero (English) | 276 | +2 | — |
+| The King Who Built a School… (Nalanda, English) | 204 | +2 | 90.3% |
+| बिंदु जो बना शून्य (Zero, Hindi) | 478 | +1 | 99.4% |
+| the other five | 5–54 | none shown | 90.7–100% |
+
+That is one subscriber per 100 to 500 views. At that rate the remaining 949 subscribers need
+roughly 100,000 to 450,000 Short views; the eight new-format Shorts published since 25 Sep have
+reached 1,090 views in total. Two levers follow: more views per Short (distribution, which the Hindi test
+probes), and more subscribers per view. The Hindi Short drew the most views but the fewest
+subscribers per view, so far from one data point each. The Shorts' closing card names the series
+but does not invite a subscription; a short invitation on that card is the next candidate change.
+
+**Remakes, 1 Oct**, ahead of the two-a-day stretch that starts on 20 Oct; both old versions
+deleted after the remakes were scheduled and verified:
+
+| slot | remake | label, length | id | replaced |
+|---|---|---|---|---|
+| 20 Oct 13:00 | The Seal That Spoke for Nalanda's Monks | standard, 33.0 s | DlIPcteLV7E | PLn9YkeM_Lk |
+| 20 Oct 19:00 | When Western India's Silver Changed Kings | short, 27.2 s | R-akbpHGmXE | Z4s_SYCGF8s |
+
+Accuracy notes: the Chandragupta II episode quotes the Udayagiri inscription as saying he
+"conquered the whole of the western region"; that wording could not be matched to the
+inscription's published text, and the remake does not quote it. The Nalanda seal with the
+Dharma wheel between two deer is mostly Pala-period (8th–12th century); the remake gives no date.
+
+Backlog, 1 Oct: the last 12 uploaded, none failed; every item in the plan is on the channel. 169
+await dates, which `publish-run --schedule` gives as they come within 60 days. Uploads today: 16.

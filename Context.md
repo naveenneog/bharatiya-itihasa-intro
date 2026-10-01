@@ -1893,8 +1893,9 @@ The load-bearing facts, each measured rather than assumed:
   or reach tabs. `tools/yt-retention.mjs` reads it. Judge a Short only at ~100 views; low exposure
   flatters the number (an old-format Short scored 68% at 24 views, against 11–14% at scale).
   The daily measurement is `node tools/yt-retention.mjs --ids <node tools/pilot-schedule.mjs ids
-  --published>`; it also reads the subscriber count ("Current subscribers" on the dashboard) and
-  appends every run to `dist/yt-retention-history.json`.
+  --published>`; it also reads the subscriber count ("Current subscribers" on the dashboard),
+  each Short's "Subscribers +N" and Shorts-feed share from its overview, and appends every run to
+  `dist/yt-retention-history.json`. On 1 Oct the Shorts gained one subscriber per 100–500 views.
 - **Feed-format Shorts**: `tools/hook-script.mjs --length standard|short` (six or five lines) →
   check every line against `episodes/<slug>/episode.json` and hand-edit (record it in `edited`) →
   `tools/short-shots.mjs --replan` → `tools/short.mjs --feed` → `tools/short-verify.mjs` (exit 0
@@ -1916,7 +1917,13 @@ The load-bearing facts, each measured rather than assumed:
 - **Hindi Shorts**: an episode with `lang: hi` renders its captions in Tiro Devanagari Hindi
   (`short-page.mjs`, class `hi`), with Hindi hashtags and a `.hi.srt`. The title comes from
   `short.json`'s `title` (the folder's `publish.json` has no `titles`). The first, `zero-hi`, is
-  Zero's script translated line by line over Zero's planned clips.
+  Zero's script translated line by line over Zero's planned clips; it reached 476 views in 18
+  hours against 276 in total for the English original. A Hindi version needs no generation:
+  `episodes/<slug>-hi/` gets the English episode's `episode.json` with `lang: "hi"`, a Hindi
+  `short.json` and `hook-script.json` (no digits: years and counts in words), the English
+  version's planned clips copied in the order that fits the Hindi lines, and a `short-shots.json`
+  whose `clips` follow that order and whose `claim`s are the Hindi lines (`short.mjs` warns when
+  a claim differs from its line). Render with `--era` of the English version; schedule at 12:00.
 - **Scheduling minutes after an upload can fail to hold**: the Hindi Short's first attempt saved
   and read back Private; a second pass a few minutes later verified. `pilot-schedule` reports
   it as "not verified" and leaves the entry unscheduled, so the next pass retries it.
@@ -1935,7 +1942,10 @@ The load-bearing facts, each measured rather than assumed:
 - **Spend is measured with `tools/spend.ps1`** (Azure Cost Management), which is also the gate:
   exit 0 (GO) or 3 (STOP) against both the campaign's $2,000 a month and the subscription's
   $5,000 × 0.9, given `-NeedToday <USD>`. A feed Short costs about $5.90. The Azure AI resource is
-  shared with other projects, whose rate sets most of the subscription's headroom.
+  shared with other projects, whose rate sets most of the subscription's headroom: at $124.88 a
+  day (23–29 Sep) they leave this campaign $628.80 for October. The guard averages their last
+  seven complete days from a window that reaches back across a month boundary (before 1 Oct it
+  read $0 on the 1st of a month).
 - **YouTube's daily upload limit was hit on 23 Sep after 121 uploads.** The three that failed
   that day went straight through on 27 Sep. Keep uploads under ~60 a day.
 - **The yt-agent was aborting large uploads.** After clicking Save it did a full `page.goto()` to

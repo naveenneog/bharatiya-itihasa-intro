@@ -59,6 +59,11 @@ try {
          far more views before it means anything — two views produced no figure at all. */
       shownInFeed: (body.match(/Shown in feed\s*([\d.,]+[KM]?)/i) || [])[1] || null,
       viewedPct: (body.match(/([\d.]+)%\s*viewed/i) || body.match(/Viewed\s*([\d.]+)%/i) || [])[1] || null,
+      /* What the campaign is for: the overview card "Subscribers +N", the change in subscriber
+         count from people who watched this video. And how they found it: the share of views
+         from the Shorts feed, which says whether YouTube is distributing the Short at all. */
+      subsGained: (() => { const m = body.match(/Subscribers\s*([+\-−]?[\d,]+)/i); return m ? Number(m[1].replace(/[,+]/g, '').replace('−', '-')) : null; })(),
+      shortsFeedPct: (() => { const m = body.match(/Shorts feed\s*([\d.]+)%/i); return m ? Number(m[1]) : null; })(),
       /* The labels are read from a page that changes; keep the raw text around the one that
          matters so a missed match is visible rather than silently null. */
       swipeContext: (body.match(/.{0,80}swiped.{0,80}/i) || [])[0] || null,
@@ -76,7 +81,7 @@ try {
     rec.swipedPct = sw ? Number(sw[2]) : null;
 
     out.push(rec);
-    console.log(`  ${id}  views=${String(rec.views ?? '?').split(' ')[0].padStart(4)}  stayed=${rec.stayedPct ?? '?'}%  avgDur=${rec.avgViewDuration ?? '?'}  ${rec.title.slice(0, 40)}`);
+    console.log(`  ${id}  views=${String(rec.views ?? '?').split(' ')[0].padStart(4)}  stayed=${rec.stayedPct ?? '?'}%  subs=${rec.subsGained ?? '?'}  feed=${rec.shortsFeedPct ?? '?'}%  avgDur=${rec.avgViewDuration ?? '?'}  ${rec.title.slice(0, 40)}`);
   }
 
   /* The channel's subscriber count, from the dashboard card "Current subscribers N". Read here
