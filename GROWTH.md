@@ -400,6 +400,11 @@ make the same claims more plainly. If Sushruta, not shown in English, is shown i
 is the more likely cause than topic. Read at 24 hours and at 7 days, on the same rule as the
 pilots.
 
+Decision rule, fixed on 1 Oct before either result: if both pass about 100 views within 7 days,
+the channel starts a Hindi line, a Hindi version of each checked new-format Short at 12:00 daily
+from its existing clips. If neither does, Hindi versions stop. If one does, two more Hindi tests
+come before any decision.
+
 **Spend, October.** `tools/spend.ps1` had a month-boundary bug, fixed 1 Oct (commit `7e27e10`):
 on the 1st, "month to date" held no complete days, so the other projects' rate came out as $0
 and the guard would have allowed the full $2,000. Fixed, it reads the other projects at $124.88
