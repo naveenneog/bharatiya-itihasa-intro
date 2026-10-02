@@ -541,3 +541,65 @@ Spend: subscription $98.86 for October so far (1 Oct, reported a day late); this
 Allowance for the rest of October $543.07, about $18 a day. Backlog: three items came within 60
 days and were scheduled for 1 Dec, the first December dates the date picker accepted. Related
 links: the Mamallapuram Short now links to its episode, public since 1 Oct (35 linked).
+
+## 3 Oct — the subscription's spend jumped, and the guard now says STOP
+
+**Spend.** The subscription by day, from Azure Cost Management (UTC days; the latest is still
+being reported):
+
+| days | USD per day |
+|---|---|
+| 20–22 Sep | 45.91, 46.52, 45.94 |
+| 23–28 Sep | 120.68, 239.40, 154.85, 102.92, 87.94, 90.23 |
+| 29 Sep – 2 Oct | 193.76, 143.94, 119.03, **266.57** |
+
+On 2 Oct the shared AI resource (`ai-contosohub530569751908`) cost $190.53, of which $184.40 was
+Sora. This campaign generated nothing that day; another project using the same resource did.
+October so far: $385.61 after two days. Projected for the month, counting 3–31 Oct at each rate:
+
+| if other projects average | October ends near |
+|---|---|
+| $124.41/day (24–30 Sep) | $3,994 |
+| $164.52/day (30 Sep – 2 Oct) | $5,157 |
+| $266.57/day (2 Oct, part-reported) | $8,116 |
+
+The user's cap is $5,000 for the subscription; this campaign's limit is $5,000 × 0.9. At the last
+three days' rate the subscription passes the cap without any spend from this campaign. This
+campaign's own October spend is $9.76 (1 Oct).
+
+**Two guard fixes** (`tools/spend.ps1`):
+- *Double counting.* The guard's query, filtered to the shared resource, grouped by meter, over a
+  window that crosses a month boundary, returned the new month's first day twice: 1 Oct read
+  $19.52, every meter exactly doubled, where the same query the day before and four other query
+  shapes read $9.76. Reproduced twice. The guard now uses one query shape per purpose, none of
+  which combines all three conditions. The error would have counted the other projects' spend as
+  this campaign's once 1 Oct became a complete day.
+- *A slow rate.* The seven-complete-day average still read $124 a day from 24–30 Sep. The guard
+  now also averages the last three days, part-reported ones included, and uses the higher. It also
+  stopped subtracting the whole shared resource from a day on which this repo generated anything;
+  it subtracts this repo's estimated share ($0.80 per clip, $0.20 per still, from its own files),
+  because the other project now spends on that resource too.
+
+With both fixes the guard reads **STOP**: −$985.75 available, using a deliberately pessimistic
+projection that also counts the part-reported days once more.
+
+**What STOP means here.** No Sora or image generation while it holds. Nothing was due: the next
+old-format Shorts publish on 21 Oct, and their remakes would be generated from about 13 Oct. If
+the guard still says STOP when a remake is due, that Short publishes as uploaded and is excluded
+from the remake test (`remake-queue.mjs --decide skip`). Hindi versions of existing Shorts use
+speech only, cents per Short, and continue under the Hindi rule.
+
+**Measured, 3 Oct**, read at 04:36 IST. Subscribers: 52.
+
+| Short | published (IST) | views | stayed to watch | from the Shorts feed |
+|---|---|---|---|---|
+| बिंदु जो बना शून्य (Zero, Hindi) | 30 Sep 12:00 | 533 | 73.8% | 94.8% |
+| A Queen Builds in Two Stone Languages (remake) | 1 Oct 13:00 | 347 | 47.1% | 97.4% |
+| Two Stone Poems, One Burning War (remake) | 30 Sep 13:00 | 80 | 52.6% | 80.8% |
+| The Son Who Took the Enemy's Capital (remake) | 2 Oct 13:00 | 10 | 50% | 90% |
+| नालंदा: जहाँ द्वार पर ही परीक्षा होती थी (Hindi) | 2 Oct 19:00 | 5 | 50% | — |
+
+The two Shorts of 2 Oct were six hours apart and both are slow at 10–15 hours old, so the pairing
+explanation does not cover them. The Hindi Nalanda is read at 7 days (9 Oct) under the rule. The
+pilots are unchanged; Why Delhi's Iron Pillar Refuses To Rust passed 7 days at 5 views, "not
+shown" under the rule, and it was the later Short of an hour-apart pair.

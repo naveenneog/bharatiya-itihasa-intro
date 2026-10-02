@@ -1900,7 +1900,8 @@ The load-bearing facts, each measured rather than assumed:
   check every line against `episodes/<slug>/episode.json` and hand-edit (record it in `edited`) →
   `tools/short-shots.mjs --replan` → `tools/short.mjs --feed` → `tools/short-verify.mjs` (exit 0
   means each line shows its planned take). Registered in `dist/feed-shorts.json` via
-  `tools/pilot-schedule.mjs add|schedule|ids`; new Shorts slot at 17:00 and 21:00 IST.
+  `tools/pilot-schedule.mjs add|schedule|ids`; `add` takes an explicit `--at` slot and refuses one
+  within five hours of any other Short.
 - **`short.mjs` takes its clips from `short-shots.json`, never from the folder's sort order.** A
   re-planned folder holds two plans' takes, and before 29 Sep the sorted list mixed them: all six
   feed Shorts of 24–28 Sep show takes from the wrong line or the old plan (see `GROWTH.md`).
@@ -1920,7 +1921,9 @@ The load-bearing facts, each measured rather than assumed:
   was rendered from) is checked against the episode and recorded with
   `remake-queue.mjs --slug <s> --era <e> --decide keep --note "..."`; a factual error is recorded
   with `--decide remake --note "factual error: ..."` and the Short is remade. A kept Short stays
-  scheduled as uploaded: no upload, no deletion. Kept Shorts are measured alongside the register's:
+  scheduled as uploaded: no upload, no deletion. A remake-arm Short that cannot be remade because
+  `spend.ps1` says STOP is recorded with `--decide skip --note "budget STOP"`: it publishes as
+  uploaded and belongs to neither arm. Kept Shorts are measured alongside the register's:
   `yt-retention.mjs --ids <pilot-schedule.mjs ids --published>,<remake-queue.mjs --kept-ids>`.
 - **Never schedule two Shorts within five hours of each other.** In all five pairs published
   within an hour (25–30 Sep), one stalled at 5–73 views. To move a scheduled video:
@@ -1957,10 +1960,12 @@ The load-bearing facts, each measured rather than assumed:
 - **Spend is measured with `tools/spend.ps1`** (Azure Cost Management), which is also the gate:
   exit 0 (GO) or 3 (STOP) against both the campaign's $2,000 a month and the subscription's
   $5,000 × 0.9, given `-NeedToday <USD>`. A feed Short costs about $5.90. The Azure AI resource is
-  shared with other projects, whose rate sets most of the subscription's headroom: at $124.88 a
-  day (23–29 Sep) they leave this campaign $628.80 for October. The guard averages their last
-  seven complete days from a window that reaches back across a month boundary (before 1 Oct it
-  read $0 on the 1st of a month).
+  shared with another project that also runs Sora on it ($184 on 2 Oct), and the other projects'
+  rate sets the subscription's headroom. The guard projects them at the higher of their last seven
+  complete days and their last three days (part-reported ones included), over a window that
+  reaches back across a month boundary; from 3 Oct that reads STOP. Cost Management quirk: a query
+  filtered to one resource, grouped by meter, over a window crossing a month boundary returns the
+  new month's first day twice, so the guard never combines all three.
 - **YouTube's daily upload limit was hit on 23 Sep after 121 uploads.** The three that failed
   that day went straight through on 27 Sep. Keep uploads under ~60 a day.
 - **The yt-agent was aborting large uploads.** After clicking Save it did a full `page.goto()` to

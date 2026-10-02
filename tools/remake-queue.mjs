@@ -20,6 +20,10 @@
 
      node tools/remake-queue.mjs --slug the-seal --era gupta --decide keep --note "checked: ..."
      node tools/remake-queue.mjs --slug the-seal --era gupta --decide remake --note "factual error: ..."
+     node tools/remake-queue.mjs --slug the-seal --era gupta --decide skip --note "budget STOP"
+
+   `skip` is for a remake-arm Short that cannot be remade (tools/spend.ps1 says STOP): it publishes
+   as uploaded and belongs to neither arm of the test.
 
    Decisions live in dist/remake-decisions.json and override the alternation. The kept Shorts'
    ids, once published, for the daily measurement:
@@ -38,8 +42,8 @@ const decisions = await load(DEC, {});
 const DECIDE = arg('decide', null);
 if (DECIDE) {
   const slug = arg('slug', null); const era = arg('era', null); const note = arg('note', '');
-  if (!slug || !era || !['keep', 'remake'].includes(DECIDE) || !note) {
-    console.error('usage: --slug <slug> --era <era> --decide keep|remake --note "<what was checked, or the error>"');
+  if (!slug || !era || !['keep', 'remake', 'skip'].includes(DECIDE) || !note) {
+    console.error('usage: --slug <slug> --era <era> --decide keep|remake|skip --note "<what was checked, the error, or why skipped>"');
     process.exit(1);
   }
   const dir = `dist/${era}/${slug}_short`;
@@ -124,7 +128,7 @@ for (const r of rows) {
   r.script = !s ? 'none' : (s.edited || s.editedHook) ? `checked, ${s.length || 'standard'}` : (s.format === 'hook-v1' ? 'feed, NOT checked' : 'old');
   const d = decisions[r.dir];
   r.arm = d?.decision || armOf(r.publishLocal);
-  r.next = r.arm === 'keep' ? (d?.checked ? 'keep' : 'check') : nextStep(r, s);
+  r.next = r.arm === 'skip' ? 'none (skipped)' : r.arm === 'keep' ? (d?.checked ? 'keep' : 'check') : nextStep(r, s);
 }
 
 /* The first step not yet done, so a pass resumes rather than redoes. Each check compares against
