@@ -12,14 +12,52 @@
 
    Per row: whether the folder already holds a hand-checked feed script (short.json with an
    `edited` or `editedHook` record) — the step that cannot be automated — and `next`, the first
-   step not yet done: script, clips, render, verify, upload, register (add, schedule, delete). */
-import { readFile } from 'node:fs/promises';
+   step not yet done: script, clips, render, verify, upload, register (add, schedule, delete).
+
+   From 21 Oct the old-format Shorts are an A/B test (rule fixed 2 Oct, GROWTH.md): each day one
+   of the two is remade and the other kept as uploaded, alternating between 13:00 and 19:00. A
+   kept Short is fact-checked against its episode first (`next: check`), then recorded:
+
+     node tools/remake-queue.mjs --slug the-seal --era gupta --decide keep --note "checked: ..."
+     node tools/remake-queue.mjs --slug the-seal --era gupta --decide remake --note "factual error: ..."
+
+   Decisions live in dist/remake-decisions.json and override the alternation. */
+import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
 const DAYS = Number(arg('days', 7));
 const load = async (f, d) => JSON.parse(await readFile(f, 'utf8').catch(() => JSON.stringify(d)));
+
+const DEC = 'dist/remake-decisions.json';
+const decisions = await load(DEC, {});
+const DECIDE = arg('decide', null);
+if (DECIDE) {
+  const slug = arg('slug', null); const era = arg('era', null); const note = arg('note', '');
+  if (!slug || !era || !['keep', 'remake'].includes(DECIDE) || !note) {
+    console.error('usage: --slug <slug> --era <era> --decide keep|remake --note "<what was checked, or the error>"');
+    process.exit(1);
+  }
+  const dir = `dist/${era}/${slug}_short`;
+  if (!existsSync(dir)) { console.error(`no folder ${dir}`); process.exit(1); }
+  decisions[dir] = { decision: DECIDE, checked: true, note, at: new Date().toISOString() };
+  await writeFile(DEC, `${JSON.stringify(decisions, null, 2)}\n`);
+  console.log(`  ${dir}: ${DECIDE} — ${note}`);
+  process.exit(0);
+}
+
+/* Days counted from 21 Oct, so the alternation holds across month ends: day 0 remakes the 13:00
+   Short and keeps the 19:00 one, day 1 the reverse, and so on. Before 21 Oct every old-format
+   Short was remade. */
+const AB_FROM = Date.parse('2026-10-21T00:00:00+05:30');
+function armOf(publishLocal) {
+  const t = Date.parse(publishLocal);
+  if (Number.isNaN(t) || t < AB_FROM) return 'remake';
+  const n = Math.floor((t - AB_FROM) / 86400e3);
+  const evening = Number(String(publishLocal).slice(11, 13)) >= 16;
+  return (n % 2 === 0) !== evening ? 'remake' : 'keep';
+}
 
 const scan = await load('dist/yt-channel.json', { rows: [] });
 const plan = (await load('dist/publish-plan.json', { plan: [] })).plan;
@@ -62,7 +100,9 @@ for (const r of rows) {
   const f = `episodes/${r.slug}/short.json`;
   const s = existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
   r.script = !s ? 'none' : (s.edited || s.editedHook) ? `checked, ${s.length || 'standard'}` : (s.format === 'hook-v1' ? 'feed, NOT checked' : 'old');
-  r.next = nextStep(r, s);
+  const d = decisions[r.dir];
+  r.arm = d?.decision || armOf(r.publishLocal);
+  r.next = r.arm === 'keep' ? (d?.checked ? 'keep' : 'check') : nextStep(r, s);
 }
 
 /* The first step not yet done, so a pass resumes rather than redoes. Each check compares against
@@ -88,6 +128,6 @@ function nextStep(r, s) {
 if (argv.includes('--json')) { console.log(JSON.stringify(rows, null, 2)); process.exit(0); }
 console.log(`old-format Shorts publishing in the next ${DAYS} days (scan ${scan.at || '?'}):\n`);
 for (const r of rows) {
-  console.log(`  ${r.publishLocal.slice(0, 16).replace('T', ' ')}  ${String(r.oldId || '-').padEnd(11)}  ${r.era}/${r.slug}  [${r.script}]  next: ${r.next}`);
+  console.log(`  ${r.publishLocal.slice(0, 16).replace('T', ' ')}  ${String(r.oldId || '-').padEnd(11)}  ${(r.arm || '').padEnd(6)}  ${r.era}/${r.slug}  [${r.script}]  next: ${r.next}`);
 }
 if (!rows.length) console.log('  none');

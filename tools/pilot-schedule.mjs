@@ -4,20 +4,21 @@
    day. The register is dist/feed-shorts.json, one entry per Short, and everything reads it: the
    daily measurement takes its ids from here, and the scheduler takes its slots from here.
 
-     node tools/pilot-schedule.mjs add --slug copper-plates --era pallava
-         reads the uploaded id from dist/uploads.json and gives the Short the next free slot
+     node tools/pilot-schedule.mjs add --slug nalanda-hi --era gupta --at 2026-10-02T19:00
+         reads the uploaded id from dist/uploads.json and records the Short at that IST time
      node tools/pilot-schedule.mjs add --slug five-generations-across --era chalukya \
          --at 2026-09-30T13:00 --replaces 91lAMk9AoNg
-         a remake: takes the old version's day at the given IST time, and records the old id,
-         which tools/yt-delete.mjs removes once the remake is scheduled
+         a remake: takes the old version's slot, and records the old id, which
+         tools/yt-delete.mjs removes once the remake is scheduled
      node tools/pilot-schedule.mjs schedule [--dry]
          dates every entry not yet scheduled, and marks the verified ones
      node tools/pilot-schedule.mjs ids [--published]
          prints the ids, comma-joined, for tools/yt-retention.mjs --ids; --published keeps only
          those whose publish time has passed
 
-   Slots are 17:00 and 21:00 IST, never on a day that already has a feed-format Short, and never
-   before tomorrow. The backlog uses 09:00, 13:00 and 19:00 from 20 Oct, so the two never meet.
+   `add` refuses a slot within five hours of any other Short in this register or the backlog
+   plan (the plan's Shorts are at 13:00 and 19:00 from 20 Oct). To move a Short that is already
+   scheduled, use tools/yt-reschedule.mjs.
 */
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
@@ -28,7 +29,6 @@ const cmd = argv[0];
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1]; };
 const DRY = argv.includes('--dry');
 const REG = 'dist/feed-shorts.json';
-const HOURS = [17, 21];
 const TZ = '+05:30';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -37,35 +37,6 @@ const save = async (rows) => {
   await writeFile(`${REG}.tmp`, `${JSON.stringify(rows, null, 2)}\n`);
   await rename(`${REG}.tmp`, REG);
 };
-
-/* IST calendar date, so "tomorrow" means tomorrow where the audience is. */
-const istDay = (d = new Date()) => new Date(d.getTime() + 5.5 * 3600e3).toISOString().slice(0, 10);
-const addDay = (iso) => {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-};
-
-function nextSlot(rows) {
-  const taken = new Map();
-  for (const r of rows) {
-    const day = (r.publishLocal || '').slice(0, 10);
-    if (day) taken.set(day, (taken.get(day) || []).concat(Number(r.publishLocal.slice(11, 13))));
-  }
-  /* The last day that holds feed Shorts, if it still has a free slot, else the day after it —
-     but never earlier than tomorrow. */
-  const days = [...taken.keys()].sort();
-  let day = days.at(-1) || istDay();
-  const tomorrow = addDay(istDay());
-  if (day < tomorrow) day = tomorrow;
-  for (;;) {
-    const used = taken.get(day) || [];
-    const pilotDay = rows.some((r) => r.pilot && (r.publishLocal || '').startsWith(day));
-    const free = pilotDay ? [] : HOURS.filter((h) => !used.includes(h));
-    if (free.length) return `${day}T${String(free[0]).padStart(2, '0')}:00:00${TZ}`;
-    day = addDay(day);
-  }
-}
 
 if (cmd === 'ids') {
   /* --published: only Shorts whose publish time has passed. Analytics for a scheduled video are
@@ -80,7 +51,7 @@ if (cmd === 'ids') {
 if (cmd === 'add') {
   const slug = arg('slug', null); const era = arg('era', null);
   const at = arg('at', null); const replaces = arg('replaces', null);
-  if (!slug || !era) { console.error('usage: add --slug <slug> --era <era> [--at YYYY-MM-DDTHH:MM] [--replaces <old id>]'); process.exit(1); }
+  if (!slug || !era) { console.error('usage: add --slug <slug> --era <era> --at YYYY-MM-DDTHH:MM [--replaces <old id>]'); process.exit(1); }
   const dir = `dist/${era}/${slug}_short`;
   const title = readFileSync(path.join(dir, 'title.txt'), 'utf8').trim().split('\n')[0];
   const ledger = JSON.parse(readFileSync('dist/uploads.json', 'utf8')).uploads || {};
@@ -95,17 +66,35 @@ if (cmd === 'add') {
   }
   const rows = await load();
   if (rows.some((r) => r.id === id)) { console.log(`  ${id} already registered`); process.exit(0); }
-  let publishLocal = nextSlot(rows);
-  if (at) {
-    const m = String(at).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/);
-    if (!m) { console.error(`--at takes IST local time as YYYY-MM-DDTHH:MM, not "${at}"`); process.exit(1); }
-    publishLocal = `${m[1]}T${m[2]}:${m[3]}:00${TZ}`;
-    if (new Date(publishLocal).getTime() < Date.now() + 2 * 3600e3) {
-      console.error(`--at ${at} IST is less than two hours away; Studio needs time to process first`);
-      process.exit(1);
-    }
-    const clash = rows.find((r) => r.publishLocal === publishLocal);
-    if (clash) { console.error(`${publishLocal} already belongs to ${clash.id} (${clash.slug})`); process.exit(1); }
+  /* An explicit slot is required. The old default filled 17:00 and 21:00, four hours apart and
+     four hours after the 13:00 Shorts, which the spacing check below would now refuse anyway. */
+  if (!at) { console.error('--at YYYY-MM-DDTHH:MM (IST) is required'); process.exit(1); }
+  const m = String(at).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/);
+  if (!m) { console.error(`--at takes IST local time as YYYY-MM-DDTHH:MM, not "${at}"`); process.exit(1); }
+  const publishLocal = `${m[1]}T${m[2]}:${m[3]}:00${TZ}`;
+  if (new Date(publishLocal).getTime() < Date.now() + 2 * 3600e3) {
+    console.error(`--at ${at} IST is less than two hours away; Studio needs time to process first`);
+    process.exit(1);
+  }
+  const clash = rows.find((r) => r.publishLocal === publishLocal);
+  if (clash) { console.error(`${publishLocal} already belongs to ${clash.id} (${clash.slug})`); process.exit(1); }
+  /* Spacing. In all five pairs of Shorts published within an hour of each other on this channel
+     (25-30 Sep), one of the two stalled at 5-73 views (GROWTH.md, 2 Oct). So no slot within five
+     hours of another Short, counting this register and the backlog plan. The slot a remake takes
+     over is not a neighbour: the plan item for the same folder, and the video it replaces. */
+  const plan = JSON.parse(readFileSync('dist/publish-plan.json', 'utf8')).plan || [];
+  const feedDirs = new Set(rows.map((r) => `dist/${r.era}/${r.slug}_short`));
+  const t = Date.parse(publishLocal);
+  const near = [
+    ...rows.filter((r) => r.publishLocal && r.id !== replaces)
+      .map((r) => ({ what: `${r.id} ${r.slug}`, at: r.publishLocal })),
+    ...plan.filter((p) => p.kind === 'short' && p.publishLocal && p.dir !== dir && !feedDirs.has(p.dir))
+      .map((p) => ({ what: p.dir, at: p.publishLocal })),
+  ].filter((x) => Math.abs(Date.parse(x.at) - t) < 5 * 3600e3);
+  if (near.length) {
+    console.error(`${publishLocal} is within five hours of another Short:`);
+    for (const x of near) console.error(`  ${x.at}  ${x.what}`);
+    process.exit(1);
   }
   rows.push({ id, slug, era, title, publishLocal, scheduled: false, addedAt: new Date().toISOString(),
     ...(replaces ? { replaces } : {}) });

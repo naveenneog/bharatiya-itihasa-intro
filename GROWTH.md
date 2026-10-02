@@ -181,6 +181,11 @@ At comparable exposure, the two new Shorts past 100 views hold **four to five ti
 of the old format's best. The rule set on 26 Sep asks for three Shorts past ~100 views before
 calling it, so this is recorded as strong early evidence rather than a verdict.
 
+> **Corrected 2 Oct.** The two old-format Shorts compared here were published before 23 Sep. Six
+> old-format Shorts published in the same week as the pilots (24–29 Sep) held 32–56% stayed to
+> watch, median 44%, against the new format's 54–74%, median 62%. The gap is about 18 points,
+> not four to five times, and the old Shorts were watched for longer. See "Measured, 2 Oct".
+
 Two things the numbers also say. Distribution is uneven: the iron-pillar Short has sat at 5 views
 for three days while the zero Short reached 267 — the feed tested one and not the other, and
 nothing in these metrics says why. Subscribers went from 42 to 48 in the four days the pilots
@@ -205,6 +210,10 @@ The two Shorts past 100 views keep holding 60%+ as they widen, against 11–14% 
 format's best at similar exposure. The third needed for a verdict has not arrived, because the
 other four have stalled at 4–14 views. So the pattern is: **when the feed shows a new-format
 Short, viewers stay; the feed shows most of them to almost no one.**
+
+> **Corrected 2 Oct.** The 11–14% baseline came from old-format Shorts published before 23 Sep;
+> old-format Shorts published 24–29 Sep held 32–56%. The 13:00 pattern below is better explained
+> by Shorts published within an hour of each other. See "Measured, 2 Oct".
 
 One pattern in those six, recorded as a question rather than a finding: both Shorts that broke
 out were published at 13:00 IST, and all four that stalled at 17:00 or 19:00. With six Shorts,
@@ -380,7 +389,7 @@ story order would let a viewer who finishes one episode continue to the next. No
 Read at 05:53 IST (`dist/yt-retention-history.json`). Subscribers: 51.
 
 The Hindi translation of Zero reached 476 views in under 18 hours. No other Short on the channel
-had passed 104 by 23 Sep (`dist/yt-stats.json`) or 276 since, and it kept 74.8% of viewers past
+had passed 104 by 23 Sep (`dist/yt-stats-0923.json`) or 276 since, and it kept 74.8% of viewers past
 the opening. Its English original reached 276 views and stopped growing after about two days;
 Nalanda also stopped at 204. One
 pair is one data point. Two differences besides language: the Hindi render shows each line over
@@ -446,3 +455,89 @@ Dharma wheel between two deer is mostly Pala-period (8th–12th century); the re
 
 Backlog, 1 Oct: the last 12 uploaded, none failed; every item in the plan is on the channel. 169
 await dates, which `publish-run --schedule` gives as they come within 60 days. Uploads today: 16.
+
+## Measured, 2 Oct — Shorts an hour apart, and the old format in the same week
+
+| Short | published (IST) | views | stayed to watch | from the Shorts feed |
+|---|---|---|---|---|
+| बिंदु जो बना शून्य (Zero, Hindi) | 30 Sep 12:00 | 525 | 74% | 99% |
+| A Queen Builds in Two Stone Languages (remake) | 1 Oct 13:00 | **314** | 46.6% | 98.1% |
+| The Dot That Became Zero | 26 Sep 13:00 | 276 | 66.4% | — |
+| The King Who Built a School… (Nalanda) | 27 Sep 13:00 | 204 | 60.9% | — |
+| Two Stone Poems, One Burning War (remake) | 30 Sep 13:00 | 73 | 53.5% | 90.4% |
+| The Mud-Brick Rooms That Never Reopened | 27 Sep 19:00 | 30 | 61.8% | — |
+| Chandragupta's Final Battle with Hunger | 28 Sep 17:00 | 28 | 53.6% | 100% |
+| The Surgeon Who Rebuilt a Nose | 26 Sep 19:00 | 15 | 46.7% | — |
+| Why Delhi's Iron Pillar Refuses To Rust | 25 Sep 19:00 | 5 | 60% | — |
+
+Read at about 07:10 IST (`dist/yt-retention-history.json`). Subscribers: 52. The first remake, the
+Lokamahadevi Short, reached 314 views in about 18 hours.
+
+**Every Short on the channel, not only the new ones, has been shown more since 24 Sep.**
+`tools/yt-stats.mjs` (2 Oct, `dist/yt-stats.json`; the 23 Sep read is kept as
+`dist/yt-stats-0923.json`) gives every public Short's publish date and views. The old-format
+Shorts, all published at 18:00 IST (`dist/schedule-log-shorts.json`):
+
+| old-format Shorts published | count | views, range | views, median |
+|---|---|---|---|
+| 10–20 Sep | 11 | 1–104 | 21 |
+| 23–29 Sep | 7 | 22–230 | 98 |
+
+Something lifted the channel's Shorts as a whole from about 24 Sep: the same week the backlog
+uploads ran at about 50 a day and the new-format Shorts began. This data cannot separate those.
+
+**The old format, measured in the same week as the new one.** Six old-format Shorts published
+24–29 Sep against the five new-format Shorts with views to measure:
+
+| | Shorts | length | stayed to watch | average view duration | share of the Short watched |
+|---|---|---|---|---|---|
+| old format | 6 | 43–53 s | 32–56%, median 44% | 0:17–0:30 | 35–56%, median 44% |
+| new format | 5 | 38–43 s | 54–74%, median 62% | 0:12–0:18 | 32–44%, median 39% |
+
+The new format keeps about 18 more points of viewers past the opening. Viewers who stay watch
+the same share or less of it, and because it is shorter they watch fewer seconds. Subscribers
+gained per view are indistinguishable at these numbers: 5 from 774 views for the old six, 5 from
+1,470 for the nine new-format Shorts read the same morning. The 28 Sep claim of "four to five times" compared the
+new Shorts with old ones from an earlier week, before the lift; it is corrected above.
+
+**Shorts published within an hour of each other.** In all five such pairs on the channel, one of
+the two stalled:
+
+| day | earlier | later |
+|---|---|---|
+| 25 Sep | old, 18:00: **171** | new, 19:00: 5 |
+| 26 Sep | old, 18:00: 62 | new, 19:00: 15 |
+| 27 Sep | old, 18:00: **230** | new, 19:00: 30 |
+| 28 Sep | new, 17:00: 28 | old, 18:00: **146** |
+| 30 Sep | Hindi, 12:00: **525** | English, 13:00: 73 |
+
+Shorts with no other Short within an hour reached 22–314 views (67–314 from 24 Sep); the stalled
+Short in each pair reached 5–73. Evening is not the cause: the 18:00 old-format Shorts were shown. Five pairs are
+few, and in four of them the stalled Short was a new-format pilot at 17:00 or 19:00, so this is
+recorded as the working explanation, not a finding. The two Hindi tests were scheduled an hour
+before English Shorts, which would have confounded them; both were moved to 19:00 on 2 Oct, six
+hours after the English 13:00 Shorts (`tools/yt-reschedule.mjs`, which confirms by reading the
+stored date and time back). No other two Shorts are scheduled within five hours of each other: one
+a day at 13:00 until 19 Oct, then 13:00 and 19:00. A Hindi line, if it starts, needs a slot at
+least five hours from both, such as 07:00.
+
+**The remake test, from 21 Oct.** Remakes cost about $6 each, and the comparison above no longer
+shows the new format earning more views or subscribers. Rule fixed on 2 Oct, before any result:
+
+- From 21 Oct the old-format Shorts alternate: on 21 Oct the 13:00 Short is remade and the 19:00
+  one kept as uploaded, the next day the reverse, and so on (`tools/remake-queue.mjs` assigns the
+  arm; `dist/remake-decisions.json` records each kept Short's fact-check). A kept Short is checked
+  against its episode first, and one with a factual error is remade regardless, with the error
+  recorded.
+- Read on 4 Nov, when the 14 Shorts of 21–27 Oct are 7 days old: median views per arm, pooled
+  subscribers per 100 views, stayed to watch, average view duration.
+- Remake every old-format Short again if the remade arm's median views are at least 1.5 times the
+  kept arm's, or its subscribers per 100 views are at least 1.5 times with 10 or more subscribers
+  across both arms. Stop remaking if neither holds and the kept arm's watch time per view is
+  equal or higher. Otherwise alternate for another week and read again.
+- Cost: one remake a day, about $6, within the October allowance.
+
+Spend: subscription $98.86 for October so far (1 Oct, reported a day late); this campaign $9.76.
+Allowance for the rest of October $543.07, about $18 a day. Backlog: three items came within 60
+days and were scheduled for 1 Dec, the first December dates the date picker accepted. Related
+links: the Mamallapuram Short now links to its episode, public since 1 Oct (35 linked).

@@ -1914,6 +1914,18 @@ The load-bearing facts, each measured rather than assumed:
   old id moves to `replacedId`); `publish-run` skips folders in `feed-shorts.json`.
   `yt-delete` refuses public videos, ids still in either register, and old versions whose
   remake is not scheduled yet. It records every deletion in `dist/yt-deleted.json`.
+- **From 21 Oct remakes are an A/B test** (rule in `GROWTH.md`, 2 Oct): `remake-queue.mjs` marks
+  each old-format Short `remake` or `keep`, alternating the 13:00 and 19:00 slots daily. A `keep`
+  Short shows `next: check` until its old script (`episodes/<slug>/short.json`, the 7-fact one it
+  was rendered from) is checked against the episode and recorded with
+  `remake-queue.mjs --slug <s> --era <e> --decide keep --note "..."`; a factual error is recorded
+  with `--decide remake --note "factual error: ..."` and the Short is remade. A kept Short stays
+  scheduled as uploaded: no upload, no deletion.
+- **Never schedule two Shorts within five hours of each other.** In all five pairs published
+  within an hour (25–30 Sep), one stalled at 5–73 views. To move a scheduled video:
+  `node tools/yt-reschedule.mjs --id <id> --at YYYY-MM-DDTHH:MM [--go]` (IST; dry by default). It
+  refuses public and private videos and targets under three hours away, confirms by reading the
+  stored date and time back from Studio's dialog, and updates `dist/feed-shorts.json`.
 - **Hindi Shorts**: an episode with `lang: hi` renders its captions in Tiro Devanagari Hindi
   (`short-page.mjs`, class `hi`), with Hindi hashtags and a `.hi.srt`. The title comes from
   `short.json`'s `title` (the folder's `publish.json` has no `titles`). The first, `zero-hi`, is
@@ -1923,7 +1935,9 @@ The load-bearing facts, each measured rather than assumed:
   `short.json` and `hook-script.json` (no digits: years and counts in words), the English
   version's planned clips copied in the order that fits the Hindi lines, and a `short-shots.json`
   whose `clips` follow that order and whose `claim`s are the Hindi lines (`short.mjs` warns when
-  a claim differs from its line). Render with `--era` of the English version; schedule at 12:00.
+  a claim differs from its line). Render with `--era` of the English version; schedule at least five
+  hours from any other Short (the first was at 12:00, an hour before an English Short; the two
+  replications were moved to 19:00).
 - **Scheduling minutes after an upload can fail to hold**: the Hindi Short's first attempt saved
   and read back Private; a second pass a few minutes later verified. `pilot-schedule` reports
   it as "not verified" and leaves the entry unscheduled, so the next pass retries it.
