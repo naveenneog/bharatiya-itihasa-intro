@@ -21,7 +21,10 @@
      node tools/remake-queue.mjs --slug the-seal --era gupta --decide keep --note "checked: ..."
      node tools/remake-queue.mjs --slug the-seal --era gupta --decide remake --note "factual error: ..."
 
-   Decisions live in dist/remake-decisions.json and override the alternation. */
+   Decisions live in dist/remake-decisions.json and override the alternation. The kept Shorts'
+   ids, once published, for the daily measurement:
+
+     node tools/remake-queue.mjs --kept-ids          # comma-joined, for yt-retention.mjs --ids */
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 
@@ -90,6 +93,25 @@ for (const r of scan.rows || []) {
 }
 
 const until = Date.now() + DAYS * 86400e3;
+
+/* The ids of the A/B's kept Shorts that have published, comma-joined for tools/yt-retention.mjs.
+   The remade ones are in dist/feed-shorts.json already (pilot-schedule ids --published).
+   --as-of YYYY-MM-DD stands in for today, for testing. */
+if (argv.includes('--kept-ids')) {
+  const asOf = arg('as-of', null);
+  const now = asOf ? Date.parse(`${asOf}T23:59:59+05:30`) : Date.now();
+  const out = [];
+  for (const p of plan) {
+    if (p.kind !== 'short' || !p.publishLocal || feedDirs.has(p.dir)) continue;
+    const t = Date.parse(p.publishLocal);
+    if (t < AB_FROM || t > now) continue;
+    if ((decisions[p.dir]?.decision || armOf(p.publishLocal)) !== 'keep') continue;
+    const id = log[p.dir]?.id || p.id;
+    if (id) out.push(id);
+  }
+  console.log(out.join(','));
+  process.exit(0);
+}
 const ONE = arg('slug', null);
 const rows = ONE
   ? [{ dir: `dist/${arg('era', '?')}/${ONE}_short`, slug: ONE, era: arg('era', '?'), publishLocal: '(any)', oldId: null }]

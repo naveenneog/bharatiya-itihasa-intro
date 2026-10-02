@@ -1920,7 +1920,8 @@ The load-bearing facts, each measured rather than assumed:
   was rendered from) is checked against the episode and recorded with
   `remake-queue.mjs --slug <s> --era <e> --decide keep --note "..."`; a factual error is recorded
   with `--decide remake --note "factual error: ..."` and the Short is remade. A kept Short stays
-  scheduled as uploaded: no upload, no deletion.
+  scheduled as uploaded: no upload, no deletion. Kept Shorts are measured alongside the register's:
+  `yt-retention.mjs --ids <pilot-schedule.mjs ids --published>,<remake-queue.mjs --kept-ids>`.
 - **Never schedule two Shorts within five hours of each other.** In all five pairs published
   within an hour (25–30 Sep), one stalled at 5–73 views. To move a scheduled video:
   `node tools/yt-reschedule.mjs --id <id> --at YYYY-MM-DDTHH:MM [--go]` (IST; dry by default). It
