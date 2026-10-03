@@ -1957,6 +1957,19 @@ The load-bearing facts, each measured rather than assumed:
   (`ytcp-entity-card`) carry the id in `.video.videoId`; the field is `#linked-video-editor-link`.
   `tools/related-plan.mjs [--run]` pairs each public Short with its public episode (same slug)
   from the latest scan and links those not yet in `dist/related-links.json`.
+- **Era playlists**: `tools/yt-playlist.mjs list | create --era <e> --title "…" --description "…"
+  | add --playlist <id> --ids a,b | sync`, each dry unless `--go`. One public playlist per era
+  bucket (`dist/<era>/<slug>_book`), titled "<span> — Indian History | Bhāratīya Itihāsa", order
+  "Date published (oldest)", registry `dist/playlists.json`. Studio's own playlist page has no
+  "Add videos", and the create dialog's picker selects videos by title, so episodes are added by
+  id from each video's edit page: its playlist picker (`ytcp-video-metadata-playlists
+  ytcp-dropdown-trigger`) lists every playlist as `ytcp-checkbox-lit[test-id=<playlist id>]`.
+  The outer element takes the click; the inner `[role=checkbox]` never reads as stable to
+  Playwright. Then Done, then Save. A save there keeps a scheduled video's date and time
+  (verified 3 Oct, before and after). `sync` adds public episodes and those scheduled for today,
+  because a scheduled video added earlier shows viewers "N unavailable videos are hidden". It
+  also lists eras without a playlist and reads each playlist's public page signed out. The
+  playlist "Indian History - Gupta Period" and the user's personal playlists are not touched.
 - **Spend is measured with `tools/spend.ps1`** (Azure Cost Management), which is also the gate:
   exit 0 (GO) or 3 (STOP) against both the campaign's $2,000 a month and the subscription's
   $5,000 × 0.9, given `-NeedToday <USD>`. A feed Short costs about $5.90. The Azure AI resource is

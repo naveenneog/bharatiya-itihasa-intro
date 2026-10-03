@@ -372,6 +372,7 @@ Backlog, 30 Sep: 40 uploaded, none failed; 12 left. Uploads today: 54 in total.
 History - Gupta Period", holds 2 videos. The 145 history episodes matched to their folders (35
 public, 42 scheduled, 68 private awaiting dates) are otherwise in no playlist. Era playlists in
 story order would let a viewer who finishes one episode continue to the next. Not built yet.
+(Built 3 Oct, in publish order rather than story order; see 3 Oct.)
 
 ## Measured, 1 Oct — the Hindi Short
 
@@ -603,3 +604,33 @@ The two Shorts of 2 Oct were six hours apart and both are slow at 10–15 hours 
 explanation does not cover them. The Hindi Nalanda is read at 7 days (9 Oct) under the rule. The
 pilots are unchanged; Why Delhi's Iron Pillar Refuses To Rust passed 7 days at 5 views, "not
 shown" under the rule, and it was the later Short of an hour-apart pair.
+
+**Era playlists, made 3 Oct.** Until today the 36 public history episodes were in no playlist
+(the older "Indian History - Gupta Period" holds two earlier videos and is left as it is), so a
+viewer who finished one episode had no path to the next except YouTube's suggestions. Four
+public playlists now hold all 36, one per era bucket with public episodes
+(`tools/yt-playlist.mjs`, registry `dist/playlists.json`):
+
+| playlist (each titled "… — Indian History \| Bhāratīya Itihāsa") | id | public episodes in it | scheduled episodes still to join |
+|---|---|---|---|
+| The Maurya Empire | `PLEqn5uGZ140A` | 9 | 2, from 21 Oct (a third is in already; see below) |
+| The Kushan Empire | `PLQvE4J8clVv0` | 10 | 2, from 23 Oct |
+| From the Guptas to Harsha | `PLMv0ip_GYHKQ` | 7 | 14, from 25 Oct |
+| The Pallavas of Kanchi | `PLKDdnW-GHeg8` | 10 | 1, on 21 Nov |
+
+The gupta bucket also holds stories after the Gupta empire, up to Harsha and Nalanda's contacts
+with Tang China (7th century), so its title names that span rather than the Gupta empire alone.
+The order is "Date published (oldest)": YouTube keeps it as episodes publish, where a story order
+would need each new episode placed by hand. Read signed out, each page lists its public episodes
+in ascending publish date.
+
+A scheduled episode joins its playlist on its publish day (`yt-playlist.mjs sync`, daily), not
+before. Tested on Chandragupta Seizes Magadha (`d8MOB6D3BEg`, 20 Oct 09:00): its stored date and
+time read Oct 20, 2026 9:00 AM before and after the playlist save, both in the tool and separately
+from `yt-reschedule.mjs`. Signed out, the Maurya page then showed "1 unavailable video is hidden"
+and, before the public episodes were added, "No videos in this playlist yet". That video stays in
+the playlist; it publishes on 20 Oct.
+
+The effect is not measured yet. Each playlist's public view count is recorded daily in
+`dist/playlists.json` (all four 0 on 3 Oct). Chalukya, Rashtrakuta and Delhi-sultanate get a
+playlist once one of their episodes is public or within 14 days; Chalukya's first is 8 Nov.
