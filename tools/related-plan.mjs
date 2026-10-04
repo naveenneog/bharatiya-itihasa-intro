@@ -1,6 +1,7 @@
 /* Which public Shorts can link to their long-form episode, and link them.
 
-   A pair is ready when the Short and its episode (same slug, `_book` folder) are both public in
+   A pair is ready when the Short and its episode (same slug, `_book` folder; a Hindi version's
+   `-hi` slug pairs with the English episode) are both public in
    the latest scan (dist/yt-channel.json). Done pairs are kept in dist/related-links.json and
    skipped. The Short's id comes from dist/feed-shorts.json first (remakes reuse the folder), then
    dist/uploads.json and dist/publish-log.json.
@@ -34,7 +35,9 @@ for (const dir of new Set([...Object.keys(uploads), ...Object.keys(log)])) {
 const ready = [];
 for (const [id, s] of shorts) {
   if (byId.get(id)?.state !== 'PUBLIC' || done[id]) continue;
-  const book = idOfDir(`dist/${s.era}/${s.slug}_book`);
+  /* A Hindi version (episodes/<slug>-hi) has no episode of its own; its full story is the
+     English episode, whose title the link shows. */
+  const book = idOfDir(`dist/${s.era}/${s.slug.replace(/-hi$/, '')}_book`);
   if (!book || byId.get(book)?.state !== 'PUBLIC') continue;
   ready.push({ short: id, target: book, slug: s.slug, era: s.era, title: byId.get(id).title, bookTitle: byId.get(book).title });
 }

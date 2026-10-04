@@ -1956,7 +1956,8 @@ The load-bearing facts, each measured rather than assumed:
   (two public long-form "Brahmagupta and the Birth of Zero"). Studio's picker cards
   (`ytcp-entity-card`) carry the id in `.video.videoId`; the field is `#linked-video-editor-link`.
   `tools/related-plan.mjs [--run]` pairs each public Short with its public episode (same slug)
-  from the latest scan and links those not yet in `dist/related-links.json`.
+  from the latest scan and links those not yet in `dist/related-links.json`. A Hindi version's
+  `-hi` slug pairs with the English episode (since 4 Oct; before that no Hindi Short had a link).
 - **Era playlists**: `tools/yt-playlist.mjs list | create --era <e> --title "…" --description "…"
   | add --playlist <id> --ids a,b | sync`, each dry unless `--go`. One public playlist per era
   bucket (`dist/<era>/<slug>_book`), titled "<span> — Indian History | Bhāratīya Itihāsa", order
@@ -2017,9 +2018,18 @@ The load-bearing facts, each measured rather than assumed:
 ### The publish plan
 
 `tools/plan-publish.mjs` → `dist/publish-plan.json`, then `tools/publish-run.mjs --upload` and
-`--schedule`. One episode a day at 09:00 IST, two Shorts at 13:00 and 19:00, starting the day
-after the last date the channel already holds (31 items were scheduled through 19 Oct, so it
-starts 20 Oct).
+`--schedule`. One episode a day at 09:00 IST, two Shorts at 13:00 and 19:00. Each kind starts the
+day after its own last scheduled date, or tomorrow if that is later (`--channel <scan copy> --out
+<file>` plans without replacing the live plan).
+
+**Episodes publish daily from 5 Oct, Shorts twice daily from 20 Oct.** The plan was first made
+with one start for both kinds, the day after the last scheduled item; old-format Shorts held
+every day to 19 Oct while episodes ended on 1 Oct, so the episodes began on 20 Oct and 2–19 Oct
+had none. On 4 Oct `tools/shift-books.mjs --days -15 --go` moved the 43 scheduled episodes to 5
+Oct–16 Nov through `yt-reschedule.mjs` (each move read back from Studio; the run stops at the
+first failure and can be re-run), then moved the plan's undated episodes by the same 15 days.
+Every moved plan item keeps its old date as `previousPublishLocal`, and `publish-log.json` keeps
+`previousWhen`. The episodes now end on 17 Mar 2027.
 
 **Era order is derived from the stories' own dates**, by median year per era — median rather than
 earliest because one misfiled story, like the Karkota coin under Mughal, would otherwise move a
@@ -2029,8 +2039,8 @@ thirteen; anything unlisted sorts to the end, which on a chronological channel p
 before the Mauryas. They are superseded.
 
 **Shorts run ahead of their episodes**, necessarily: two a day against one episode a day, with
-roughly one Short per episode, means the Shorts stream finishes about three months earlier
-(25 Dec against 1 Apr). That is also what the channel already does — the Chalukya and
+roughly one Short per episode, means the Shorts stream finishes months earlier (25 Dec against
+17 Mar). That is also what the channel already does — the Chalukya and
 Rashtrakuta Shorts are scheduled through October while their episodes are not yet uploaded.
 
 **Upload order follows the plan, not the directory.** A run will be stopped by a daily quota long

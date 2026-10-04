@@ -634,3 +634,110 @@ the playlist; it publishes on 20 Oct.
 The effect is not measured yet. Each playlist's public view count is recorded daily in
 `dist/playlists.json` (all four 0 on 3 Oct). Chalukya, Rashtrakuta and Delhi-sultanate get a
 playlist once one of their episodes is public or within 14 days; Chalukya's first is 8 Nov.
+
+## 4 Oct — another project's Sora spend, a Short's first day, and an 18-day gap in episodes
+
+**Spend.** 2 Oct has settled at more than twice what it read on 3 Oct. Each figure below read the
+same through six query shapes (single-day and multi-day windows, ungrouped, by meter and by
+resource), so this is late-reported usage, not the month-boundary double count of 3 Oct.
+
+| UTC day | subscription | shared AI resource | of which Sora |
+|---|---|---|---|
+| 1 Oct | 119.03 | 9.76 | 8.00 (this campaign) |
+| 2 Oct | **610.31** (read 266.57 on 3 Oct) | 381.06 | 368.80 |
+| 3 Oct, still being reported | 110.97 | 45.47 | 41.20 |
+
+Azure Monitor's request counts on the shared resource (`AzureOpenAIRequests`, by deployment)
+show when. 2 Oct, 06:00–10:00 UTC: `sora-2` 512 and `sora-2b` 364. 3 Oct, 13:00–21:00 UTC:
+`sora-2` 306, `sora-2b` 379 and `gpt-image-2` 572. This campaign generated nothing on either day;
+its only October generation is 1 Oct 00:00 UTC, the $9.76. 3 Oct's requests are of the same order
+as 2 Oct's, and most of their cost is not reported yet. October so far: $840.31. The guard reads
+STOP: at the last three days' rate for other projects ($276.85/day) the month ends near $9,146;
+at the previous seven days' rate ($110/day) it would end near $4,140, under the $5,000 cap. Which
+project uses `sora-2`/`sora-2b` on `ai-contosohub530569751908` is not known here.
+
+**Measured, 4 Oct**, read at 04:45 IST. Subscribers: 52, unchanged since 3 Oct.
+
+| Short | published (IST) | views 3 Oct → 4 Oct | stayed to watch |
+|---|---|---|---|
+| बिंदु जो बना शून्य (Zero, Hindi) | 30 Sep 12:00 | 533 → 533 | 73.8% |
+| A Queen Builds in Two Stone Languages (remake) | 1 Oct 13:00 | 347 → 354 | 47% |
+| The Dot That Became Zero (pilot) | 26 Sep 13:00 | 276 → 276 | 66.4% |
+| The King Who Built a School That Lasted 700 Years (pilot) | 27 Sep 13:00 | 204 → 205 | 60.9% |
+| Two Stone Poems, One Burning War (remake) | 30 Sep 13:00 | 80 → 81 | 53.3% |
+| नालंदा: जहाँ द्वार पर ही परीक्षा होती थी (Hindi) | 2 Oct 19:00 | 5 → 11 | 75% |
+| The Son Who Took the Enemy's Capital (remake) | 2 Oct 13:00 | 10 → 10 | 50% |
+| सुश्रुत: पत्ते के नाप से बनी नई नाक (Hindi) | 3 Oct 19:00 | 14 at about 10 h | 28.6% |
+| Sanskrit Words in Kannada Letters (remake) | 3 Oct 13:00 | 3 at about 16 h | — |
+
+Pilots at 7 days, under the rule: *The Dot That Became Zero* (276) and *The King Who Built a School*
+(205) were shown; *Why Delhi's Iron Pillar Refuses To Rust* (5) and *The Surgeon Who Rebuilt a
+Nose* (15) were not. *The Mud-Brick Rooms That Never Reopened* (30 at 6.4 days) and *Chandragupta's
+Final Battle with Hunger* (28 at 5.5 days) are read on 5 and 6 Oct.
+
+**A Short's views come in its first day.** Every feed Short measured more than once, by hours
+since publishing (`dist/yt-retention-history.json`):
+
+| Short | early reading | latest reading |
+|---|---|---|
+| बिंदु जो बना शून्य | 476 at 18 h | 533 at 89 h |
+| A Queen Builds in Two Stone Languages | 314 at 18 h | 354 at 64 h |
+| Two Stone Poems, One Burning War | 54 at 17 h | 81 at 88 h |
+| The Son Who Took the Enemy's Capital | 10 at 16 h | 10 at 40 h |
+| The King Who Built a School That Lasted 700 Years | 204 at 64 h | 205 at 160 h |
+| The Mud-Brick Rooms That Never Reopened | 29 at 58 h | 30 at 154 h |
+| Chandragupta's Final Battle with Hunger | 27 at 36 h | 28 at 132 h |
+
+From about 40 hours on, no Short gained more than eight views. The count at about 18 hours already
+separates the Shorts the feed picked up from the ones it did not, so the 7-day reads in the fixed
+rules only confirm what is known on day two. The rules stay as they were fixed; a new rule can
+read at 48 hours.
+
+**Checked and rejected: the second Short of a day stalls.** Every 19:00 Short so far had a Short
+earlier the same day, and all of them stalled (5–30 views), which suggested it. The chronology
+does not support it. Old-format Shorts went out on the same days at times this campaign did not
+set, and on 27 Sep three Shorts reached 205, 228 and 30. From 24 to 30 Sep, days with two or three
+Shorts totalled 173–614 views and days with one 66–354 (old-format counts from the 2 Oct
+snapshot). So no rule on Shorts per day. The exception is 2 and 3 Oct, two Shorts each, at 21 and
+17 views in total: all four are at 3–14 views, where every earlier day since 24 Sep had at least
+one Short past 60. From 4 Oct one remake publishes a day at 13:00, and these show whether that
+continues.
+
+**Episodes were missing from 2 to 19 Oct; they now publish daily from 5 Oct.** Until 1 Oct the
+channel published an episode on most days (14 between 12 and 30 Sep, then Mamallapuram on 1 Oct).
+The publish plan's episodes started on 20 Oct, so 2–19 Oct had a Short a day and no episode,
+against the user's "videos one per day". Nobody decided this. The planner started the day after
+the channel's last scheduled item of any kind, and when the plan was made old-format Shorts were
+scheduled through 19 Oct while episodes ran only through 1 Oct.
+
+`tools/shift-books.mjs --days -15 --go` moved the 43 scheduled episodes from 20 Oct–1 Dec to 5
+Oct–16 Nov, in order and one at a time, through `yt-reschedule.mjs`. Each move was confirmed by
+reading Studio's stored date and time back. It then moved the plan's 121 undated episodes by the
+same 15 days, so the first, due 2 Dec, now falls on 17 Nov. A fresh scan afterwards shows 43
+scheduled episodes on 43 consecutive days from 5 Oct to 16 Nov, each exactly 15 days earlier,
+and no other row changed. Two negative tests ran before the moves. A public video was refused
+before any browser opened. With the browser profile held by another process, the run stopped at
+its first move and left both registers byte-identical.
+
+`plan-publish.mjs` now starts each kind the day after its own last date, and never on a day that
+has passed. Run against a copy of the scan set up like late September, it starts episodes
+tomorrow and Shorts on 20 Oct; the old shared start, applied as a mutation, fails that check.
+
+What changes: the episodes finish on 17 Mar 2027 rather than 1 Apr, the era playlists fill
+sooner, and more Shorts have a public episode to link to. Both Nalanda Shorts, for example, can
+link to their episode on 17 Oct rather than 1 Nov. The scheduled episodes in the 3 Oct playlist
+table now join earlier: Maurya's on 6–7 Oct, Kushan's 8–9 Oct, From the Guptas to Harsha's
+10–23 Oct and Pallava's on 6 Nov. Chalukya's first episode is now 24 Oct, so its playlist comes
+due on 10 Oct.
+
+**Hindi Shorts now link to their full story.** `related-plan.mjs` paired a Short with the episode
+of the same slug, so a Hindi version (`zero-hi`) never matched its English episode (`zero`), and
+none of the three Hindi Shorts had a related video. A `-hi` slug now pairs with the English
+episode, whose English title the link shows: बिंदु जो बना शून्य → *Brahmagupta and the Birth of
+Zero* and सुश्रुत → *Sushruta: The Healer's Knife*, the same targets as the English Shorts, both
+saved and read back on 4 Oct (37 Shorts linked). Hindi Nalanda pairs once its episode is public.
+
+**Today's pass** also dated 18 more backlog items within the 60-day horizon: the 16 episodes for
+17 Nov–2 Dec (Delhi Sultanate) and the two Shorts for 2 Dec. All were confirmed, none failed.
+Nothing was due in the remake queue (the first A/B Shorts are 21 Oct), and no playlist addition
+was due. Uploads: none. Generation: none (STOP).
