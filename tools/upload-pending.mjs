@@ -42,7 +42,8 @@ async function erasOnDisk() {
   const known = ERA_BUCKETS.map(([name]) => name);
   const found = [];
   for (const name of (await readdir('dist', { withFileTypes: true }).catch(() => []))) {
-    if (!name.isDirectory() || name.name.startsWith('.') || name.name.startsWith('thumbs-')) continue;
+    /* dist\probe holds test renders, some with an UPLOAD.md (feed-test, a 24 Sep Aryabhata Short). */
+    if (!name.isDirectory() || name.name.startsWith('.') || name.name.startsWith('thumbs-') || name.name === 'probe') continue;
     const kids = await readdir(path.join('dist', name.name)).catch(() => []);
     for (const k of kids) {
       if (existsSync(path.join('dist', name.name, k, 'UPLOAD.md'))) { found.push(name.name); break; }

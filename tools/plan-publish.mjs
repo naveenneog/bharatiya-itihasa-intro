@@ -72,8 +72,11 @@ const norm = (t) => (t || '').toLowerCase().replace(/[’'`]/g, "'").replace(/[^
 
 const channel = await readFile(CHANNEL_FILE, 'utf8').then(JSON.parse)
   .catch(() => { throw new Error(`${CHANNEL_FILE} missing — run: node tools/yt-scan.mjs`); });
+/* Keyed by kind as well as title: a Short often carries its episode's exact title, and with a
+   title-only match an episode took its Short's state, so an episode whose Short was scheduled
+   was left out of the plan as "already scheduled" (Mahaviracharya Counts the World, found 5 Oct). */
 const onChannel = new Map();
-for (const r of channel.rows) if (!onChannel.has(norm(r.title))) onChannel.set(norm(r.title), r);
+for (const r of channel.rows) if (!onChannel.has(`${r.kind}:${norm(r.title)}`)) onChannel.set(`${r.kind}:${norm(r.title)}`, r);
 
 /* The last day the channel already has spoken for, per kind. Parsed from what YouTube rendered,
    so it reflects the real calendar rather than a local plan file that may never have been
@@ -100,7 +103,7 @@ const startFor = (kind) => arg('start', [lastTaken[kind] ? dayAfter(lastTaken[ki
 const START = { book: startFor('book'), short: startFor('short') };
 
 const eras = readdirSync('dist', { withFileTypes: true })
-  .filter((d) => d.isDirectory() && !d.name.startsWith('.') && !d.name.startsWith('thumbs-'))
+  .filter((d) => d.isDirectory() && !d.name.startsWith('.') && !d.name.startsWith('thumbs-') && d.name !== 'probe')
   .map((d) => d.name);
 
 const items = [];
@@ -117,7 +120,7 @@ for (const era of eras) {
     const epf = path.join('episodes', slug, 'episode.json');
     let eraStr = '';
     if (existsSync(epf)) { try { eraStr = JSON.parse(readFileSync(epf, 'utf8')).era || ''; } catch { /* keep blank */ } }
-    const hit = onChannel.get(norm(title));
+    const hit = onChannel.get(`${kind}:${norm(title)}`);
     items.push({
       era, slug, kind, title, dir: dir.replace(/\\/g, '/'), eraStr, year: eraYear(eraStr),
       state: hit ? hit.state : null,

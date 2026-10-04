@@ -83,12 +83,13 @@ Start-Sleep -Seconds 5
 
 # The shared resource by day, ungrouped, over the same window: its share of each day.
 #
-# Three query shapes, because one shape double counts. A query filtered to this resource, grouped
-# by meter, over a window that crosses a month boundary returned the new month's first day twice:
-# on 3 Oct it read 1 Oct as $19.52 (every meter exactly doubled), where the same query the day
-# before, an ungrouped one, a one-month one, and the subscription-wide one grouped by resource all
-# read $9.76. Reproduced twice. So the window query is ungrouped, and the by-meter query below
-# covers this month only.
+# Three query shapes, kept apart. Cost Management has twice returned a recent day exactly doubled.
+# On 3 Oct it read 1 Oct as $19.52 (every meter doubled) in the query filtered to this resource,
+# grouped by meter, over a window crossing the month boundary, while four other shapes read $9.76.
+# On 4 Oct it read 2 Oct doubled in all six shapes tried (subscription $610.31, this resource
+# $381.06), and on 5 Oct the same six read $305.15 and $190.53. So the doubling is a transient
+# state of the data, not a property of one query shape; each day's reading is compared with the
+# last run's below, and an exact double or half is reported.
 $shq = Query ('{"type":"ActualCost",' + $period + ',"dataset":{"granularity":"Daily","aggregation":{"totalCost":{"name":"Cost","function":"Sum"}},"filter":{"dimensions":{"name":"ResourceId","operator":"In","values":["' + $rid + '"]}}}}')
 $scols = $shq.columns.name
 $sci = [array]::IndexOf($scols, 'Cost'); $sdi = [array]::IndexOf($scols, 'UsageDate')
@@ -151,6 +152,40 @@ foreach ($d in ($days.Keys | Sort-Object)) {
 "  on days this repo worked:  {0,8:N2}   (an upper bound: other projects may share those days)" -f $mine
 "  this repo, estimated:      {0,8:N2}   (from its own clips and stills)" -f $mineEst
 "  on days it did not:        {0,8:N2}" -f ($res - $mine)
+
+# ── readings that changed by exactly 2x or 1/2 since the last run ────────────────────────────
+# A transiently doubled day (see the query shapes above) pushes the rate below towards STOP, which
+# is the safe side, but it must not be reported as spend. Each run stores every day's subscription
+# and shared-resource figures in dist\spend-readings.json; a figure of at least $5 that is now
+# within 0.2% of twice, or half, the last run's reading of the same day is listed here. A double
+# is unconfirmed until a later run reads the same; a half means the earlier reading was the double.
+$readFile = Join-Path $root 'dist\spend-readings.json'
+$prevRead = @{}
+if (Test-Path $readFile) { (Get-Content $readFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $prevRead[$_.Name] = $_.Value } }
+$nowIso = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mmZ')
+$flags = @()
+foreach ($d in ($subDay.Keys | Sort-Object)) {
+  $p = $prevRead[$d]
+  if (-not $p) { continue }
+  foreach ($k in 'all', 'shared') {
+    $was = [double]$p.$k; $is = [double]$subDay[$d].$k
+    if ($was -lt 5 -or $is -lt 5) { continue }
+    $r = $is / $was
+    $what = if ([Math]::Abs($r - 2) -le 0.004) { 'TWICE' } elseif ([Math]::Abs($r - 0.5) -le 0.001) { 'HALF' } else { $null }
+    if ($what) { $flags += "  {0} {1,-12} {2,9:N2} is {3} the {4:N2} read at {5}" -f $d, $(if ($k -eq 'all') { 'subscription' } else { 'shared' }), $is, $what, $was, $p.at }
+  }
+}
+""
+"readings against the last run ({0}):" -f $(if ($prevRead.Count) { 'dist\spend-readings.json' } else { 'none stored yet' })
+if ($flags.Count) {
+  $flags
+  "  ! Cost Management has returned whole days doubled before and corrected them a day later:"
+  "    a TWICE figure is unconfirmed until a later run reads the same; a HALF means the last run read a double"
+} else { "  no day reads exactly twice or half its last reading" }
+$store = [ordered]@{}
+foreach ($d in ($subDay.Keys | Sort-Object)) { $store[$d] = [ordered]@{ at = $nowIso; all = [Math]::Round([double]$subDay[$d].all, 2); shared = [Math]::Round([double]$subDay[$d].shared, 2) } }
+foreach ($d in $prevRead.Keys) { if (-not $store.Contains($d) -and $d -ge $today.AddDays(-40).ToString('yyyyMMdd')) { $store[$d] = $prevRead[$d] } }
+$store | ConvertTo-Json -Depth 4 | Set-Content $readFile -Encoding utf8
 
 # ── the two limits, stated by the user on 29 Sep ─────────────────────────────────────────────
 # This campaign has $2,000 a month; the subscription as a whole is capped at $5,000. Other

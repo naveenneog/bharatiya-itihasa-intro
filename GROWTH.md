@@ -574,7 +574,9 @@ campaign's own October spend is $9.76 (1 Oct).
   $19.52, every meter exactly doubled, where the same query the day before and four other query
   shapes read $9.76. Reproduced twice. The guard now uses one query shape per purpose, none of
   which combines all three conditions. The error would have counted the other projects' spend as
-  this campaign's once 1 Oct became a complete day.
+  this campaign's once 1 Oct became a complete day. *(5 Oct: the cause was not the query shape.
+  On 4 Oct all six shapes tried returned 2 Oct doubled, and on 5 Oct none did; the doubling is a
+  transient state of Cost Management's data. See 5 Oct.)*
 - *A slow rate.* The seven-complete-day average still read $124 a day from 24–30 Sep. The guard
   now also averages the last three days, part-reported ones included, and uses the higher. It also
   stopped subtracting the whole shared resource from a day on which this repo generated anything;
@@ -637,24 +639,26 @@ playlist once one of their episodes is public or within 14 days; Chalukya's firs
 
 ## 4 Oct — another project's Sora spend, a Short's first day, and an 18-day gap in episodes
 
-**Spend.** 2 Oct has settled at more than twice what it read on 3 Oct. Each figure below read the
-same through six query shapes (single-day and multi-day windows, ungrouped, by meter and by
-resource), so this is late-reported usage, not the month-boundary double count of 3 Oct.
+*(The spend figures for 2 Oct first given here were a transient double; corrected 5 Oct.)*
+
+**Spend.** *Corrected 5 Oct.* On 4 Oct Cost Management returned all of 2 Oct exactly doubled, in
+all six query shapes tried. This section first reported those figures ($610.31 for the
+subscription, $381.06 for the shared resource, $368.80 of Sora) as late-reported usage. On 5 Oct
+the same six queries read exactly half (see 5 Oct). The table gives the 5 Oct reading.
 
 | UTC day | subscription | shared AI resource | of which Sora |
 |---|---|---|---|
 | 1 Oct | 119.03 | 9.76 | 8.00 (this campaign) |
-| 2 Oct | **610.31** (read 266.57 on 3 Oct) | 381.06 | 368.80 |
-| 3 Oct, still being reported | 110.97 | 45.47 | 41.20 |
+| 2 Oct | 305.15 (read 266.57 on 3 Oct, 610.31 on 4 Oct) | 190.53 | 184.40 |
+| 3 Oct | 358.94 | 244.59 | 186.40 |
 
 Azure Monitor's request counts on the shared resource (`AzureOpenAIRequests`, by deployment)
 show when. 2 Oct, 06:00–10:00 UTC: `sora-2` 512 and `sora-2b` 364. 3 Oct, 13:00–21:00 UTC:
 `sora-2` 306, `sora-2b` 379 and `gpt-image-2` 572. This campaign generated nothing on either day;
-its only October generation is 1 Oct 00:00 UTC, the $9.76. 3 Oct's requests are of the same order
-as 2 Oct's, and most of their cost is not reported yet. October so far: $840.31. The guard reads
-STOP: at the last three days' rate for other projects ($276.85/day) the month ends near $9,146;
-at the previous seven days' rate ($110/day) it would end near $4,140, under the $5,000 cap. Which
-project uses `sora-2`/`sora-2b` on `ai-contosohub530569751908` is not known here.
+its only October generation is 1 Oct 00:00 UTC, the $9.76. The October total and projections this
+section first gave ($840.31; near $9,146 or $4,140) were computed from the doubled 2 Oct and are
+withdrawn; 5 Oct has the current ones. Which project uses `sora-2`/`sora-2b` on
+`ai-contosohub530569751908` is not known here.
 
 **Measured, 4 Oct**, read at 04:45 IST. Subscribers: 52, unchanged since 3 Oct.
 
@@ -741,3 +745,109 @@ saved and read back on 4 Oct (37 Shorts linked). Hindi Nalanda pairs once its ep
 17 Nov–2 Dec (Delhi Sultanate) and the two Shorts for 2 Dec. All were confirmed, none failed.
 Nothing was due in the remake queue (the first A/B Shorts are 21 Oct), and no playlist addition
 was due. Uploads: none. Generation: none (STOP).
+
+## 5 Oct — the 2 Oct spend was a transient double; the other project stopped on 4 Oct
+
+**The 4 Oct spend figures were wrong.** On 4 Oct Cost Management returned all of 2 Oct doubled:
+the subscription $610.31, the shared AI resource $381.06, Sora $368.80. All six query shapes tried
+agreed, and the 4 Oct report took that agreement as proof of late-reported usage. On 5 Oct the
+same six queries read $305.15, $190.53 and $184.40, exactly half, and $305.15 is the true
+subscription day (610.31 = 2 × 305.155). It is the second time: on 3 Oct one shape read 1 Oct
+doubled while four others did not. So the doubling is a transient state of Cost Management's data
+that any query shape can return and that is corrected within a day. The 3 Oct explanation (a
+property of one query shape) was wrong, and both earlier sections now say so.
+
+`tools/spend.ps1` now stores each day's subscription and shared-resource figures in
+`dist/spend-readings.json` and lists any figure of at least $5 that is within 0.2% of twice or
+half the previous run's reading of the same day. A TWICE is unconfirmed until a later run reads
+the same; a HALF means the previous run read a double. It does not change GO or STOP: a double
+can only raise the projected rate, towards STOP. The check was tested by replaying the real
+readings. With 2 Oct stored as 4 Oct read it ($610.31, $381.06), 2 Oct was flagged HALF for both
+figures. A 3 Oct shared figure stored at half its value was flagged TWICE. 1 Oct, unchanged, was
+not flagged, and a plain rerun flagged nothing.
+
+**Spend now** (read 5 Oct, UTC days):
+
+| UTC day | subscription | shared AI resource | of which Sora | of which images |
+|---|---|---|---|---|
+| 1 Oct | 119.03 | 9.76 | 8.00 | 1.66 (this campaign) |
+| 2 Oct | 305.15 | 190.53 | 184.40 | 0.38 |
+| 3 Oct | 358.94 | 244.59 | 186.40 | 46.94 |
+| 4 Oct, being reported | 75.54 | 0.01 | — | — |
+
+Azure Monitor shows no requests at all on the shared resource on 4 Oct: the other project's
+generation ran on 2 and 3 Oct and stopped after 21:00 UTC on 3 Oct. Outside the shared resource
+the subscription ran $109–115 a day on 1–3 Oct. October to date is $858.67. If nothing like the
+2–3 Oct burst recurs, October ends near $4,000 plus this campaign's remakes (about $6 each). The
+guard reads STOP (−$3,508.49) because its three-day rate ($246.55/day) still includes 2 and 3 Oct.
+Without new spend elsewhere, it reads GO again once those days leave the three-day window, about
+7 Oct.
+
+**Measured, 5 Oct**, read at 04:45 IST. Subscribers: **53** (+1).
+
+| Short | published (IST) | views 4 Oct → 5 Oct | stayed to watch | other |
+|---|---|---|---|---|
+| A General Who Carried Home a God (remake) | 4 Oct 13:00 | 117 at about 16 h | 46.4% | 95.7% from the Shorts feed, +1 subscriber |
+| A Queen Builds in Two Stone Languages (remake) | 1 Oct 13:00 | 354 → 357 | 47.2% | |
+| बिंदु जो बना शून्य (Zero, Hindi) | 30 Sep 12:00 | 533 → 534 | 73.8% | |
+| Sanskrit Words in Kannada Letters (remake) | 3 Oct 13:00 | 3 → 4 | — | |
+| सुश्रुत: पत्ते के नाप से बनी नई नाक (Hindi) | 3 Oct 19:00 | 14 → 14 | 25% | |
+| नालंदा: जहाँ द्वार पर ही परीक्षा होती थी (Hindi) | 2 Oct 19:00 | 11 → 11 | 75% | |
+
+The other feed Shorts moved by one view or not at all. The feed picked up the 4 Oct Short: 117
+views at 16 hours is in the range of the Shorts it picked up before (54–476 at 17–18 h), not of
+the ones it did not (3–10 at 16 h). So the stall of 2–3 Oct did not continue into 4 Oct.
+
+Pilot at 7 days: *The Mud-Brick Rooms That Never Reopened* (27 Sep 19:00) has 30 views at 7.4
+days. That is neither "shown" (~100) nor "not shown" (under 30) under the rule. Its count has
+been 29–30 since 58 hours, so in effect the feed did not show it. *Chandragupta's Final Battle
+with Hunger* reaches 7 days at 17:00 today and is read on 6 Oct.
+
+**Most Shorts publish weeks before their episodes, so their related links come late.** A related
+link (Short → its full episode) can be set only once the episode is public, and a Short has its
+views in its first day. Of the 103 scheduled Shorts, 42 have an episode with a date. Of those, 6
+publish after their episode, 2 on the same day, and 34 before it, by a median of 25 days (at most
+30). Of the other 61, 58 have episodes with no date yet, which come later still, and 3 had no
+episode on the channel at all (below). Every remake from 5 to 19 Oct is a Chalukya or Rashtrakuta
+story, and those episodes publish from 24 Oct to 13 Nov. This follows from the cadence of two
+Shorts and one episode a day: the Shorts advance two stories a day, the episodes one, so the gap
+widens by a day each day. It is not changed today. The cadence is the user's, the Shorts are the
+channel's reach, and how often viewers tap a related link is not measured. That measurement comes
+first: Studio's analytics for a Short with a link, read for its related-video clicks.
+
+**Four built episodes had never been uploaded.** Checking those 61 found three Shorts whose
+episodes were not on the channel at all: *Mahaviracharya Counts the World*, *Timur Leaves Delhi
+Empty* and *Diamonds, Horses and Pagodas in the Bazaar*, all built 10–12 Aug. A fourth, *Banda
+Singh Breaks Sirhind*, had the same fault. The cause was matching channel rows by title alone,
+when a Short often carries its episode's exact title.
+- `plan-publish.mjs` (23 Sep) gave Mahaviracharya's episode the state of its own Short
+  (`lUDfeHzedg4`, then scheduled) and left it out of the plan as already scheduled.
+- `publish-run.mjs` gave the other three their Shorts' ids. Timur's and Diamonds' episodes read as
+  on the channel and scheduled, so they would never have been uploaded or dated. Banda Singh's
+  Short, still private, would have been dated in its episode's slot (14 Feb).
+
+Both tools now match by kind and title. Tests: `publish-run` lists the four to upload and a
+title-only mutant lists none; against a copy of the scan, `plan-publish` keeps Timur's episode
+and the mutant drops it. With titles matched by kind, `plan-publish` would also have planned a
+24 Sep test render in `dist\probe`, and `upload-pending.mjs` would have uploaded it as long-form;
+both now skip `dist\probe`. Mahaviracharya's episode was added to the plan as a second episode on
+9 Nov at 16:00, which keeps the year order: Govinda III (804) at 09:00 that day, this one
+(c. 820–850), Amoghavarsha (846) on 10 Nov. The other three keep their plan dates (4 Dec, 29 Dec,
+14 Feb). All four were uploaded private on 5 Oct, each confirmed by the agent and seen as
+healthy private episodes in a fresh scan: Mahaviracharya `OThPoDg8iXM`, Timur `yM_npxOfGSk`,
+Diamonds `-AZUU6rpuy8`, Banda Singh `FjDnpa4jgVM`. Mahaviracharya is scheduled for 9 Nov 16:00
+(read back); the daily pass dates the others as they enter the 60-day horizon, Timur's on 6 Oct.
+
+**Another session on the same browser profile.** At 04:43 a resumed Copilot CLI session
+(`copilot.exe --resume 943e85a8…`) started a Playwright MCP server with
+`--user-data-dir C:\Users\navg\.copilot\playwright-youtube-profile`, the profile this campaign's
+tools use. It never opened a browser and had exited by the time of the uploads; every browser step
+today completed. If both drive the profile at once, the second launch fails, as in the 4 Oct
+negative test, and the daily pass retries the next day. It is not this campaign's process and
+was not touched.
+
+**Today's pass**: scan clean (25 broken rows, none new); 3 items dated (3 Dec: an episode and two
+Shorts), then the four missed episodes uploaded and Mahaviracharya's dated; nothing due in the
+remake queue or for related links; no playlist addition due, and the four playlists' public
+views are 0 for the third day. The first moved episode, *Chandragupta Seizes Magadha*, publishes
+at 09:00 today. Uploads: 4. Generation: none (STOP).

@@ -75,11 +75,16 @@ const norm = (t) => (t || '').toLowerCase().replace(/[’'`]/g, "'").replace(/[^
 
 const liveByTitle = new Map();
 /* Broken rows are kept out of this map on purpose. A copy whose upload was aborted is on the
-   channel only in the sense that it takes up a row; it cannot be processed, played or dated. */
+   channel only in the sense that it takes up a row; it cannot be processed, played or dated.
+   Both are keyed by kind as well as title: a Short often carries its episode's exact title, and a
+   title-only match gave three planned episodes their Short's id (found 5 Oct). Two of them read
+   as already scheduled and would never have been uploaded; the third, whose Short was still
+   private, would have had that Short dated in the episode's slot. */
 const brokenTitles = new Set();
+const kindTitle = (kind, title) => `${kind}:${norm(title)}`;
 for (const r of channel.rows) {
-  if (!r.id) { brokenTitles.add(norm(r.title)); continue; }
-  if (!liveByTitle.has(norm(r.title))) liveByTitle.set(norm(r.title), r);
+  if (!r.id) { brokenTitles.add(kindTitle(r.kind, r.title)); continue; }
+  if (!liveByTitle.has(kindTitle(r.kind, r.title))) liveByTitle.set(kindTitle(r.kind, r.title), r);
 }
 const idOf = (u) => (u || '').replace(/^https?:\/\/(youtu\.be\/|(www\.)?youtube\.com\/shorts\/)/, '');
 const uploadedId = (dir) => {
@@ -97,7 +102,7 @@ for (const p of plan) {
   const rec = Object.entries(ledger).find(([k]) => k.replace(/\\/g, '/') === p.dir)?.[1];
   const hasLedger = !!rec;
   let mine = log[p.dir]?.id || null;
-  const here0 = liveByTitle.get(norm(p.title)) || null;
+  const here0 = liveByTitle.get(kindTitle(p.kind, p.title)) || null;
 
   /* A recorded id whose only copy on the channel is broken. The yt-agent navigated away while
      large files were still transferring, which left 44 of 57 episodes as "Processing abandoned"
@@ -106,7 +111,7 @@ for (const p of plan) {
      this to be trusted, or an upload made since the scan would read as broken. */
   const scanAt = Date.parse(channel.at || 0);
   const upAt = Date.parse(log[p.dir]?.uploadedAt || 0);
-  if (mine && !log[p.dir]?.scheduled && !here0 && brokenTitles.has(norm(p.title)) && scanAt > upAt) {
+  if (mine && !log[p.dir]?.scheduled && !here0 && brokenTitles.has(kindTitle(p.kind, p.title)) && scanAt > upAt) {
     log[p.dir] = { brokenIds: [...(log[p.dir].brokenIds || []), mine], brokenAt: new Date().toISOString() };
     mine = null;
   }

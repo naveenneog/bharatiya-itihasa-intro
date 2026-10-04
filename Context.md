@@ -1977,9 +1977,11 @@ The load-bearing facts, each measured rather than assumed:
   shared with another project that also runs Sora on it ($184 on 2 Oct), and the other projects'
   rate sets the subscription's headroom. The guard projects them at the higher of their last seven
   complete days and their last three days (part-reported ones included), over a window that
-  reaches back across a month boundary; from 3 Oct that reads STOP. Cost Management quirk: a query
-  filtered to one resource, grouped by meter, over a window crossing a month boundary returns the
-  new month's first day twice, so the guard never combines all three.
+  reaches back across a month boundary; from 3 Oct that reads STOP. Cost Management has twice
+  returned a recent day exactly doubled, in any query shape, and corrected it a day later (1 Oct
+  read on 3 Oct; 2 Oct read on 4 Oct, all six shapes tried). So the guard stores each day's
+  reading in `dist/spend-readings.json` and lists any figure that is exactly twice or half its
+  last reading: a TWICE is unconfirmed, a HALF means the last reading was the double.
 - **YouTube's daily upload limit was hit on 23 Sep after 121 uploads.** The three that failed
   that day went straight through on 27 Sep. Keep uploads under ~60 a day.
 - **The yt-agent was aborting large uploads.** After clicking Save it did a full `page.goto()` to
@@ -2030,6 +2032,12 @@ Oct–16 Nov through `yt-reschedule.mjs` (each move read back from Studio; the r
 first failure and can be re-run), then moved the plan's undated episodes by the same 15 days.
 Every moved plan item keeps its old date as `previousPublishLocal`, and `publish-log.json` keeps
 `previousWhen`. The episodes now end on 17 Mar 2027.
+
+**Channel rows are matched by kind and title**, in `plan-publish.mjs` and `publish-run.mjs`. A
+Short often carries its episode's exact title, and a title-only match gave four episodes their
+Short's state or id: one was left out of the plan, two would never have been uploaded, and one
+Short would have been dated in its episode's slot (found and fixed 5 Oct; `GROWTH.md`).
+`dist\probe` holds test renders and is not an era for either planner or `upload-pending.mjs`.
 
 **Era order is derived from the stories' own dates**, by median year per era — median rather than
 earliest because one misfiled story, like the Karkota coin under Mughal, would otherwise move a
