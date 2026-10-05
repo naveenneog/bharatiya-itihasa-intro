@@ -1896,6 +1896,8 @@ The load-bearing facts, each measured rather than assumed:
   --published>`; it also reads the subscriber count ("Current subscribers" on the dashboard),
   each Short's "Subscribers +N" and Shorts-feed share from its overview, and appends every run to
   `dist/yt-retention-history.json`. On 1 Oct the Shorts gained one subscriber per 100–500 views.
+  Views are read from the card label "Views", case-sensitively: since 6 Oct the overview opens
+  with a sentence ("This Short has gotten 143 views.") that a looser pattern misread.
 - **Feed-format Shorts**: `tools/hook-script.mjs --length standard|short` (six or five lines) →
   check every line against `episodes/<slug>/episode.json` and hand-edit (record it in `edited`) →
   `tools/short-shots.mjs --replan` → `tools/short.mjs --feed` → `tools/short-verify.mjs` (exit 0

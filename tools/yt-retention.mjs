@@ -48,7 +48,10 @@ try {
     const rec = {
       id,
       title: (await page.locator('#entity-name, .video-title').first().innerText().catch(() => '')).trim(),
-      views: after('Views', '[\\d.,]+[KM]?'),
+      /* The card label "Views", case-sensitive, then a number that starts with a digit. Since
+         6 Oct Studio opens the overview with a sentence ("This Short has gotten 143 views."),
+         and the old case-insensitive pattern took the "." after "views" as the count. */
+      views: (body.match(/Views\s+(\d[\d,.]*[KM]?)/) || [])[1] || null,
       avgViewDuration: after('Average view duration', '[\\d:]+'),
       avgPercent: (body.match(/Average percentage viewed\s*([\d.]+%)/i) || [])[1] || null,
       impressions: (body.match(/Impressions\s*([\d.,]+[KM]?)/i) || [])[1] || null,

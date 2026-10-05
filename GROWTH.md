@@ -781,7 +781,8 @@ the subscription ran $109–115 a day on 1–3 Oct. October to date is $858.67. 
 2–3 Oct burst recurs, October ends near $4,000 plus this campaign's remakes (about $6 each). The
 guard reads STOP (−$3,508.49) because its three-day rate ($246.55/day) still includes 2 and 3 Oct.
 Without new spend elsewhere, it reads GO again once those days leave the three-day window, about
-7 Oct.
+7 Oct. *(Corrected 6 Oct: the guard uses the higher of its seven-day and three-day rates, and the
+seven-day rate includes 2 and 3 Oct until about 11 Oct, so GO returns about then.)*
 
 **Measured, 5 Oct**, read at 04:45 IST. Subscribers: **53** (+1).
 
@@ -851,3 +852,55 @@ Shorts), then the four missed episodes uploaded and Mahaviracharya's dated; noth
 remake queue or for related links; no playlist addition due, and the four playlists' public
 views are 0 for the third day. The first moved episode, *Chandragupta Seizes Magadha*, publishes
 at 09:00 today. Uploads: 4. Generation: none (STOP).
+
+## 6 Oct — pilots decided; the views reading broke on a new Studio sentence
+
+**Measured, 6 Oct**, read at 04:45 IST. Subscribers: 53, unchanged.
+
+| Short | published (IST) | views | stayed to watch | other |
+|---|---|---|---|---|
+| A General Who Carried Home a God (remake) | 4 Oct 13:00 | 117 at 16 h → 143 at about 40 h | 44.9% | 96.5% from the Shorts feed, +1 subscriber |
+| This Cliff Is an Empire's Birth Certificate (remake) | 5 Oct 13:00 | 1 at about 16 h | — | |
+| Sanskrit Words in Kannada Letters (remake) | 3 Oct 13:00 | 4 → 9 | — | |
+| सुश्रुत: पत्ते के नाप से बनी नई नाक (Hindi) | 3 Oct 19:00 | 14 → 15 | 25% | |
+
+The other feed Shorts moved by one view or not at all. *This Cliff* was not picked up.
+
+**Pilots, all six at 7 days under the rule:** shown, *The Dot That Became Zero* (276) and *The
+King Who Built a School That Lasted 700 Years* (206). Not shown: *Why Delhi's Iron Pillar Refuses
+To Rust* (5), *The Surgeon Who Rebuilt a Nose* (16) and *Chandragupta's Final Battle with Hunger*
+(28 at 7.5 days). *The Mud-Brick Rooms That Never Reopened* sits on the boundary at 30. Across all
+14 new-format Shorts published 25 Sep–4 Oct and read at 40 hours or more (pilots, remakes, Hindi),
+5 passed 100 views (Hindi Zero 533, A Queen Builds 357, Zero 276, Nalanda 206, A General 143). One
+had 81, and 8 had 5–30.
+
+**The views reading broke today.** Studio's overview now opens with a sentence such as "This Short
+has gotten 143 views. That's similar to the 50–180 you usually get." `yt-retention.mjs` read views
+with a case-insensitive pattern that allowed up to three non-letters before the number. It matched
+the lowercase "views." in that sentence and recorded "." for *A General*. For *This Cliff* it
+recorded "1 9", "9" being from "9 less than usual", where only the first token happened to be
+right. It now reads the card label "Views" case-sensitively, followed by a number that starts with
+a digit. Tested on the page text of three Shorts captured today and on the older layout: the new
+pattern reads 143, 1, 357, 117 and 1,204 correctly, and the old one fails on two of the three
+new-layout cases. Both Shorts were measured again with the fix (143 and 1). The sentence also gives Studio's
+own range for this channel's Shorts: 50–180 views is "usual".
+
+**Related-link clicks cannot be measured here.** A Short's analytics tabs (overview, reach,
+engagement, audience) show no related-video metric. The two episodes the Zero and Sushruta Shorts
+link to show no traffic-source breakdown at their view counts. So the 5 Oct question has no
+measurement to answer it. Links stay a free default, set when a Short and its episode are both
+public, and the calendar is not rearranged for them. Today's link: *Chandragupta Raises the
+Peacock Standard* → *Chandragupta Seizes Magadha*, the first moved episode, public since 5 Oct
+(38 Shorts linked).
+
+**Spend.** October to date: $973.93. Nothing new on the shared resource on 4 or 5 Oct, and no day
+read twice or half its last reading. The guard reads STOP (−$1,604.85): its seven-day rate
+($168.89/day over 27 Sep–3 Oct) and three-day rate ($183.25/day) both still include the 2–3 Oct
+burst. The seven-day window drops those days around 11 Oct, which is before the first remake
+generation is due (about 13 Oct, for 21 Oct).
+
+**Today's pass**: *Timur Leaves Delhi Empty* dated for 4 Dec 09:00, one of the episodes the
+title-only match would have skipped, plus two Shorts for 4 Dec. *Five Hundred Elephants for an
+Empire* (publishing 09:00 today) was added to the Maurya playlist; an independent read shows its
+stored date and time unchanged. The playlists' public views are still 0. Nothing was due in the
+remake queue. Uploads: none. Generation: none (STOP).
