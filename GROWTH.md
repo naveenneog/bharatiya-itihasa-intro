@@ -897,10 +897,33 @@ Peacock Standard* → *Chandragupta Seizes Magadha*, the first moved episode, pu
 read twice or half its last reading. The guard reads STOP (−$1,604.85): its seven-day rate
 ($168.89/day over 27 Sep–3 Oct) and three-day rate ($183.25/day) both still include the 2–3 Oct
 burst. The seven-day window drops those days around 11 Oct, which is before the first remake
-generation is due (about 13 Oct, for 21 Oct).
+generation is due (about 13 Oct, for 21 Oct). *(Corrected 7 Oct: the seven-day window covers
+complete days up to the day before yesterday, so 3 Oct leaves it on the 13 Oct pass, the same
+day the first remake comes due.)*
 
 **Today's pass**: *Timur Leaves Delhi Empty* dated for 4 Dec 09:00, one of the episodes the
 title-only match would have skipped, plus two Shorts for 4 Dec. *Five Hundred Elephants for an
 Empire* (publishing 09:00 today) was added to the Maurya playlist; an independent read shows its
 stored date and time unchanged. The playlists' public views are still 0. Nothing was due in the
+remake queue. Uploads: none. Generation: none (STOP).
+
+## 7 Oct
+
+**Measured**, read at 04:45 IST. Subscribers: 53, unchanged since 5 Oct. *The Day Harsha Stopped at
+the Narmada* (remake, 6 Oct 13:00) has 110 views at about 16 hours, 53.4% stayed to watch, 95.5%
+from the Shorts feed: picked up. *This Cliff Is an Empire's Birth Certificate* (5 Oct) has 2. By
+day, the remakes since 1 Oct stand at 357, 10, 9, 143, 2 and 110 views, so about every other one
+is picked up. The other feed Shorts moved by three views or fewer.
+
+**Spend.** October to date: $1,095.45, with nothing new on the shared resource and no reading
+flagged. The three-day rate is down to $104.11/day (4–6 Oct). The seven-day rate ($172.68/day,
+28 Sep–4 Oct) still includes the 2–3 Oct burst, so the guard reads STOP (−$1,257.90). If the
+subscription keeps to about $115 a day, the 13 Oct pass reads GO with roughly $300 to spare. That
+is the day the 21 Oct remake-arm Short comes within the queue's eight days. Under STOP it would be
+recorded as skipped, as the rule says.
+
+**Today's pass**: 3 items dated (5 Dec: an episode and two Shorts). *Five Hundred Elephants for
+Seleucus* (old-format Short) now links to its episode, public since 6 Oct (39 linked). *Ashoka's
+Officers of Conscience*, publishing at 09:00 today, joined the Maurya playlist, the last of that
+era's episodes. The four playlists' public views are 0 for the fifth day. Nothing was due in the
 remake queue. Uploads: none. Generation: none (STOP).
