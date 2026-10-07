@@ -927,3 +927,32 @@ Seleucus* (old-format Short) now links to its episode, public since 6 Oct (39 li
 Officers of Conscience*, publishing at 09:00 today, joined the Maurya playlist, the last of that
 era's episodes. The four playlists' public views are 0 for the fifth day. Nothing was due in the
 remake queue. Uploads: none. Generation: none (STOP).
+
+## 8 Oct
+
+**Measured**, read at 04:45 IST. Subscribers: 53, unchanged since 5 Oct. *The Boar Seal That
+Decided Who Held the Land* (remake, 7 Oct 13:00) has 18 views at about 16 hours, 80% stayed to
+watch, 94.4% from the Shorts feed. The remakes since 1 Oct, by day, stand at 357, 10, 8, 143, 2,
+113 and 18 views. The other feed Shorts moved by three views or fewer; *Sanskrit Words in Kannada
+Letters* reads 8, one fewer than on 6 and 7 Oct.
+
+**The playlists' 0 views is a real reading.** Until today the views check had only ever read
+"No views". Applied with the tool's own pattern to the channel's older public playlists, it reads
+17, 71 and 46 views for the three Panchatantra playlists (36 videos each) and "No views" for
+"Indian History - Gupta Period" (2 videos), as their pages show. So the era playlists' 0 is what
+YouTube displays.
+
+**Spend.** October to date: $1,239.34. Nothing new on the shared resource, and no reading flagged.
+The three-day rate is $113.90/day (5–7 Oct). The seven-day rate is $176.24/day (29 Sep–5 Oct) and
+still includes 2–3 Oct, so the guard reads STOP (−$1,321.45). The expectation of GO on the 13 Oct
+pass is unchanged.
+
+**The Hindi reads.** The rule reads each Hindi Short at 7 days. The pilots were read at the first
+pass after their 7-day mark, so these are too. *नालंदा* (2 Oct 19:00) is read on the 10 Oct pass
+and *सुश्रुत* (3 Oct 19:00) on the 11 Oct pass, and the decision is taken on 11 Oct. Today they
+read 11 and 15 views.
+
+**Today's pass**: 3 items dated (6 Dec: an episode and two Shorts). *Ashoka Appoints the Dhamma
+Officers* (old-format Short) now links to its episode (40 linked). *Inside Begram's Locked Rooms*,
+publishing at 09:00 today, joined the Kushan playlist. Nothing was due in the remake queue.
+Uploads: none. Generation: none (STOP).
