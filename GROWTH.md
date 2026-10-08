@@ -956,3 +956,27 @@ read 11 and 15 views.
 Officers* (old-format Short) now links to its episode (40 linked). *Inside Begram's Locked Rooms*,
 publishing at 09:00 today, joined the Kushan playlist. Nothing was due in the remake queue.
 Uploads: none. Generation: none (STOP).
+
+## 9 Oct
+
+**Measured**, read at 04:45 IST. Subscribers: **54** (+1). *The Copper Grant That Records a Win
+Over the Caliphate* (remake, 8 Oct 13:00) has 35 views at about 16 hours, 44.1% stayed to watch,
+97.1% from the Shorts feed. The remakes since 1 Oct, by day, stand at 357, 10, 8, 143, 2, 113, 18
+and 35 views. The two Hindi Shorts are essentially flat: *नालंदा* 11 views (unchanged since 6 Oct)
+and *सुश्रुत* 15 (unchanged since 5 Oct).
+
+**Spend.** October to date: $1,383.14. Nothing new on the shared resource, and no reading flagged.
+The three-day rate is $123.47/day (6–8 Oct); the seven-day rate is $178.75/day (30 Sep–6 Oct) and
+still includes 2–3 Oct, so the guard reads STOP (−$1,351.90). The expectation of GO on the 13 Oct
+pass is unchanged.
+
+**Hindi reads, not yet due.** *नालंदा* (2 Oct 19:00) reaches 7 days at 19:00 today, after this
+pass; its formal read is the 10 Oct pass, as corrected on 8 Oct. *सुश्रुत* is read on 11 Oct, and
+the decision follows on 11 Oct. At 11 and 15 views respectively, flat for days, neither looks
+likely to clear the ~100-view bar.
+
+**Today's pass**: 3 items dated (7 Dec: an episode and two Shorts). *The Mud-Brick Rooms That
+Never Reopened* (old-format Short) now links to its episode, public since 8 Oct (41 linked).
+*How the Buddha Got a Human Face*, publishing at 09:00 today, joined the Kushan playlist, the
+last of that era's episodes. Nothing was due in the remake queue. Uploads: none. Generation:
+none (STOP).
