@@ -27,6 +27,26 @@ $url = "https://management.azure.com/subscriptions/$sub/providers/Microsoft.Cost
 $tmp = Join-Path $env:TEMP "itihasa-cost-body.json"
 $errf = Join-Path $env:TEMP "itihasa-cost-err.txt"
 
+# The machine is shared, and another process's `az login` replaces the CLI's default account for
+# everyone -- found 10 Oct, when a fresh sign-in (azureProfile.json rewritten, az config read
+# "first_run: yes") swapped the subscription to one with no access to rg-contosohub. Cost
+# Management did not error: it quietly returned almost no rows (one day, $3.88, from an unrelated
+# resource group), which read as a huge spend *drop* rather than a broken login. A resource group
+# with $1,383+ tracked this month cannot really vanish between two runs, so this is checked first
+# with a plain ARM call, which answers true/false regardless of what Cost Management has indexed
+# and so cannot itself be fooled by sparse cost data.
+$rgExists = (az group exists --name rg-contosohub -o tsv 2>$null).Trim()
+if ($rgExists -ne 'true') {
+  $who = (az account show --query "{name:name, user:user.name}" -o json 2>$null | ConvertFrom-Json)
+  ""
+  "BLOCKED: resource group 'rg-contosohub' is not visible from the current az login."
+  ("  logged in as {0} on subscription `"{1}`" ({2})" -f $who.user, $who.name, $sub)
+  "  this is almost certainly another az login on this shared machine replacing the CLI's"
+  "  default account, not a real deletion or spend change -- do not trust any figure from this"
+  "  run. Re-authenticate with the account that holds rg-contosohub (az login) and run again."
+  exit 2
+}
+
 function Query($body) {
   # The body goes through a file: the Cost Management filter is JSON full of quotes and braces,
   # and passing it inline through az's .cmd shim is how an argument gets re-parsed by cmd.exe.

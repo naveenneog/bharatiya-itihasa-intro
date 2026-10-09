@@ -10,6 +10,7 @@
      node tools/yt-playlist.mjs create --era gupta --title "..." --description "..." [--go]
      node tools/yt-playlist.mjs add --playlist <playlist id> --ids a,b,c [--go]
      node tools/yt-playlist.mjs sync [--go]
+     node tools/yt-playlist.mjs describe --playlist <id> [--title "..."] [--description "..."] [--go]
 
    create: refuses a title that already exists, and an era that already has a playlist; makes the
    playlist Public with the default order "Date published (oldest)", so episodes appear in release
@@ -22,8 +23,12 @@
    own day, not before, so that viewers do not see a list of hidden private videos; and it lists
    the eras that have no playlist yet, with their first date. It then reads each playlist's public
    page signed out (count, hidden notice, views), fails if fewer videos show than the public
-   episodes recorded in it, and with --go records the views by day. All three are dry by default
-   and record what they did in dist/playlists.json. Only one process may drive the browser
+   episodes recorded in it, and with --go records the views by day.
+   describe: fixes a playlist's title and/or description from its own edit page
+   (studio.youtube.com/playlist/<id>/edit), which has the same two contenteditable fields as the
+   creation dialog. Reads the current text first, so a dry run shows the actual change; Save,
+   reload, and confirm the field reads back what was set. All four are dry by default and record
+   what they did in dist/playlists.json. Only one process may drive the browser
    profile at a time. */
 import { chromium } from 'playwright-core';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -42,7 +47,7 @@ const saveReg = () => writeFile(REG, `${JSON.stringify(reg, null, 2)}\n`);
 /* Any video's edit page shows the full list of playlists; the first feed Short is a stable one. */
 const REF = arg('ref', JSON.parse(await readFile('dist/feed-shorts.json', 'utf8'))[0]?.id);
 
-if (!['list', 'create', 'add', 'sync'].includes(cmd)) {
+if (!['list', 'create', 'add', 'sync', 'describe'].includes(cmd)) {
   console.error('usage: node tools/yt-playlist.mjs list | create --era <era> --title "..." --description "..." [--go] | add --playlist <id> --ids a,b [--go] | sync [--go]');
   process.exit(1);
 }
@@ -70,19 +75,23 @@ const whenMs = (when) => Date.parse(`${when} 00:00 GMT+0530`);
 
 /* The playlist as a signed-out viewer gets it: the video count, the playlist's views, and the
    "N unavailable videos are hidden" notice. Read from the public page, not Studio, so a playlist
-   that went private or lost its videos shows up. (The page also carries localisation strings
-   such as "VIDEO_COUNT":{"case1":"1 video"}; the count is read from "stats" only.) */
+   that went private or lost its videos shows up. Both counts come from the same metadataParts
+   info card ("Playlist", then the video count, then the view count) rather than the page's
+   separate "stats" line, because that line is absent on a freshly created, still-empty playlist
+   — found 10 Oct — where metadataParts still renders, reading "No videos" and "No views". (The
+   page also carries localisation strings such as "VIDEO_COUNT":{"case1":"1 video"}; not used.) */
 async function publicView(pid) {
   try {
     const res = await fetch(`https://www.youtube.com/playlist?list=${pid}&hl=en`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36', 'Accept-Language': 'en-US' },
     });
     const s = await res.text();
-    const videos = (s.match(/"stats":\[\{"runs":\[\{"text":"([\d,]+)"\},\{"text":" videos?"/) || [])[1];
-    const views = (s.match(/"content":"[\d,]+ videos?"\}\},\{"text":\{"content":"(No views|[\d,.]+[KM]? views?)"/) || [])[1];
+    const card = s.match(/"metadataParts":\[\{"text":\{"content":"Playlist"\}\},\{"text":\{"content":"(No videos|[\d,]+ videos?)"\}\},\{"text":\{"content":"(No views|[\d,.]+[KM]? views?)"\}\}/);
+    const videos = card?.[1];
+    const views = card?.[2];
     const hidden = (s.match(/(\d+) unavailable videos? (?:is|are) hidden/) || [])[1];
     return {
-      videos: videos === undefined ? null : Number(videos.replace(/,/g, '')),
+      videos: videos === undefined ? null : (videos === 'No videos' ? 0 : Number(videos.replace(/ videos?$/, '').replace(/,/g, ''))),
       views: views === undefined ? null : (views === 'No views' ? 0 : views.replace(/ views?$/, '')),
       hidden: hidden === undefined ? 0 : Number(hidden),
     };
@@ -307,6 +316,45 @@ try {
     if (GO) await saveReg();
     if (!GO) console.log('\n  dry run: nothing added (pass --go)');
     if (failed) code = 1;
+  }
+
+  if (cmd === 'describe') {
+    const pid = arg('playlist', null);
+    const newTitle = arg('title', null);
+    const newDesc = arg('description', null);
+    if (!pid) throw new Error('describe needs --playlist <id>');
+    if (newTitle === null && newDesc === null) throw new Error('describe needs --title and/or --description');
+    await browser();
+    await page.goto(`https://studio.youtube.com/playlist/${pid}/edit`, { waitUntil: 'domcontentloaded' });
+    await sleep(6000);
+    const titleBox = page.locator('[aria-label="Add title"], [aria-label="Playlist title"]').first();
+    const descBox = page.locator('[aria-label="Add description"], [aria-label="Playlist description"]').first();
+    if (!(await titleBox.count())) throw new Error(`playlist ${pid} not found (its edit page has no title field)`);
+    const before = { title: norm(await titleBox.innerText()), description: norm(await descBox.innerText()) };
+    console.log(`  ${pid}  current title: "${before.title}"`);
+    console.log(`  ${pid}  current description: "${before.description}"`);
+    const want = { title: newTitle === null ? before.title : norm(newTitle), description: newDesc === null ? before.description : norm(newDesc) };
+    if (want.title === before.title && want.description === before.description) { console.log('    already set to that'); }
+    else {
+      console.log(`    -> title: "${want.title}"`);
+      console.log(`    -> description: "${want.description}"`);
+      if (!GO) { console.log('    dry run: nothing changed (pass --go)'); }
+      else {
+        if (newTitle !== null) await titleBox.fill(newTitle);
+        if (newDesc !== null) await descBox.fill(newDesc);
+        const save = page.getByRole('button', { name: /^Save$/i }).first();
+        if (!(await save.isEnabled().catch(() => false))) throw new Error('Save is not enabled after editing');
+        await save.click({ timeout: 8000 });
+        await sleep(4000);
+        await page.goto(`https://studio.youtube.com/playlist/${pid}/edit`, { waitUntil: 'domcontentloaded' });
+        await sleep(6000);
+        const after = { title: norm(await titleBox.innerText()), description: norm(await descBox.innerText()) };
+        const ok = after.title === want.title && after.description === want.description;
+        console.log(`    after reload: title "${after.title}", description "${after.description}"  -> ${ok ? 'saved, confirmed' : 'NOT CONFIRMED'}`);
+        if (!ok) throw new Error('the saved title/description does not match what was set');
+        if (reg.playlists[pid]) { reg.playlists[pid].title = after.title; reg.playlists[pid].description = after.description; await saveReg(); }
+      }
+    }
   }
 } catch (e) {
   code = 1;

@@ -980,3 +980,60 @@ Never Reopened* (old-format Short) now links to its episode, public since 8 Oct 
 *How the Buddha Got a Human Face*, publishing at 09:00 today, joined the Kushan playlist, the
 last of that era's episodes. Nothing was due in the remake queue. Uploads: none. Generation:
 none (STOP).
+
+## 10 Oct — a shared-machine az login broke the spend guard; Nalanda-hi's formal read
+
+**The spend guard broke, cleanly this time.** `spend.ps1` read October's subscription total as
+$3.88 against yesterday's $1,383.14, with the shared resource's whole table empty. Cross-checked
+three ways (two windows, MonthToDate) — all agreed, unlike the earlier doubling bug, which was
+the first clue this was not that. `az group exists --name rg-contosohub` returned false: the
+resource group holding this campaign's shared AI resource is not visible from the current az
+login at all, in any of the 93 subscriptions it can see (checked with `az graph query`, and nothing
+in `az monitor activity-log` shows a deletion in the one subscription now selected). `azureProfile.json`
+was rewritten partway through the day (9 Oct), and `az config get` read `first_run: yes` — another
+process's `az login` on this shared machine replaced the CLI's default account, exactly the kind
+of interference the machine-sharing rule warns about. A resource group that held $1,383+ this
+month cannot really vanish between two runs; nothing here was deleted or suspended, and the
+guard's STOP today is coincidence, not a real reading. `spend.ps1` now checks `az group exists`
+first, with a plain ARM call that cannot itself be fooled by sparse Cost Management data, and
+exits 2 with a clear message instead of computing nonsense from an empty result. Verified against
+a resource group that does exist under the current login (does not block) and one that does not
+(blocks), and against the real broken state (blocks, exit 2). **Generation stays off regardless**
+(no login, no GO); the user needs to re-authenticate with the account that holds rg-contosohub
+before the guard can read real figures again.
+
+**Measured**, read at 04:45 IST. Subscribers: **55** (+1). *The Vassal Who Toppled a 200-Year
+Empire* (remake, 9 Oct 13:00) has 266 views at about 16 hours, 40.8% stayed to watch, 98.1% from
+the Shorts feed, +1 subscriber: the best-performing remake since the 1 Oct pilot-level Shorts. The
+remakes since 1 Oct, by day, stand at 357, 10, 8, 143, 2, 113, 18, 36 and 266 views.
+
+**Nalanda-hi's formal 7-day read.** *नालंदा* (2 Oct 19:00) passed 7 days at 19:00 yesterday; this
+pass is the first after that mark, so today is its formal read under the 8 Oct correction: 11
+views, flat since 6 Oct. *सुश्रुत* is read tomorrow (11 Oct), and the decision follows the same
+day, as the rule states for both together. At 15 views, also flat for days, it looks set to agree.
+
+**Playlists.** One related link added (42 linked): *The First Human Face of the Buddha*
+(old-format Short) → *How the Buddha Got a Human Face*. *Nalanda's Gate of Questions*, publishing
+at 09:00 today, joined the Gupta-to-Harsha playlist, which also showed its first non-zero reading
+(1 view) after six days at 0.
+
+Chalukya's first episode is now within 14 days (24 Oct), so it got a playlist: **The Chalukyas of
+Badami**, named for their capital, which several of its own 13 episode titles name directly (the
+span runs from the Chalukyas' rise against the Kadambas to their fall to the Rashtrakutas). Its
+description was typed wrong on creation — plain "Bharatiya Itihasa" and a hyphen, not the
+macroned form and an em dash used everywhere else — a typing mistake, not a tool bug. Fixed with
+a new `yt-playlist.mjs describe --playlist <id> --description "..."` command (Studio's playlist
+edit page, same two fields as the creation dialog), confirmed by reload and by the public page.
+
+Fixing it surfaced a real bug: the empty new playlist's public page reported "public page NOT
+READ" — the video-count pattern matches a digit before "videos", but an empty playlist's page
+renders "No videos" instead, which the older "Indian History - Gupta Period" and Panchatantra
+playlists never exercised (all have videos). Both counts now read from one anchor, the
+`metadataParts` info card ("Playlist", then the video count, then the view count), which is
+present even on an empty playlist, rather than the separate "stats" line that is not. Verified
+against all five era playlists (Chalukya now reads 0 shown, 0 views, not NOT READ) and the three
+Panchatantra playlists and Gupta Period (exact video counts 36, 36, 2; views grown naturally
+since 8 Oct). The MISMATCH and NOT READ checks were re-run and still fire correctly.
+
+**Today's pass**: 3 items dated (8 Dec: an episode and two Shorts). Nothing was due in the remake
+queue. Uploads: none. Generation: none (STOP, and now also blocked on the az login above).

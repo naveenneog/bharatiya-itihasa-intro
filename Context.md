@@ -1961,29 +1961,43 @@ The load-bearing facts, each measured rather than assumed:
   from the latest scan and links those not yet in `dist/related-links.json`. A Hindi version's
   `-hi` slug pairs with the English episode (since 4 Oct; before that no Hindi Short had a link).
 - **Era playlists**: `tools/yt-playlist.mjs list | create --era <e> --title "…" --description "…"
-  | add --playlist <id> --ids a,b | sync`, each dry unless `--go`. One public playlist per era
-  bucket (`dist/<era>/<slug>_book`), titled "<span> — Indian History | Bhāratīya Itihāsa", order
-  "Date published (oldest)", registry `dist/playlists.json`. Studio's own playlist page has no
-  "Add videos", and the create dialog's picker selects videos by title, so episodes are added by
-  id from each video's edit page: its playlist picker (`ytcp-video-metadata-playlists
-  ytcp-dropdown-trigger`) lists every playlist as `ytcp-checkbox-lit[test-id=<playlist id>]`.
-  The outer element takes the click; the inner `[role=checkbox]` never reads as stable to
-  Playwright. Then Done, then Save. A save there keeps a scheduled video's date and time
-  (verified 3 Oct, before and after). `sync` adds public episodes and those scheduled for today,
-  because a scheduled video added earlier shows viewers "N unavailable videos are hidden". It
-  also lists eras without a playlist and reads each playlist's public page signed out. The
-  playlist "Indian History - Gupta Period" and the user's personal playlists are not touched.
+  | add --playlist <id> --ids a,b | sync | describe --playlist <id> [--title "…"] [--description
+  "…"]`, each dry unless `--go`. One public playlist per era bucket (`dist/<era>/<slug>_book`),
+  titled "<span> — Indian History | Bhāratīya Itihāsa", order "Date published (oldest)", registry
+  `dist/playlists.json`. Studio's own playlist page has no "Add videos", and the create dialog's
+  picker selects videos by title, so episodes are added by id from each video's edit page: its
+  playlist picker (`ytcp-video-metadata-playlists ytcp-dropdown-trigger`) lists every playlist as
+  `ytcp-checkbox-lit[test-id=<playlist id>]`. The outer element takes the click; the inner
+  `[role=checkbox]` never reads as stable to Playwright. Then Done, then Save. A save there keeps
+  a scheduled video's date and time (verified 3 Oct, before and after). `sync` adds public
+  episodes and those scheduled for today, because a scheduled video added earlier shows viewers
+  "N unavailable videos are hidden". It also lists eras without a playlist and reads each
+  playlist's public page signed out, both counts from the page's `metadataParts` info card
+  ("Playlist", the video count, the view count), which still renders ("No videos"/"No views") on
+  a freshly created, still-empty playlist, unlike the page's separate "stats" line (found 10 Oct,
+  fixed; the playlists built before 10 Oct always had videos already, so the gap went unseen).
+  `describe` fixes a playlist's title or description from its own edit page after the fact (used
+  10 Oct on a typo in the Chalukya playlist's description). The playlist "Indian History - Gupta
+  Period" and the user's personal playlists are not touched.
 - **Spend is measured with `tools/spend.ps1`** (Azure Cost Management), which is also the gate:
   exit 0 (GO) or 3 (STOP) against both the campaign's $2,000 a month and the subscription's
-  $5,000 × 0.9, given `-NeedToday <USD>`. A feed Short costs about $5.90. The Azure AI resource is
-  shared with another project that also runs Sora on it ($184 on 2 Oct), and the other projects'
-  rate sets the subscription's headroom. The guard projects them at the higher of their last seven
-  complete days and their last three days (part-reported ones included), over a window that
-  reaches back across a month boundary; from 3 Oct that reads STOP. Cost Management has twice
-  returned a recent day exactly doubled, in any query shape, and corrected it a day later (1 Oct
-  read on 3 Oct; 2 Oct read on 4 Oct, all six shapes tried). So the guard stores each day's
-  reading in `dist/spend-readings.json` and lists any figure that is exactly twice or half its
-  last reading: a TWICE is unconfirmed, a HALF means the last reading was the double.
+  $5,000 × 0.9, given `-NeedToday <USD>`; exit 2 means it could not get a real reading at all (see
+  below) and generation stays off either way. A feed Short costs about $5.90. The Azure AI
+  resource is shared with another project that also runs Sora on it ($184 on 2 Oct), and the
+  other projects' rate sets the subscription's headroom. The guard projects them at the higher of
+  their last seven complete days and their last three days (part-reported ones included), over a
+  window that reaches back across a month boundary; from 3 Oct that reads STOP. Cost Management
+  has twice returned a recent day exactly doubled, in any query shape, and corrected it a day
+  later (1 Oct read on 3 Oct; 2 Oct read on 4 Oct, all six shapes tried). So the guard stores each
+  day's reading in `dist/spend-readings.json` and lists any figure that is exactly twice or half
+  its last reading: a TWICE is unconfirmed, a HALF means the last reading was the double.
+  **The machine is shared, and another process's `az login` can silently replace the CLI's
+  default account** for every script that calls `az` — found 10 Oct, when this read the whole
+  month as $3.88 instead of $1,383+, because the new default account could not see
+  `rg-contosohub` at all. Cost Management did not error on the wrong, near-empty account; it just
+  answered truthfully for it. The guard now checks `az group exists --name rg-contosohub` before
+  any Cost Management call, a plain ARM call that is not itself at the mercy of sparse cost data,
+  and exits 2 with a clear message instead of computing a number from an empty result.
 - **YouTube's daily upload limit was hit on 23 Sep after 121 uploads.** The three that failed
   that day went straight through on 27 Sep. Keep uploads under ~60 a day.
 - **The yt-agent was aborting large uploads.** After clicking Save it did a full `page.goto()` to
