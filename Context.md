@@ -1932,18 +1932,20 @@ The load-bearing facts, each measured rather than assumed:
   `node tools/yt-reschedule.mjs --id <id> --at YYYY-MM-DDTHH:MM [--go]` (IST; dry by default). It
   refuses public and private videos and targets under three hours away, confirms by reading the
   stored date and time back from Studio's dialog, and updates `dist/feed-shorts.json`.
-- **Hindi Shorts**: an episode with `lang: hi` renders its captions in Tiro Devanagari Hindi
-  (`short-page.mjs`, class `hi`), with Hindi hashtags and a `.hi.srt`. The title comes from
-  `short.json`'s `title` (the folder's `publish.json` has no `titles`). The first, `zero-hi`, is
-  Zero's script translated line by line over Zero's planned clips; it reached 476 views in 18
-  hours against 276 in total for the English original. A Hindi version needs no generation:
-  `episodes/<slug>-hi/` gets the English episode's `episode.json` with `lang: "hi"`, a Hindi
-  `short.json` and `hook-script.json` (no digits: years and counts in words), the English
-  version's planned clips copied in the order that fits the Hindi lines, and a `short-shots.json`
-  whose `clips` follow that order and whose `claim`s are the Hindi lines (`short.mjs` warns when
-  a claim differs from its line). Render with `--era` of the English version; schedule at least five
-  hours from any other Short (the first was at 12:00, an hour before an English Short; the two
-  replications were moved to 19:00).
+- **Hindi Shorts, discontinued 11 Oct.** Three tests ran: `zero-hi` (Zero's script translated
+  line by line over Zero's planned clips) reached 533–535 views and held there, against two
+  follow-ups (`nalanda-hi`, `sushruta-hi`) that stalled at 11 and 15 views each, flat for days.
+  Under the fixed rule (`GROWTH.md`, 1 Oct; decided 11 Oct) neither follow-up cleared the ~100-view
+  bar, so no further Hindi versions are made; Zero's result looks particular to that story, not a
+  generalisable format. The three existing Hindi Shorts stay published and linked. The build
+  needed no generation: `episodes/<slug>-hi/` got the English episode's `episode.json` with
+  `lang: "hi"`, a Hindi `short.json` and `hook-script.json` (no digits: years and counts in
+  words), the English version's planned clips copied in the order that fits the Hindi lines, and
+  a `short-shots.json` whose `clips` follow that order and whose `claim`s are the Hindi lines
+  (`short.mjs` warns when a claim differs from its line); render with `--era` of the English
+  version. Captions use Tiro Devanagari Hindi (`short-page.mjs`, class `hi`), with Hindi hashtags
+  and a `.hi.srt`; the title comes from `short.json`'s `title` (the folder's `publish.json` has no
+  `titles`).
 - **Scheduling minutes after an upload can fail to hold**: the Hindi Short's first attempt saved
   and read back Private; a second pass a few minutes later verified. `pilot-schedule` reports
   it as "not verified" and leaves the entry unscheduled, so the next pass retries it.

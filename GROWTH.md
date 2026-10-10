@@ -1037,3 +1037,41 @@ since 8 Oct). The MISMATCH and NOT READ checks were re-run and still fire correc
 
 **Today's pass**: 3 items dated (8 Dec: an episode and two Shorts). Nothing was due in the remake
 queue. Uploads: none. Generation: none (STOP, and now also blocked on the az login above).
+
+## 11 Oct — the Hindi decision: stop making new Hindi versions
+
+**The az login was restored overnight.** `az account show` now reads a different, working
+account (`navg@microsoft.com`, subscription `MCAPS-Hybrid-REQ-67471-2023-navg`), and
+`az group exists --name rg-contosohub` reads true. `spend.ps1` ran cleanly: October month-to-date
+$1,658.07, in line with yesterday's pre-incident $1,383.14 plus three ordinary days. No residue
+from yesterday's bad $3.88 reading remains in `dist/spend-readings.json` (8–10 Oct all carry
+today's timestamp and plausible values).
+
+**Measured**, read at 04:45 IST. Subscribers: **56** (+1). *The Rivals Who Claimed the Same
+Ancestors* (remake, 10 Oct 13:00) has 167 views at about 16 hours, 33.5% stayed to watch, 95.8%
+from the Shorts feed. The remakes since 1 Oct, by day, stand at 357, 10, 8, 143, 2, 113, 18, 36,
+266 and 167 views.
+
+**The Hindi decision.** Both follow-up tests have now had their formal 7-day read: *नालंदा*
+(10 Oct, 11 views) and *सुश्रुत* (today, 15 views), both flat since 6 Oct. Neither passed the
+~100-view bar the rule set, against *बिंदु जो बना शून्य* (Zero, the original), which has held
+533–535 views since 2 Oct. Under the fixed rule — "both past ~100: continue; neither: stop;
+one: two more tests" — the result is **stop making new Hindi versions of Shorts**. Zero's
+success looks particular to that story rather than a generalisable format: of the three Hindi
+tests, one cleared the bar by 5× and two stalled at pilot-failure levels. The three existing
+Hindi Shorts stay published and linked; nothing is deleted for underperforming, per the standing
+rule that a weak video does not hurt the channel. No further Hindi versions are made from here.
+
+**Playlists.** Nothing new to link (42 stands). *How Nalanda's Sangha Spoke with One Seal*,
+publishing at 09:00 today, joined the Gupta-to-Harsha playlist. The Pallava playlist showed its
+first non-zero reading (1 view) after eight days at 0.
+
+**Another session's Playwright server, again.** A `node.exe` running `npx @playwright/mcp` with
+`--user-data-dir` pointed at this campaign's YouTube profile appeared mid-pass (pid 44136,
+04:43), the same pattern as 5 Oct. It had not opened a browser, and every browser step today
+(including the playlist sync immediately after) completed and confirmed normally. Left running,
+as before: it is not this campaign's process.
+
+**Today's pass**: 3 items dated (9 Dec: an episode and two Shorts). Nothing was due in the remake
+queue. Uploads: none. Generation: none (STOP; guard reads real figures again, no longer blocked
+on the az login).
