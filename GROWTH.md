@@ -1075,3 +1075,39 @@ as before: it is not this campaign's process.
 **Today's pass**: 3 items dated (9 Dec: an episode and two Shorts). Nothing was due in the remake
 queue. Uploads: none. Generation: none (STOP; guard reads real figures again, no longer blocked
 on the az login).
+
+## 12 Oct — the az login flipped back; the first A/B remake-queue entries
+
+**The az login is blocked again, same account as 10 Oct.** `spend.ps1` exited 2:
+`navg@MngEnvMCAP189112.onmicrosoft.com` on `ME-MngEnvMCAP189112-navg-1`, the identical wrong
+account from two days ago, after the correct one worked cleanly yesterday. The 10 Oct check did
+exactly what it was built for: a clear message, no spend figures printed, no decision made on bad
+data. This is now a recurring flip on the shared machine rather than a one-off; another session's
+`npx @playwright/mcp` pointed at this campaign's profile was running again this morning (a new
+pid, 63616, from a fresh instance — the same harmless pattern as 5 and 11 Oct, no browser
+opened), though nothing here shows that process runs `az` commands, so no cause is claimed.
+Re-authentication is the user's, as before; this campaign cannot do it.
+
+**Measured**, read at 04:45 IST. Subscribers: **57** (+1). *The Conqueror Who Refused To Loot
+Kanchi* (remake, 11 Oct 13:00) has 182 views at about 16 hours, 33.3% stayed to watch, 97.3% from
+the Shorts feed. The remakes since 1 Oct, by day, stand at 357, 10, 8, 143, 2, 113, 18, 36, 266,
+167 and 182 views. 9–11 Oct is the first run of three straight days all above 100 views; every
+earlier 3-day window had at least one day under 40 (the daily figures swing between stalls and
+solid performers throughout, not a steady trend).
+
+**The first two 21 Oct A/B entries entered the 10-day remake queue.** *The Seal That Named
+Shakraditya* (`the-seal`, keep arm): all 7 lines checked against the episode's own panels (hook,
+and panels at lines 350, 669, 828, 1007, 1320, 2099, 2447) and the Xuanzang claim web-verified —
+*Da Tang Xiyu Ji* does attribute Nalanda's founding to a king named "Shakraditya," and the
+Kumaragupta I identification is standard scholarly consensus, matching the episode's own
+hedging ("probably," "careful but not precise"). Nothing false or misleading; recorded keep.
+*Faxian Passes an Empty Nalanda* (remake arm, next step `script`): blocked by the az login, not a
+confirmed budget figure, so recorded `skip` with that cause rather than "budget STOP" — it
+belongs to neither arm of the test, same as a real STOP skip would.
+
+**Playlists.** Nothing new to link (42 stands). *Samudragupta's Mandala of Power*, publishing at
+09:00 today, joined the Gupta-to-Harsha playlist.
+
+**Today's pass**: 3 items dated (10 Dec: an episode and two Shorts). One remake-queue Short kept
+(verified), one skipped (az login blocked). Uploads: none. Generation: none (blocked on the az
+login, not a budget STOP).
