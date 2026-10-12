@@ -1111,3 +1111,40 @@ belongs to neither arm of the test, same as a real STOP skip would.
 **Today's pass**: 3 items dated (10 Dec: an episode and two Shorts). One remake-queue Short kept
 (verified), one skipped (az login blocked). Uploads: none. Generation: none (blocked on the az
 login, not a budget STOP).
+
+## 13 Oct — a factual error found in a keep-arm Short; the az login is still blocked
+
+**The az login is still blocked**, same wrong account as 10 and 12 Oct
+(`navg@MngEnvMCAP189112.onmicrosoft.com`). This is now the third blocked day of the last four
+(11 Oct was clean). `az group exists --name rg-contosohub` reads false; no spend figures are
+printed, as designed. The 2–3 Oct spend spike's effect on the 7-day rate cannot be checked while
+blocked, so whether the guard would otherwise read GO today is unknown.
+
+**Measured**, read at 04:45 IST. Subscribers: **57**, unchanged. *The Oldest Kannada Book Is a
+Guide for Poets* (remake, 12 Oct 13:00) has 124 views at about 16 hours, 37% stayed to watch,
+96.8% from the Shorts feed. The remakes since 1 Oct, by day: 357, 10, 8, 143, 2, 113, 18, 36, 266,
+167, 182 and 124 views. 9–12 Oct is now four straight days above 100.
+
+**A factual error found in a keep-arm Short.** *The Horse Sacrifice on Nilachal*, due 22 Oct (one
+day after *the-seal* and *faxian*'s 21 Oct slot), reached the 10-day window today. Six of its
+seven lines check out against the episode's own panels. Line 2 — "Mahendravarman and
+Surendravarman let a royal horse roam consecrated" — names them as two co-rulers acting
+together. Web search finds the opposite: modern scholarship holds Mahendravarman and
+Surendravarman are two names for the *same* king of the Varman dynasty of Kamarupa (the
+Umachal/Nilachal rock inscription names him Surendravarman; other charters use Mahendravarman),
+and the episode's own panel already raises exactly this as an open question ("Scholars have
+wondered whether Mahendravarman and Surendravarman are the same ruler under different names") —
+so the short's line states as settled fact what its own source episode treats as unresolved, and
+attributes a joint act to what is most likely one person. Blocked from remaking today, it is
+recorded `skip` with the factual error noted, so it is queued for a remake once generation
+resumes rather than kept or silently left as a keep-arm sample with a known error. *Harsha Feeds
+a Hundred Villages* (remake arm, also due 22 Oct), the other new entry, is recorded `skip` for
+the same az-login block.
+
+**Playlists.** One related link added (43 linked): *Samudragupta's Hundred Victories*
+(old-format Short) → *Samudragupta's Mandala of Power*. *When Gupta Silver Silenced the Satraps*,
+publishing at 09:00 today, joined the Gupta-to-Harsha playlist.
+
+**Today's pass**: 3 items dated (11 Dec: an episode and two Shorts). Two remake-queue Shorts
+skipped (one for a found factual error, one for the az login), none kept or remade. Uploads:
+none. Generation: none (blocked on the az login).
