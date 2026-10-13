@@ -1148,3 +1148,41 @@ publishing at 09:00 today, joined the Gupta-to-Harsha playlist.
 **Today's pass**: 3 items dated (11 Dec: an episode and two Shorts). Two remake-queue Shorts
 skipped (one for a found factual error, one for the az login), none kept or remade. Uploads:
 none. Generation: none (blocked on the az login).
+
+## 14 Oct — the az login is back; the spend gap narrows to -$231.79; a 4-day remake streak breaks
+
+**The az login is restored.** `az group exists --name rg-contosohub` reads true again and
+`spend.ps1` returned real subscription and shared-resource figures with no diagnostic needed —
+the fourth flip of the account in five days (10, 12, 13 Oct blocked; 11 and today clean). Still
+no cause claimed; re-authentication on the shared machine is outside this campaign's control.
+
+**Measured**, read at 04:50 IST. Subscribers: **57**, unchanged. *The Deccan King Among the
+World's Four Great Kings* (remake, 13 Oct 13:00) has 20 views at about 16 hours, 42.9% stayed to
+watch, 80% from the Shorts feed — the first remake under 100 views since 8 Oct, breaking the
+9-12 Oct run of four straight days above 100 (266, 167, 182, 124). The remakes since 1 Oct, by
+day: 357, 10, 8, 143, 2, 113, 18, 36, 266, 167, 182, 124 and 20 views — another swing, not a
+trend, same as every prior reading.
+
+**Spend guard ran cleanly: STOP, but closest to GO yet.** Subscription month-to-date
+$2,064.65. The 2-3 Oct spend spike ($190.53 and $244.59, almost entirely another project's Sora
+usage) has now left the trailing 7-day rate window (5-11 Oct, $133.36/day), which together with
+the last-3-day rate ($120.69/day, 11-13 Oct) projects a month-end $4,731.79 against the
+$4,500 (90% of $5,000) ceiling — a gap of only **-$231.79**, narrowed sharply from over
+-$1,400 a few days ago. Campaign spend: $9.76 of $2,000. Still STOP (exit 3); no generation
+today.
+
+**Two new 23 Oct A/B entries reached the 10-day remake queue.** *Forest Fire in Sriparvata*
+(`forest-fire`, keep arm): all 7 lines checked against the episode's own panels (hook, and panels
+at lines 738, 1169, 1422, 1720, 2799, 3127), most nearly verbatim, and the foundational claim —
+Mayurasharma humiliated at Kanchi, founded the Kadamba dynasty through a forest revolt, forced
+Pallava recognition, capital at Banavasi — web-verified against the Talagunda inscription
+account. Nothing false or misleading; recorded keep. *Silabhadra Teaches* (remake arm, next step
+`script`): skipped for budget STOP (-$231.79 available, $50 needed), same cause as every
+remake-arm entry so far this test.
+
+**Playlists.** Nothing new to link (43 stands). *When Ujjain's Coins Went Silent*, publishing at
+09:00 today, joined the Gupta-to-Harsha playlist, confirmed with no MISMATCH or NOT READ.
+
+**Today's pass**: 3 items dated (12 Dec: an episode and two Shorts; nothing new to schedule).
+One remake-queue Short kept (verified), one skipped (budget STOP). Uploads: none. Generation:
+none (budget STOP, -$231.79 available).
