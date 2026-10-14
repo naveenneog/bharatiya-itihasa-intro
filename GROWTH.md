@@ -1186,3 +1186,44 @@ remake-arm entry so far this test.
 **Today's pass**: 3 items dated (12 Dec: an episode and two Shorts; nothing new to schedule).
 One remake-queue Short kept (verified), one skipped (budget STOP). Uploads: none. Generation:
 none (budget STOP, -$231.79 available).
+
+## 15 Oct — subscribers to 58; spend gap widens again; Maratha-era titles enter the backlog
+
+**Scan clean.** No new broken row. Five state changes, all expected: two scheduled items
+published on time (*When Ujjain's Coins Went Silent*, *The King Reborn From a Golden Womb*) and
+three backlog items moved from PRIVATE to SCHEDULED (yesterday's dating run).
+
+**Measured**, read at 04:40 IST. Subscribers: **58** (+1). *The King Reborn From a Golden Womb*,
+published today, already has 186 views, 35.9% stayed to watch, 95.7% from the Shorts feed, +1
+subscriber — a regular-cadence new-format Short, not part of the remake test. *The Deccan King
+Among the World's Four Great Kings* (13 Oct remake) has crept to 24 views at about 40 hours
+(37.5% stayed, 70.8% feed), confirming it will stay well under the 100-view mark it missed
+yesterday.
+
+**Spend guard ran cleanly: still STOP, gap widened to -$293.90.** Subscription month-to-date
+jumped to $2,226.84 (+$162.19 in one day, all another project's usage; no reading doubled or
+halved against its last value, so no anomaly flagged). Other projects' rate ticked up to
+$135.11/day (7-day, 6-12 Oct) and $131.91/day (last 3 days), projecting month-end $4,793.90
+against the $4,500 ceiling — a gap of **-$293.90**, back out from yesterday's -$231.79. Campaign
+spend unchanged: $9.76 of $2,000. STOP (exit 3); no generation today.
+
+**Two new 24 Oct A/B entries reached the 10-day remake queue.** *Simhavishnu Ends the Kalabhra
+Night* (`simhavishnu-ends`, keep arm): all 7 lines checked against the episode's own panels
+(hook, 485, 1210, 1805/1889/2192, 2548, 3142, 3301), most nearly verbatim; web-verified
+Simhavishnu as the standard-attested "first imperial Pallava" sourced to the Udayendiram and
+Kasakudi plates, and the short's own "disputed Kalabhra night" phrasing matches the episode's
+hedging on the traditional dark-age framing. Nothing false or misleading; recorded keep. *The
+Diamonds* (`the-diamonds`, delhi-sultanate, remake arm, next step `script`): skipped for budget
+STOP (-$293.90 available, $50 needed). All 8 queue entries through 24 Oct are now triaged: 2
+keep, 1 skip (factual error), 5 skip (budget/az-login).
+
+**Playlists.** Nothing new to link (43 stands). *Faxian in Gupta India*, publishing at 09:00
+tomorrow, joined the Gupta-to-Harsha playlist, confirmed with no MISMATCH or NOT READ.
+
+**Backlog.** 3 items dated (13 Dec: an episode, *Madhava and the Edge of the Infinite*, and two
+Shorts, *Javali and the More Rivalry* and *Pratapgad and the Afzal Khan Parley* — the first
+Maratha-era titles seen entering the backlog dating run).
+
+**Today's pass**: 3 items dated (13 Dec), nothing new to schedule. Two remake-queue Shorts
+decided (one kept, verified; one skipped for budget). One episode joined a playlist. Uploads:
+none. Generation: none (budget STOP, -$293.90 available).
