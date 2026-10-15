@@ -1227,3 +1227,42 @@ Maratha-era titles seen entering the backlog dating run).
 **Today's pass**: 3 items dated (13 Dec), nothing new to schedule. Two remake-queue Shorts
 decided (one kept, verified; one skipped for budget). One episode joined a playlist. Uploads:
 none. Generation: none (budget STOP, -$293.90 available).
+
+## 16 Oct — two independent blockers at once: az login wrong again, and the browser profile held by another session
+
+**Spend: blocked, not STOP.** `az group exists --name rg-contosohub` read false again —
+`navg@MngEnvMCAP189112.onmicrosoft.com` / `ME-MngEnvMCAP189112-navg-1`, the same wrong account as
+10, 12 and 13 Oct (5th flip in 7 days). No spend figures printed or trusted, as designed. Exit 2,
+reported distinctly, not logged as a budget number.
+
+**The YouTube browser profile was also held by another session today**, for the first time
+actually blocking this pass rather than just coexisting (seen harmlessly 5 and 11 Oct). Another
+session's `npx @playwright/mcp --user-data-dir ...\playwright-youtube-profile` had a live Edge
+instance open (root pid 30732, running since 08:36 that morning) when the pass started;
+`yt-scan.mjs` and `publish-run.mjs --schedule` both failed to launch a second instance against
+the same profile (`publish-run.mjs` detects this itself: "12 Edge process(es) already hold the
+YouTube profile" and exits 2 without attempting anything). Per standing policy this is not this
+campaign's process (no `agent.mjs` was running) and must not be stopped; retried three times over
+about 7 minutes, still held, so SCAN, MEASURE, BACKLOG's scheduling, and PLAYLISTS could not run
+today. No channel data was fabricated for any of them.
+
+**What did not depend on either blocker got done.** Two new 25 Oct A/B entries reached the
+10-day remake queue. *Lakhbaksh Starts the Tower of Delhi* (`lakhbaksh-starts`, delhi-sultanate,
+keep arm): all 7 lines checked against the episode's own panels (hook, 664/495, 1846, 1503,
+2214/1329/1672, 2597/2761, 3331), most nearly verbatim; web-verified against ASI/UNESCO
+consensus — Aibak built only the Qutb Minar's first storey (Iltutmish completed the rest) and
+the Quwwat-ul-Islam mosque reused columns from 20-27 demolished temples, both undisputed and
+stated factually, not demeaning any people. The short correctly avoids the "Aibak built the
+whole tower" myth the episode itself warns against. Nothing false or misleading; recorded keep.
+*Gwalior* (`gwalior`, delhi-sultanate, remake arm, next step `script`): skipped, az login
+blocked (not budget — spend.ps1 exit 2 today). Related-link scan ran clean (0 ready, 43 stands),
+though against yesterday's scan data since today's couldn't refresh.
+
+**Not measured today**: subscriber count, view/retention figures, any new broken row, and
+playlist/backlog sync — all need the browser. No figures are reported for them; nothing is
+assumed unchanged. These resume with tomorrow's pass once the profile is free and (separately)
+the az login is corrected.
+
+**Today's pass**: spend blocked (az login), browser blocked (another session) for 4 of 7 steps.
+Two remake-queue Shorts decided (one kept, verified; one skipped for az-login block) — the only
+steps unaffected by either blocker. Uploads: none. Generation: none (blocked, not STOP).
