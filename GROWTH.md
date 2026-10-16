@@ -1266,3 +1266,42 @@ the az login is corrected.
 **Today's pass**: spend blocked (az login), browser blocked (another session) for 4 of 7 steps.
 Two remake-queue Shorts decided (one kept, verified; one skipped for az-login block) — the only
 steps unaffected by either blocker. Uploads: none. Generation: none (blocked, not STOP).
+
+## 17 Oct — az login fixed, but the browser lock is now a second straight day; spend gap worsens sharply
+
+**Az login is back to the correct account.** `spend.ps1` returned real figures with no
+diagnostic needed. But the gap got much worse: subscription month-to-date jumped to **$2,647.89**
+(+$421.05 in one day, all another project's usage; the doubled/halved check still passed, so no
+reading anomaly — this looks like genuinely faster spending elsewhere). Other projects' rate
+accelerated to $174.91/day over the last 3 days (up from $146.56/day over 7), projecting
+month-end $5,621.36 against the $4,500 ceiling — a gap of **-$1,121.36**, the worst reading since
+the 2-3 Oct spike left the 7-day window. Campaign spend unchanged: $9.76 of $2,000. STOP (exit
+3); no generation today.
+
+**The YouTube browser profile is still held by the same other session, now a second consecutive
+blocked day.** Root pid 30732 has been running continuously since 15 Oct 08:36 (about 44 hours).
+Retried `yt-scan.mjs` twice today, both failed the same way; not this campaign's process (no
+`agent.mjs`), so not stopped, per standing policy. SCAN, MEASURE, BACKLOG's scheduling, and
+PLAYLISTS could not run for the second day running. This is worth the user's attention: it is
+outside this campaign's ability to resolve (it cannot stop a process that isn't its own), and if
+it continues, channel measurement and playlist/backlog maintenance stay blind until that session
+ends on its own or the user closes it.
+
+**What did not depend on either blocker got done.** Two new 26 Oct A/B entries reached the
+10-day remake queue. *Iltutmish Wins a Throne and a Caliph* (`iltutmish-wins-a-throne`,
+delhi-sultanate, keep arm): all 7 lines checked against the episode's own panels (hook,
+1115/1309, 2805, 2274, 2463, 2070, 1707, 3058), most nearly verbatim; web-verified the 1229
+Abbasid caliphal investiture (al-Mustansir granting Iltutmish "Sultan-i-Azam") as standard,
+well-documented history. The short's Razia line matches the episode's own hedge ("succession is
+less clear than chronicles later claim") without overclaiming a formal heir declaration. Nothing
+false or misleading; recorded keep. *Razia Sultan Rides* (`razia-sultan-rides`, remake arm, next
+step `script`): skipped for budget STOP (-$1,121.36 available, $50 needed) — its content will be
+checked when its own turn for scripting comes under GO. Related-link scan ran clean (0 ready, 43
+stands), still against 14 Oct's scan data.
+
+**Not measured today** (second day running): subscriber count, view/retention figures, any new
+broken row, playlist/backlog sync. No figures assumed unchanged.
+
+**Today's pass**: spend STOP (gap -$1,121.36, az login itself fixed). Browser still blocked by
+another session (2nd day) for 4 of 7 steps. Two remake-queue Shorts decided (one kept, verified;
+one skipped for budget). Uploads: none. Generation: none (budget STOP).
