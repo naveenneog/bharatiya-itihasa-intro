@@ -1305,3 +1305,33 @@ broken row, playlist/backlog sync. No figures assumed unchanged.
 **Today's pass**: spend STOP (gap -$1,121.36, az login itself fixed). Browser still blocked by
 another session (2nd day) for 4 of 7 steps. Two remake-queue Shorts decided (one kept, verified;
 one skipped for budget). Uploads: none. Generation: none (budget STOP).
+
+## 18 Oct — the browser lock reaches a third straight day; az login blocked again too
+
+**Both blockers present at once again.** The YouTube browser profile is still held by the same
+process seen the last two days — root pid 30732, running continuously since 15 Oct 08:36, now
+about 75 hours. `yt-scan.mjs` was retried once more and failed the same way; not this campaign's
+process, so not stopped. This is now a third consecutive blocked day for SCAN, MEASURE,
+BACKLOG's scheduling, and PLAYLISTS — flagged to the user directly today rather than only noted
+here, since it is outside this campaign's ability to resolve. Separately, `az group exists
+--name rg-contosohub` read false again — same wrong account as 10, 12, 13 and 16 Oct (6th time in
+9 days). No spend figures trusted; exit 2.
+
+**What did not depend on either blocker got done.** Two new 27 Oct A/B entries reached the
+10-day remake queue. *Stone Speaks at the Qutb Complex* (`stone-speaks`, delhi-sultanate, keep
+arm): all 7 lines checked against the episode's own panels (450, 733, 156, 1348, 1984, 2763,
+3272), most nearly verbatim and consistent with facts already web-verified 16-17 Oct (Aibak's
+first storey only, mosque spolia from many temples); web-verified the one new specific claim —
+the Alai Darwaza (1311) as the first true arch and true dome in Indo-Islamic architecture in
+India — standard consensus. Nothing false, misleading, or demeaning; recorded keep. *Balban
+Builds* (`balban-builds`, remake arm, next step `script`): skipped, az login blocked. Related-
+link scan ran clean (0 ready, 43 stands), still against 14 Oct's scan data (now four days stale).
+
+**Not measured today** (third day running): subscriber count, view/retention figures, any new
+broken row, playlist/backlog sync. No figures assumed unchanged. The channel itself is not at
+risk — nothing is being generated, uploaded, or deleted blind — but this campaign has had no
+visibility into its own performance for three days.
+
+**Today's pass**: spend blocked (az login, not STOP). Browser still blocked by another session
+(3rd day) for 4 of 7 steps. Two remake-queue Shorts decided (one kept, verified; one skipped for
+az-login block). Uploads: none. Generation: none (blocked).
