@@ -1335,3 +1335,33 @@ visibility into its own performance for three days.
 **Today's pass**: spend blocked (az login, not STOP). Browser still blocked by another session
 (3rd day) for 4 of 7 steps. Two remake-queue Shorts decided (one kept, verified; one skipped for
 az-login block). Uploads: none. Generation: none (blocked).
+
+## 19 Oct — both blockers persist a fourth day; the user was asked and unavailable
+
+**Both external blockers are unchanged.** The browser profile is still held by the same process
+(pid 30732, running since 15 Oct 08:36, now about 92 hours) — a fourth consecutive blocked day
+for SCAN, MEASURE, BACKLOG, and PLAYLISTS. `az group exists --name rg-contosohub` read false
+again — 7th time in 10 days. Yesterday this was raised to the user directly (both the browser
+lock and the recurring az-login flip); they were not available to respond, so today continues
+the same documented handling: neither process touched, both reported distinctly, nothing
+fabricated.
+
+**What did not depend on either blocker got done.** Two new 28 Oct A/B entries reached the
+10-day remake queue. *Amir Khusrau Sings Hind and Iran* (`amir-khusrau-sings-hind`,
+delhi-sultanate, keep arm): all 7 lines checked against the episode's own panels (hook, 614,
+1596, 1154/1303, 2414, 1894, 3102/3251), most nearly verbatim; web-verified birth year/place
+(1253, Patiyali), Turkish-father/Indian-mother parentage, and Nizamuddin Auliya discipleship
+against standard biographies. The "eight sultans" figure is inherited verbatim from the
+episode's own panel and sits within the commonly-cited range (sources vary 7-8 by which
+short/disputed reigns are counted). Nothing false, misleading, or demeaning; recorded keep.
+*Devagiri Pays for a Throne* (`devagiri-pays-for-a-throne`, remake arm, next step `script`):
+skipped, az login blocked. Related-link scan ran clean (0 ready, 43 stands), against 14 Oct's
+scan data (now five days stale).
+
+**Not measured today** (fourth day running): subscriber count, view/retention figures, any new
+broken row, playlist/backlog sync.
+
+**Today's pass**: spend blocked (az login, not STOP). Browser still blocked by another session
+(4th day) for 4 of 7 steps — already flagged to the user, awaiting their availability. Two
+remake-queue Shorts decided (one kept, verified; one skipped for az-login block). Uploads: none.
+Generation: none (blocked).
