@@ -1373,3 +1373,55 @@ clean, 12 BLOCKED, 13 BLOCKED, 14 clean, 15 clean, 16 BLOCKED, 17 clean, 18 BLOC
 the correct count is **6 blocked days out of 10** (10, 12, 13, 16, 18, 19 Oct), not 7. No
 decision changed by this — the guard's exit-2 handling was correct every day regardless of the
 running tally — but the written count should read 6, not 7, from here on.
+
+## 20 Oct — the browser lock is gone (system restart), az login still flips (7th of 11 days); a full pass after a 5-day gap
+
+**The browser lock cleared.** The machine restarted overnight; the other session's process (pid
+30732, which had held the YouTube profile since 15 Oct) is simply gone. SCAN, MEASURE, BACKLOG
+and PLAYLISTS all ran for the first time since 15 Oct. The az login, by contrast, is still wrong
+— `az group exists --name rg-contosohub` read false again, as expected (a login swap isn't a
+hung process, so a restart doesn't fix it). Recomputed carefully this time: **7 blocked days out
+of 11** (10, 12, 13, 16, 18, 19, 20 Oct), 4 clean (11, 14, 15, 17). Exit 2; no spend figures
+trusted today.
+
+**Scan clean** across the 5-day gap (15-20 Oct). 13 state changes, all expected: 10
+SCHEDULED->PUBLIC (episodes and Shorts that published on schedule while blind) and 3
+PRIVATE->SCHEDULED (from 15 Oct's backlog dating). No new broken row.
+
+**Measured**, read at 05:05 IST. Subscribers: **60** (+2 since the last read, 15 Oct — modest
+growth over 5 days, consistent with several of the gap's new Shorts landing low: *The Prince Who
+Died on an Elephant* 7 views, *How Kerala Hid Numbers Inside Poems* 21, *The Deccan King Who Won
+the North and Went Home* 35; but two did well — *India's Earliest Book Devoted to Mathematics
+Alone* 208 views, 93.5% feed; *The Temple Carved Down Into a Hill* 176 views, 100% feed). The 13
+Oct remake (*The Deccan King Among the World's Four Great Kings*) settled at a final 28 views —
+confirms it never recovered from breaking the 100+ streak.
+
+**Two new 29 Oct A/B entries reached the 10-day remake queue**, and tomorrow (21 Oct) the actual
+test window begins — `the-seal` is the first entry inside the declared 21-27 Oct test, due
+19:00. *Alauddin Holds Siri Against the Mongols* (`alauddin-holds-siri-against`,
+delhi-sultanate, keep arm): all 7 lines checked against the episode's own panels (hook, 827,
+1471/1709, 2240/2379, 2518, 2642/2889), most nearly verbatim; web-verified the Battle of Kili
+(1299), Zafar Khan's death attacking beyond orders, and Siri's construction as a Mongol-defense
+response, all standard consensus. Nothing false or misleading; recorded keep. *Nizamuddin Opens*
+(`nizamuddin-opens`, remake arm, next step `script`): skipped, az login blocked.
+
+**Related links**: 5 newly ready and linked (48 total, up from 43) — *Why Delhi's Iron Pillar
+Refuses To Rust*, *The King Who Built a School That Lasted 700 Years*, its Hindi twin, *Faxian's
+Road Through a Golden Land*, and *Skandagupta Holds Back the Huns*, each now pointing at its
+freshly-published episode. (First attempt at this failed with the same "profile already in use"
+error as the external blocker — turned out to be this pass's own `yt-retention.mjs` still running
+concurrently and holding the browser, not another session. Retried after it finished; worth
+remembering not to run two browser-dependent tools at once within a single pass.)
+
+**Backlog**: 15 items dated across 14-18 Dec (catching up the 5-day gap) — an episode and two
+Shorts per day. The Maratha era is now flowing steadily (Shivaji's escape from Agra, Sindhudurg,
+Raigad coronation and death) alongside a new **Kerala mathematics** thread (Madhava, Nilakantha,
+Jyeshthadeva — first scheduled 13 Dec, no playlist yet, 0 public so far).
+
+**Playlists**: 5 episodes added to the Gupta-to-Harsha playlist (catching up the gap), confirmed,
+no MISMATCH or NOT READ.
+
+**Today's pass**: full 7-step pass completed for the first time in 5 days. Subscribers 60 (+2).
+Spend blocked (az login, not STOP). One remake-queue Short kept (verified), one skipped
+(az-login). 5 related links added, 5 playlist additions, 15 backlog items dated. Uploads: none.
+Generation: none (blocked).
