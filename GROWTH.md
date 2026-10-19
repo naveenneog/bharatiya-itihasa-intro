@@ -1365,3 +1365,11 @@ broken row, playlist/backlog sync.
 (4th day) for 4 of 7 steps — already flagged to the user, awaiting their availability. Two
 remake-queue Shorts decided (one kept, verified; one skipped for az-login block). Uploads: none.
 Generation: none (blocked).
+
+**Correction (same day, later):** the 16/18/19 Oct entries above carry a propagating off-by-one
+error in the az-login blocked-day count ("5th time in 7 days", "6th time in 9 days", "7th time
+in 10 days"). Recomputed from scratch against the actual day-by-day record (10 BLOCKED, 11
+clean, 12 BLOCKED, 13 BLOCKED, 14 clean, 15 clean, 16 BLOCKED, 17 clean, 18 BLOCKED, 19 BLOCKED):
+the correct count is **6 blocked days out of 10** (10, 12, 13, 16, 18, 19 Oct), not 7. No
+decision changed by this — the guard's exit-2 handling was correct every day regardless of the
+running tally — but the written count should read 6, not 7, from here on.
